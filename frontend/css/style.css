@@ -1,0 +1,755 @@
+/* ==========================================================================
+   Student Grade Dashboard — design system
+   Clean, calm, iOS-inspired. Mobile-first, max content width ~480px.
+   ========================================================================== */
+
+:root {
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --text: #1c1c1e;
+  --text-secondary: #8e8e93;
+  --accent: #2563eb;
+  --accent-soft: #dbe6ff;
+  --separator: #e5e5ea;
+  --track: #e9e9ee;
+  --danger: #ff3b30;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 16px rgba(0, 0, 0, 0.05);
+  --gap: 16px;
+  --max-width: 480px;
+  --tabbar-height: 64px;
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Dark theme placeholder — toggled from Settings. Tweak freely. */
+[data-theme="dark"] {
+  --bg: #000000;
+  --card: #1c1c1e;
+  --text: #ffffff;
+  --text-secondary: #8e8e93;
+  --accent: #2f6bff;
+  --accent-soft: #1e2a4a;
+  --separator: #2c2c2e;
+  --track: #2c2c2e;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Centered mobile column on desktop */
+.shell {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+  background: var(--bg);
+}
+
+/* ------------------------------ Typography ------------------------------ */
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 700;
+}
+.muted {
+  color: var(--text-secondary);
+}
+.small {
+  font-size: 13px;
+}
+a {
+  color: var(--accent);
+}
+
+/* ------------------------------- Buttons -------------------------------- */
+.btn {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 13px 18px;
+  width: 100%;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.05s ease;
+}
+.btn:active {
+  transform: scale(0.985);
+  opacity: 0.9;
+}
+.btn.secondary {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--accent);
+}
+.btn.danger {
+  background: transparent;
+  color: var(--danger);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* --------------------------------- Cards -------------------------------- */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: var(--gap);
+  box-shadow: var(--shadow);
+}
+
+/* Colored circular course icon */
+.icon-circle {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+/* Tappable list rows with a chevron */
+.rows {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px var(--gap);
+  border-bottom: 1px solid var(--separator);
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--text);
+  cursor: pointer;
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row:active {
+  background: var(--bg);
+}
+.row .row-main {
+  flex: 1;
+  min-width: 0;
+}
+.row .row-title {
+  font-weight: 600;
+}
+.row .row-sub {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.row .row-value {
+  font-weight: 600;
+  color: var(--text);
+}
+.chevron {
+  color: var(--text-secondary);
+  flex: none;
+}
+.chevron::after {
+  content: "›";
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* ------------------------------ App layout ------------------------------ */
+.screen {
+  padding: var(--gap);
+  padding-bottom: calc(var(--tabbar-height) + 40px);
+}
+.screen.hidden {
+  display: none;
+}
+.screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 2px 16px;
+}
+.screen-header h1 {
+  font-size: 30px;
+  letter-spacing: -0.5px;
+}
+
+.section-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: 22px 4px 8px;
+}
+
+/* Term range pill (tappable) */
+.term-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card);
+  border: none;
+  box-shadow: var(--shadow);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+/* Overall average card */
+.overall {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.overall .big-number {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+/* Course card */
+.course-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+.course-card:active {
+  transform: scale(0.99);
+}
+.course-card .cc-main {
+  flex: 1;
+  min-width: 0;
+}
+.course-card .cc-code {
+  font-weight: 700;
+  font-size: 17px;
+}
+.course-card .cc-name {
+  color: var(--text-secondary);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.course-card .cc-meta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.course-card .cc-mark {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.course-card .cc-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Empty state */
+.empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 48px 20px;
+}
+.empty .emoji {
+  font-size: 40px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+/* ------------------------------- Tab bar -------------------------------- */
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--max-width);
+  height: var(--tabbar-height);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 1px solid var(--separator);
+  display: flex;
+  z-index: 50;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+[data-theme="dark"] .tabbar {
+  background: rgba(28, 28, 30, 0.9);
+}
+.tabbar button {
+  flex: 1;
+  background: none;
+  border: none;
+  font-family: inherit;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 8px 0;
+}
+.tabbar button.active {
+  color: var(--accent);
+}
+.tabbar button svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Floating action button */
+.fab {
+  position: fixed;
+  bottom: calc(var(--tabbar-height) + 18px);
+  right: 20px; /* mobile / narrow: hug the right edge */
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 30px;
+  line-height: 1;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
+  cursor: pointer;
+  z-index: 49;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fab:active {
+  transform: scale(0.94);
+}
+/* On wider screens, keep the FAB anchored inside the centered 480px column. */
+@media (min-width: 520px) {
+  .fab {
+    right: auto;
+    left: 50%;
+    /* 56px width + 20px inset = 76px from the column's right edge */
+    transform: translateX(calc(var(--max-width) / 2 - 76px));
+  }
+  .fab:active {
+    transform: translateX(calc(var(--max-width) / 2 - 76px)) scale(0.94);
+  }
+}
+
+/* ---------------------------- Course detail ----------------------------- */
+.detail-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px var(--gap);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 17px;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  padding: 4px 6px 4px 0;
+}
+.back-btn::before {
+  content: "‹";
+  font-size: 26px;
+  line-height: 1;
+}
+.detail-title {
+  font-weight: 700;
+  font-size: 17px;
+}
+.detail-actions {
+  margin-left: auto;
+}
+
+/* Swipeable carousel */
+.carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  gap: 0;
+  scrollbar-width: none;
+}
+.carousel::-webkit-scrollbar {
+  display: none;
+}
+.panel {
+  scroll-snap-align: center;
+  flex: 0 0 100%;
+  width: 100%;
+  padding: 4px;
+}
+.panel .card {
+  min-height: 230px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin: 12px 0 6px;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--track);
+  transition: background 0.2s, width 0.2s;
+}
+.dot.active {
+  background: var(--accent);
+  width: 20px;
+  border-radius: 4px;
+}
+
+/* Gauge panel */
+.gauge-wrap {
+  text-align: center;
+}
+.gauge-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 4px;
+}
+.gauge-sub {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+/* Info panel list */
+.info-list {
+  width: 100%;
+}
+.info-list .info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--separator);
+  font-size: 15px;
+}
+.info-list .info-row:last-child {
+  border-bottom: none;
+}
+.info-list .info-row span:first-child {
+  color: var(--text-secondary);
+}
+.info-list .info-row span:last-child {
+  font-weight: 600;
+}
+
+/* Chart panel */
+.chart-box {
+  width: 100%;
+  height: 200px;
+}
+
+/* Segmented control (Evaluations / Breakdown) */
+.segmented {
+  display: flex;
+  background: var(--track);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  margin: 18px 0 12px;
+}
+.segmented button {
+  flex: 1;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.segmented button.active {
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--accent);
+}
+
+/* ------------------------------- Modals --------------------------------- */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.sheet-backdrop.show {
+  opacity: 1;
+}
+.sheet {
+  background: var(--bg);
+  width: 100%;
+  max-width: var(--max-width);
+  border-radius: 20px 20px 0 0;
+  padding: 10px var(--gap) calc(20px + env(safe-area-inset-bottom));
+  max-height: 92vh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+}
+.sheet-backdrop.show .sheet {
+  transform: translateY(0);
+}
+.sheet-grabber {
+  width: 38px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--track);
+  margin: 6px auto 12px;
+}
+.sheet h2 {
+  font-size: 20px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+/* Forms */
+.field {
+  margin-bottom: 14px;
+}
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 2px 6px;
+}
+.field input,
+.field select {
+  width: 100%;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  appearance: none;
+}
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+.field-row .field {
+  flex: 1;
+}
+.form-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.error-text {
+  color: var(--danger);
+  font-size: 14px;
+  margin: 8px 2px;
+  min-height: 18px;
+}
+
+/* ------------------------------ Auth page ------------------------------- */
+.auth-wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px;
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+.auth-logo {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.auth-logo .mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--accent);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+}
+.auth-logo h1 {
+  font-size: 26px;
+  margin-top: 14px;
+}
+.auth-logo p {
+  color: var(--text-secondary);
+  margin: 6px 0 0;
+}
+.auth-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+.auth-toggle {
+  text-align: center;
+  margin-top: 18px;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+.auth-toggle button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* iOS-style toggle switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 51px;
+  height: 31px;
+  flex: none;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--track);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+.switch::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+}
+.switch:has(input:checked)::after {
+  background: #34c759;
+}
+.switch:has(input:checked)::before {
+  transform: translateX(20px);
+}
+
+/* Small helpers */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.center-loader {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 60px 20px;
+}
+.hidden {
+  display: none !important;
+}
