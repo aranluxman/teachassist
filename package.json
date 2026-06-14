@@ -1,0 +1,18 @@
+{
+  "name": "teachassist-marks-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Personal Cloudflare Worker that logs into YRDSB TeachAssist and returns my marks as JSON.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "test": "node test/run.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.3",
+    "miniflare": "^4.20260611.0",
+    "wrangler": "^4.100.0"
+  }
+}

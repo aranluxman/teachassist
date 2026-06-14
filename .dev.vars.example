@@ -1,0 +1,9 @@
+# Copy this file to ".dev.vars" (which is gitignored) for local `wrangler dev`.
+# These are read as the Worker's env secrets when running locally. Do NOT put
+# real values in this example file or commit your real .dev.vars.
+
+TA_USERNAME = "your-student-number"
+TA_PASSWORD = "your-password"
+
+# Only needed if REQUIRE_API_KEY = true in src/index.js
+API_KEY = "some-long-random-string"

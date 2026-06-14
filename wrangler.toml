@@ -1,0 +1,28 @@
+# Cloudflare Worker config for the personal TeachAssist marks fetcher.
+#
+# Secrets are NOT stored here. Set them once with:
+#   wrangler secret put TA_USERNAME
+#   wrangler secret put TA_PASSWORD
+#   wrangler secret put API_KEY      # only if REQUIRE_API_KEY = true in src/index.js
+#
+# For local `wrangler dev`, put the same values in a gitignored .dev.vars file
+# (see .dev.vars.example).
+
+name = "teachassist-marks"
+main = "src/index.js"
+
+# A recent date so getSetCookie() and modern fetch semantics are available.
+compatibility_date = "2025-09-01"
+
+# Free *.workers.dev subdomain is fine for a personal tool. Set to false if you
+# only want to serve from a custom route/domain you configure separately.
+workers_dev = true
+
+# Surface logs via `wrangler tail` (handy while you tune the parsing selectors).
+[observability]
+enabled = true
+
+# If you later attach a custom domain, add a [[routes]] block here, e.g.:
+# routes = [
+#   { pattern = "marks.example.com/api/*", custom_domain = true }
+# ]
