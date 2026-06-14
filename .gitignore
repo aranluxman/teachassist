@@ -1,17 +1,16 @@
-# Dependencies
-node_modules/
+# Root-level ignores (the Worker has its own .gitignore in worker/)
+# Dependencies / build output anywhere in the repo
+**/node_modules/
+**/.wrangler/
+**/dist/
 
-# Local Worker secrets for `wrangler dev` — NEVER commit real credentials
-.dev.vars
-.dev.vars.*
-!.dev.vars.example
+# Local secrets
+**/.dev.vars
+**/.dev.vars.*
+!**/.dev.vars.example
 
-# Wrangler / build output
-.wrangler/
-dist/
-
-# Logs / OS / editor noise
-*.log
+# OS / editor noise
 .DS_Store
+*.log
 .idea/
 .vscode/
