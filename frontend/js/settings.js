@@ -12,6 +12,7 @@ import {
   fmtDate,
   getProfile,
   openTermEditor,
+  skeletonCards,
 } from "./courses.js";
 
 const THEME_KEY = "theme";
@@ -25,7 +26,7 @@ export function applyStoredTheme() {
 /** Render the Settings screen into `container`. */
 export async function renderSettings(container) {
   const user = getCurrentUser();
-  container.innerHTML = '<div class="center-loader"><span class="spinner"></span></div>';
+  container.innerHTML = `<div class="screen-header"><h1>Settings</h1></div>${skeletonCards(3)}`;
   const profile = await getProfile(user.id);
 
   const termText =

@@ -20,6 +20,7 @@ import {
   courseMark,
   courseMarkSeries,
   openCourseForm,
+  skeletonCards,
 } from "./courses.js";
 
 let chartInstance = null; // current Chart.js instance (destroyed on re-render)
@@ -28,7 +29,7 @@ let activeSeg = "evals"; // remembered across re-renders within a detail view
 /** Open the detail screen for a course into `container`. */
 export async function openCourseDetail(container, courseId) {
   activeSeg = "evals";
-  container.innerHTML = '<div class="center-loader"><span class="spinner"></span></div>';
+  container.innerHTML = `<div class="skeleton skel-block" style="margin:8px 0 14px"></div>${skeletonCards(2)}`;
 
   // Local state + a reload helper used after every mutation.
   const state = { course: null, categories: [], evaluations: [] };
@@ -113,12 +114,12 @@ function buildCarousel(state) {
   `)
   );
 
-  // Panel 2 — chart (canvas filled in by drawChart)
+  // Panel 2 — chart (canvas filled in by drawChart), caption below like the reference
   wrap.appendChild(
     el(`
     <div class="panel"><div class="card">
-      <div class="muted small" style="font-weight:600;align-self:flex-start">MARK OVER TIME</div>
       <div class="chart-box"><canvas id="mark-chart"></canvas></div>
+      <div class="chart-caption">Mark Over Time</div>
     </div></div>
   `)
   );
@@ -179,22 +180,29 @@ function gaugeSVG(percent) {
   const cx = 100,
     cy = 100,
     r = 80,
-    sw = 16;
+    sw = 18;
   const clamped = Math.max(0, Math.min(100, percent ?? 0));
   const len = Math.PI * r; // length of the semicircle arc
   const fill = (clamped / 100) * len;
-  const arc = `M ${cx - r} ${cy} A ${r} ${r} 0 0 0 ${cx + r} ${cy}`;
+  // sweep-flag 1 draws the arc up and over the TOP (semicircle), left→right.
+  const arc = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
   return `
-    <svg viewBox="0 0 200 120" width="100%" style="max-width:240px" role="img" aria-label="Current mark gauge">
-      <path d="${arc}" fill="none" stroke="var(--track)" stroke-width="${sw}" stroke-linecap="round"/>
+    <svg viewBox="0 0 200 116" width="100%" style="max-width:262px" role="img" aria-label="Current mark gauge">
+      <defs>
+        <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#5b9bff"/>
+          <stop offset="1" stop-color="#2563eb"/>
+        </linearGradient>
+      </defs>
+      <path d="${arc}" fill="none" style="stroke:var(--track)" stroke-width="${sw}" stroke-linecap="round"/>
       ${
         clamped > 0
-          ? `<path d="${arc}" fill="none" stroke="var(--accent)" stroke-width="${sw}"
+          ? `<path d="${arc}" fill="none" stroke="url(#gaugeGrad)" stroke-width="${sw}"
                stroke-linecap="round" stroke-dasharray="${fill} ${len + 4}"/>`
           : ""
       }
-      <text x="100" y="94" text-anchor="middle" font-size="34" font-weight="800"
-        fill="var(--text)" font-family="-apple-system, sans-serif">${
+      <text x="100" y="92" text-anchor="middle" font-size="42" font-weight="800"
+        letter-spacing="-1" style="fill:var(--text)" font-family="-apple-system, sans-serif">${
           percent == null ? "—" : fmtPercent(percent)
         }</text>
     </svg>`;
@@ -218,35 +226,55 @@ function drawChart(container, state) {
     getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() ||
     "#2563eb";
 
+  const ys = series.map((p) => Math.round(p.mark * 10) / 10);
+  // Auto-scale tightly around the data (with a little padding) so the trend is
+  // legible, like the reference, instead of a flat line near the top.
+  const lo = Math.max(0, Math.floor(Math.min(...ys)) - 3);
+  const hi = Math.min(100, Math.ceil(Math.max(...ys)) + 2);
+
+  // Soft vertical gradient fill under the line.
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.clientHeight || 196);
+  grad.addColorStop(0, accent + "40");
+  grad.addColorStop(1, accent + "00");
+
   chartInstance = new window.Chart(canvas, {
     type: "line",
     data: {
       labels: series.map((p) => p.label),
       datasets: [
         {
-          data: series.map((p) => Math.round(p.mark * 10) / 10),
+          data: ys,
           borderColor: accent,
-          backgroundColor: accent + "22",
+          backgroundColor: grad,
           fill: true,
-          tension: 0.3,
+          tension: 0.35,
           pointRadius: 3,
+          pointHoverRadius: 5,
           pointBackgroundColor: accent,
-          borderWidth: 2,
+          pointBorderColor: "#fff",
+          pointBorderWidth: 1.5,
+          borderWidth: 2.5,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: { legend: { display: false }, tooltip: { displayColors: false } },
       scales: {
         y: {
-          suggestedMin: 50,
-          suggestedMax: 100,
-          ticks: { callback: (v) => v + "%" },
-          grid: { color: "rgba(0,0,0,0.05)" },
+          min: lo,
+          max: hi,
+          ticks: { callback: (v) => v + "%", maxTicksLimit: 5, color: "#9a9aa2" },
+          grid: { color: "rgba(0,0,0,0.05)", drawTicks: false },
+          border: { display: false },
         },
-        x: { grid: { display: false } },
+        x: {
+          grid: { display: false },
+          ticks: { color: "#9a9aa2", maxRotation: 0, autoSkipPadding: 16 },
+          border: { display: false },
+        },
       },
     },
   });

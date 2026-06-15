@@ -81,6 +81,20 @@ export function closeSheet() {
   setTimeout(() => backdrop.remove(), 220);
 }
 
+/** Shimmering placeholder cards shown while data loads. */
+export function skeletonCards(n = 4) {
+  const one = `
+    <div class="skel-card">
+      <div class="skel-dot skeleton"></div>
+      <div class="skel-lines">
+        <div class="skel-line skeleton" style="width:55%"></div>
+        <div class="skel-line skeleton" style="width:32%"></div>
+      </div>
+      <div class="skel-line skeleton" style="width:46px;height:26px;border-radius:8px"></div>
+    </div>`;
+  return Array.from({ length: n }, () => one).join("");
+}
+
 // ───────────────────────── Data access (Supabase) ──────────────────────────
 
 /** Load every course, category and evaluation for the user in three queries. */
@@ -194,7 +208,8 @@ export function overallAverage(marks) {
 /** Render the Courses screen into `container`. */
 export async function renderCourses(container) {
   const user = getCurrentUser();
-  container.innerHTML = '<div class="center-loader"><span class="spinner"></span></div>';
+  // Show the header immediately + shimmering skeletons instead of a blank screen.
+  container.innerHTML = `<div class="screen-header"><h1>Courses</h1></div>${skeletonCards(4)}`;
 
   const [{ courses, categories, evaluations }, profile] = await Promise.all([
     loadAll(user.id),
@@ -226,16 +241,21 @@ export async function renderCourses(container) {
   `);
   container.appendChild(header);
 
-  // Optional overall-average card
+  // Optional overall-average card (green bar-chart icon, like the reference)
   if (overall != null) {
     container.appendChild(
       el(`
       <div class="card overall">
-        <div>
-          <div class="muted small" style="font-weight:600">OVERALL AVERAGE</div>
+        <div class="icon-circle" style="background:var(--good)">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
+            <path d="M5 19V11M12 19V5M19 19v-6" />
+          </svg>
+        </div>
+        <div class="overall-main">
+          <div class="cc-code">Overall Average</div>
           <div class="muted small">${courses.length} course${courses.length === 1 ? "" : "s"}</div>
         </div>
-        <div class="big-number" style="color:var(--accent)">${fmtPercent(overall)}</div>
+        <div class="big-number">${fmtPercent(overall)}</div>
       </div>
     `)
     );
@@ -245,8 +265,9 @@ export async function renderCourses(container) {
     container.appendChild(
       el(`
       <div class="empty">
-        <span class="emoji">📚</span>
-        No courses yet.<br />Tap the + button to add your first course.
+        <div class="empty-icon">📚</div>
+        <div class="empty-title">No courses yet</div>
+        Tap the + button to add your first course.
       </div>
     `)
     );
