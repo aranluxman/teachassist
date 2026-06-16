@@ -14,6 +14,7 @@ import {
   openTermEditor,
   skeletonCards,
 } from "./courses.js";
+import { getWorkerConfig, setWorkerConfig, fetchMarks } from "./marks-api.js";
 
 const THEME_KEY = "theme";
 
@@ -93,6 +94,70 @@ export async function renderSettings(container) {
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
   });
   container.appendChild(appearance);
+
+  // TeachAssist Sync (pull marks from the personal Worker) ------------------
+  container.appendChild(el(`<div class="section-label">TeachAssist Sync</div>`));
+  const cfg = getWorkerConfig();
+  const sync = el(`
+    <div class="card">
+      <div class="field">
+        <label for="ta-url">Worker URL</label>
+        <input id="ta-url" type="url" inputmode="url" autocapitalize="off" autocorrect="off"
+          spellcheck="false" placeholder="https://teachassist-marks.you.workers.dev"
+          value="${escapeHtml(cfg.url)}" />
+      </div>
+      <div class="field">
+        <label for="ta-key">API key (x-api-key)</label>
+        <input id="ta-key" type="password" autocomplete="off" placeholder="your API_KEY secret"
+          value="${escapeHtml(cfg.apiKey)}" />
+      </div>
+      <div class="muted small" style="margin:2px 2px 12px">
+        Stored on this device only (not in the repo). The key just gates who can
+        fetch your marks — it is not your TeachAssist password.
+      </div>
+      <div id="ta-status" class="error-text" style="color:var(--text-secondary)"></div>
+      <div class="form-actions">
+        <button id="ta-test" class="btn">Test connection</button>
+        <button id="ta-save" class="btn secondary">Save</button>
+      </div>
+    </div>
+  `);
+  const urlEl = sync.querySelector("#ta-url");
+  const keyEl = sync.querySelector("#ta-key");
+  const statusEl = sync.querySelector("#ta-status");
+  const persist = () => setWorkerConfig(urlEl.value, keyEl.value);
+
+  sync.querySelector("#ta-save").addEventListener("click", () => {
+    persist();
+    statusEl.style.color = "var(--good)";
+    statusEl.textContent = "Saved on this device.";
+  });
+
+  sync.querySelector("#ta-test").addEventListener("click", async (e) => {
+    persist(); // test what's currently typed in
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.innerHTML = '<span class="spinner"></span>';
+    statusEl.style.color = "var(--text-secondary)";
+    statusEl.textContent = "";
+    try {
+      const courses = await fetchMarks();
+      const evalCount = courses.reduce(
+        (n, c) => n + (Array.isArray(c.evaluations) ? c.evaluations.length : 0),
+        0
+      );
+      statusEl.style.color = "var(--good)";
+      statusEl.textContent = `✓ Fetched ${courses.length} course${courses.length === 1 ? "" : "s"} (${evalCount} evaluations).`;
+    } catch (err) {
+      statusEl.style.color = "var(--danger)";
+      statusEl.textContent = err.message || "Could not reach the Worker.";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  });
+  container.appendChild(sync);
 
   // Sign out
   const out = el(`<button class="btn danger" style="margin-top:26px">Sign Out</button>`);

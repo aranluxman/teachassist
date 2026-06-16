@@ -103,17 +103,17 @@ assert.strictEqual(evals.length, 6, "should parse 6 graded strands");
 
 const u1 = evals.filter((e) => e.name === "Unit 1 Test");
 assert.strictEqual(u1.length, 3, "Unit 1 Test has 3 graded strands (T skipped)");
-const ku = u1.find((e) => e.weightCategory === "Knowledge/Understanding");
+const ku = u1.find((e) => e.category === "Knowledge/Understanding");
 assert.strictEqual(ku.percent, 85, "KU percent 85");
 assert.strictEqual(ku.weight, 10, "KU weight 10");
-assert.ok(!u1.some((e) => e.weightCategory === "Thinking"), "no-mark Thinking skipped");
-const app = u1.find((e) => e.weightCategory === "Application");
+assert.ok(!u1.some((e) => e.category === "Thinking"), "no-mark Thinking skipped");
+const app = u1.find((e) => e.category === "Application");
 assert.strictEqual(app.percent, 91, "Application percent 91");
 
 const essay = evals.filter((e) => e.name === "Final Essay");
 assert.strictEqual(essay.length, 3, "Final Essay has 3 graded strands");
 assert.strictEqual(
-  essay.find((e) => e.weightCategory === "Communication").percent,
+  essay.find((e) => e.category === "Communication").percent,
   70,
   "Essay Communication 70"
 );
