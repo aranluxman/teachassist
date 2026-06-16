@@ -25,7 +25,8 @@
 // Only this single origin (your dashboard) is allowed to call the Worker from
 // a browser. Use the exact scheme + host (+ port). Use "*" ONLY for quick
 // throwaway testing — locking this down is one of the hard requirements.
-const DASHBOARD_ORIGIN = "https://your-dashboard.example.com";
+// Origin only (scheme + host, no path, no trailing slash) — CORS matches origin.
+const DASHBOARD_ORIGIN = "https://teachassist.pages.dev";
 
 // --- Optional shared-secret gate -------------------------------------------
 // When true, every request must send the API_KEY secret in API_KEY_HEADER so
@@ -35,39 +36,40 @@ const REQUIRE_API_KEY = true;
 const API_KEY_HEADER = "x-api-key";
 
 // --- TeachAssist endpoints --------------------------------------------------
-// The base origin and the three URLs the login flow touches.
+// The base origin and the URLs the login flow touches. Values below are
+// verified against the live site's Network tab.
 const TA_ORIGIN = "https://ta.yrdsb.ca";
 
-// The form POST target. (Open the login page, submit the form, and read the
-// request URL of the POST in the Network tab to confirm.)
+// The login form POST target (verified — returns 302 on success).
 const LOGIN_URL = `${TA_ORIGIN}/yrdsb/index.php`;
 
-// The page that lists your courses after a successful login.
-const COURSE_LIST_URL = `${TA_ORIGIN}/live/index.php`;
+// The marks-list page that lists your courses after login. TeachAssist assigns
+// your student_id (also set as a cookie on login); this personal tool pins it
+// here. If you ever log in as a different account, change the student_id below.
+const COURSE_LIST_URL = `${TA_ORIGIN}/live/students/listReports.php?student_id=242965`;
 
 // The per-course report page. The Worker appends ?subject_id=..&student_id=..
-// using the IDs scraped from the course-list links, so a relative href in the
-// HTML does not matter — only this base path needs to be correct.
+// using the subject_id scraped from each course link and your student_id, so a
+// relative href in the HTML does not matter — only this base path matters.
 const REPORT_URL_BASE = `${TA_ORIGIN}/live/students/viewReport.php`;
 
 // --- Login form field names -------------------------------------------------
-// The EXACT form field names submitted by the login <form>. Read these from
-// the "Form Data" / "Payload" section of the POST request in DevTools.
-//   username / password : your credential fields
-//   extra               : any constant hidden / submit fields the form sends
+// The EXACT form field names submitted by the login <form> (verified: only
+// username + password are required). `extra` holds any constant hidden/submit
+// fields — left empty per your capture. If a login ever returns the login page
+// instead of a 302, uncomment submit (some TA deployments require it).
 const LOGIN_FIELDS = {
   username: "username",
   password: "password",
   extra: {
-    subject_id: "0", // TeachAssist sends subject_id=0 on the login POST
-    submit: "Login", // the submit button's name=value pair
+    // submit: "Login",
   },
 };
 
 // --- Session cookie ---------------------------------------------------------
-// The cookie TeachAssist uses to carry the logged-in session. On a failed
-// login TeachAssist typically (re)sets this to the literal value "deleted",
-// which we treat as "not logged in".
+// The cookie TeachAssist sets to carry the logged-in session (verified). The
+// Worker captures it from the login response's Set-Cookie header and sends it
+// on every subsequent request. (TeachAssist also sets a `student_id` cookie.)
 const SESSION_COOKIE_NAME = "session_token";
 
 // --- Report fetching --------------------------------------------------------
@@ -99,8 +101,8 @@ const BROWSER_UA =
   "(KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
 // Print non-sensitive structural diagnostics to `wrangler tail`. NEVER logs
-// credentials, cookies or page contents.
-const DEBUG = false;
+// credentials, cookies or page contents. (Temporarily ON for debugging.)
+const DEBUG = true;
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║  END OF CONFIG — you normally don't need to edit below this line           ║
@@ -146,17 +148,59 @@ export default {
       );
     }
 
-    try {
-      // 1 + 2: log in and capture the session cookie(s).
-      const cookie = await login(env);
+    // Optional debug switches (all behind the API-key gate above; none of them
+    // ever expose your password or the session cookie value):
+    //   /api/marks?debug=login            -> login status/redirect metadata
+    //   /api/marks?debug=courses          -> raw HTML of the marks-list page
+    //   /api/marks?debug=report&subject_id=NNN -> raw HTML of one report page
+    const debug = url.searchParams.get("debug");
 
-      // 3: fetch the course-list page with that cookie.
-      const listHtml = await fetchWithSession(COURSE_LIST_URL, cookie, COURSE_LIST_URL);
+    try {
+      // debug=login runs the POST directly so you can see WHY a login failed
+      // (status, redirect Location, which cookies came back) without throwing.
+      if (debug === "login") {
+        const res = await loginResponse(env);
+        const jar = extractCookies(res);
+        const location = res.headers.get("location") || "";
+        return json({
+          status: res.status,
+          location,
+          setCookieNames: Object.keys(jar),
+          sessionCookieName: SESSION_COOKIE_NAME,
+          hasSessionCookie: !!jar[SESSION_COOKIE_NAME],
+          studentId: (location.match(/student_id=(\d+)/) || [])[1] || null,
+          note: "No credentials or cookie values are included in this output.",
+        });
+      }
+
+      // 1 + 2: log in; capture the session cookie + student_id.
+      const session = await login(env);
+
+      // 3: fetch the marks-list page (COURSE_LIST_URL) with that cookie.
+      const listHtml = await fetchWithSession(COURSE_LIST_URL, session.cookie, LOGIN_URL);
+
+      // debug=courses returns the raw page so you can verify the HTML structure.
+      if (debug === "courses") return text(listHtml);
+
       assertLoggedIn(listHtml);
 
       // 4: parse course code, name and current mark.
       const courses = await parseCourseList(listHtml);
+      // Fill in the student_id from the login redirect when a link omits it.
+      for (const c of courses) c.studentId = c.studentId || session.studentId;
       if (DEBUG) console.log(`Parsed ${courses.length} courses`);
+
+      // debug=report returns one raw report page (needs &subject_id=NNN).
+      if (debug === "report") {
+        const sid = url.searchParams.get("subject_id");
+        if (!sid) return json({ error: "Add &subject_id=NNN (from a course link)." }, 400);
+        const html = await fetchWithSession(
+          `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(sid)}&student_id=${encodeURIComponent(session.studentId)}`,
+          session.cookie,
+          COURSE_LIST_URL
+        );
+        return text(html);
+      }
 
       // 5: optionally fetch + parse each course's evaluation rows.
       if (FETCH_REPORTS) {
@@ -170,7 +214,7 @@ export default {
               const reportUrl =
                 `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(c.subjectId)}` +
                 `&student_id=${encodeURIComponent(c.studentId)}`;
-              const reportHtml = await fetchWithSession(reportUrl, cookie, COURSE_LIST_URL);
+              const reportHtml = await fetchWithSession(reportUrl, session.cookie, COURSE_LIST_URL);
               c.evaluations = await parseEvaluations(reportHtml);
             } catch (err) {
               // One bad report should not sink the whole response.
@@ -206,24 +250,63 @@ export default {
 // ============================================================================
 
 /**
+ * @typedef {Object} Session
+ * @property {string} cookie     Cookie header to send on every request
+ * @property {string|null} studentId  used to build per-course report URLs
+ */
+
+/**
  * Step 1 + 2: POST the login form (form-url-encoded) and capture the session
- * cookie(s). Returns a ready-to-send `Cookie:` header string.
- *
- * We use `redirect: "manual"` so the redirect that follows a successful login
- * does not strip the Set-Cookie header before we can read it.
+ * cookie. TeachAssist replies 302 and sets `session_token` (+ a `student_id`
+ * cookie). We use `redirect: "manual"` so the Set-Cookie header survives.
  *
  * @param {{ TA_USERNAME: string, TA_PASSWORD: string }} env
- * @returns {Promise<string>} Cookie header value, e.g. "session_token=abc; student_id=123"
+ * @returns {Promise<Session>}
  */
 async function login(env) {
+  const res = await loginResponse(env);
+
+  const jar = extractCookies(res);
+  const session = jar[SESSION_COOKIE_NAME];
+  const location = res.headers.get("location") || "";
+
+  // A real session cookie (not empty, not "deleted") is the success signal;
+  // extractCookies already drops "deleted"/empty values, so absence == failure.
+  if (!session) {
+    const reason = /error/i.test(location)
+      ? "TeachAssist rejected the credentials"
+      : `no valid '${SESSION_COOKIE_NAME}' cookie returned`;
+    throw new AuthError(
+      `Login failed: ${reason}. Check credentials, LOGIN_URL, LOGIN_FIELDS and SESSION_COOKIE_NAME.`
+    );
+  }
+
+  // student_id for report URLs: prefer the cookie TeachAssist sets; fall back
+  // to the one pinned in COURSE_LIST_URL, then the redirect Location.
+  const studentId =
+    jar.student_id ||
+    (COURSE_LIST_URL.match(/student_id=(\d+)/) || [])[1] ||
+    (location.match(/student_id=(\d+)/) || [])[1] ||
+    null;
+
+  if (DEBUG) {
+    console.log(
+      `Login OK — cookies: ${Object.keys(jar).join(", ")}; studentId: ${studentId || "(none)"}`
+    );
+  }
+  return { cookie: cookieHeader(jar), studentId };
+}
+
+/** Perform the raw login POST (shared by login() and the debug endpoint). */
+function loginResponse(env) {
   const body = new URLSearchParams();
   body.set(LOGIN_FIELDS.username, env.TA_USERNAME);
   body.set(LOGIN_FIELDS.password, env.TA_PASSWORD);
   for (const [k, v] of Object.entries(LOGIN_FIELDS.extra || {})) body.set(k, v);
 
-  const res = await fetch(LOGIN_URL, {
+  return fetch(LOGIN_URL, {
     method: "POST",
-    redirect: "manual",
+    redirect: "manual", // we must read Set-Cookie + Location off the 302
     headers: {
       "content-type": "application/x-www-form-urlencoded",
       "user-agent": BROWSER_UA,
@@ -233,26 +316,6 @@ async function login(env) {
     },
     body: body.toString(),
   });
-
-  const jar = extractCookies(res);
-  const session = jar[SESSION_COOKIE_NAME];
-
-  // A real session_token (not empty, not "deleted") is our success signal.
-  if (!session) {
-    // Secondary signal: TeachAssist redirects back to the login page with an
-    // `error=` query param when credentials are wrong.
-    const location = res.headers.get("location") || "";
-    if (/error/i.test(location)) {
-      throw new AuthError("Login failed: TeachAssist rejected the credentials.");
-    }
-    throw new AuthError(
-      "Login failed: no valid session cookie returned. Check LOGIN_URL, " +
-        "LOGIN_FIELDS and SESSION_COOKIE_NAME against your Network tab."
-    );
-  }
-
-  if (DEBUG) console.log(`Login OK — cookies: ${Object.keys(jar).join(", ")}`);
-  return cookieHeader(jar);
 }
 
 /**
@@ -474,15 +537,15 @@ function extractCurrentMark(text) {
 //     cell or, when no strand cell is open, the current row's name buffer.
 //
 // One evaluation object is emitted per (assessment x strand-with-a-mark):
-//   { name, weightCategory, percent, weight }
+//   { name, category, percent, weight }
 // ============================================================================
 
 /**
  * @typedef {Object} Evaluation
- * @property {string} name           assessment name
- * @property {string} weightCategory strand label, e.g. "Application"
- * @property {number} percent        strand percent for this assessment
- * @property {number|null} weight    strand weight, when present
+ * @property {string} name      assessment name
+ * @property {string} category  strand label, e.g. "Application"
+ * @property {number} percent   strand percent for this assessment
+ * @property {number|null} weight  strand weight, when present
  */
 
 /**
@@ -578,7 +641,7 @@ function flushEvaluationRow(rowState, out) {
     if (cell.percent == null) continue;
     out.push({
       name,
-      weightCategory: cell.category,
+      category: cell.category,
       percent: cell.percent,
       weight: cell.weight ?? null,
     });
@@ -639,6 +702,14 @@ function json(data, status = 200, extraHeaders = {}) {
       ...corsHeaders(),
       ...extraHeaders,
     },
+  });
+}
+
+/** Plain-text response helper (used by the debug=courses/report modes). */
+function text(body, status = 200) {
+  return new Response(body, {
+    status,
+    headers: { "content-type": "text/plain; charset=utf-8", ...corsHeaders() },
   });
 }
 

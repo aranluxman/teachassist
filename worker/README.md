@@ -27,8 +27,8 @@ Returns an array of courses:
     "name": "ENG4U-01 Block: P1 - rm. 213",
     "currentMark": 95.5,
     "evaluations": [
-      { "name": "Unit 1 Test", "weightCategory": "Knowledge/Understanding", "percent": 88, "weight": 10 },
-      { "name": "Unit 1 Test", "weightCategory": "Application",            "percent": 91, "weight": 10 }
+      { "name": "Unit 1 Test", "category": "Knowledge/Understanding", "percent": 88, "weight": 10 },
+      { "name": "Unit 1 Test", "category": "Application",            "percent": 91, "weight": 10 }
     ]
   }
 ]
@@ -36,8 +36,30 @@ Returns an array of courses:
 
 - `currentMark` is a number (or `null` if TeachAssist isn't showing one yet).
 - `evaluations` is `[]` when a course has no open report. One entry is emitted
-  per assessment × strand (weight category) that has a mark. `weight` is a bonus
+  per assessment × strand (`category`) that has a mark. `weight` is a bonus
   field included when TeachAssist shows it.
+
+### Login flow (confirmed from a real HAR capture)
+
+1. `POST https://ta.yrdsb.ca/live/index.php` (form-url-encoded) with
+   `subject_id=0`, `username`, `password`, `submit=Login`.
+2. TeachAssist replies **302** with a `Set-Cookie: PHPSESSID=…` and a
+   `Location: …/live/students/listReports.php?student_id=NNNN`. The Worker reads
+   the cookie and the `student_id` off that 302 (it uses `redirect: "manual"` so
+   neither is lost) — `student_id` is **never hardcoded**.
+3. It then `GET`s the marks-list page with the cookie and parses it; for each
+   course it follows the `viewReport.php` link and parses the evaluations.
+
+### Debug endpoints (behind the API key; never expose your password/cookie)
+
+```bash
+# Why did login fail? status + redirect Location + which cookies came back:
+curl -H "x-api-key: KEY" ".../api/marks?debug=login"
+# Raw HTML of the marks-list page (to adjust selectors):
+curl -H "x-api-key: KEY" ".../api/marks?debug=courses"
+# Raw HTML of one report page:
+curl -H "x-api-key: KEY" ".../api/marks?debug=report&subject_id=NNN"
+```
 
 ---
 

@@ -256,7 +256,10 @@ a {
 /* ------------------------------ App layout ------------------------------ */
 .screen {
   padding: var(--gap);
-  padding-bottom: calc(var(--tabbar-gap) + var(--tabbar-h) + 36px);
+  /* Clear the floating tab bar AND the iOS home indicator (safe-area inset). */
+  padding-bottom: calc(
+    var(--tabbar-gap) + var(--tabbar-h) + 36px + env(safe-area-inset-bottom)
+  );
   animation: screen-in 0.28s ease both;
 }
 @keyframes screen-in {
@@ -544,6 +547,13 @@ a {
   font-weight: 800;
   font-size: 17px;
   letter-spacing: -0.2px;
+  /* Truncate a long course code on narrow screens instead of pushing layout. */
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .detail-actions {
   margin-left: auto;
@@ -670,8 +680,8 @@ a {
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
-  min-height: 38px;
-  padding: 8px;
+  min-height: 44px; /* mobile tap target */
+  padding: 10px 8px;
   border-radius: 9px;
   cursor: pointer;
   transition: background var(--t), color var(--t), box-shadow var(--t);
