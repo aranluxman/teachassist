@@ -48,6 +48,22 @@ export function fmtPercent(v) {
 }
 
 let activeSheet = null;
+let activeSheetCleanup = null;
+
+function calendarIcon() {
+  return `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="3" y="5" width="18" height="16" rx="3"></rect>
+    <path d="M8 3v4M16 3v4M3 10h18"></path>
+  </svg>`;
+}
+
+function emptyBookIcon() {
+  return `<svg class="empty-state-book" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <path d="M10 11.5C10 8.5 12.5 6 15.5 6H38v31H15.5C12.5 37 10 39.5 10 42.5v-31Z" fill="currentColor" opacity=".16"/>
+    <path d="M10 11.5C10 8.5 12.5 6 15.5 6H38v31H15.5C12.5 37 10 39.5 10 42.5v-31Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M16 14h14M16 21h16M16 28h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  </svg>`;
+}
 
 /** Open a bottom-sheet modal containing `bodyNode`. Returns { close }. */
 export function openSheet(title, bodyNode) {
@@ -58,9 +74,20 @@ export function openSheet(title, bodyNode) {
   );
   const sheet = backdrop.querySelector(".sheet");
   if (title) {
+    const header = document.createElement("div");
+    header.className = "sheet-header";
     const h = document.createElement("h2");
     h.textContent = title;
-    sheet.appendChild(h);
+    h.id = "sheet-title";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "sheet-close";
+    close.setAttribute("aria-label", "Close dialog");
+    close.textContent = "×";
+    close.addEventListener("click", closeSheet);
+    header.append(h, close);
+    sheet.setAttribute("aria-labelledby", "sheet-title");
+    sheet.appendChild(header);
   }
   sheet.appendChild(bodyNode);
   root.appendChild(backdrop);
@@ -68,7 +95,13 @@ export function openSheet(title, bodyNode) {
   backdrop.addEventListener("click", (e) => {
     if (e.target === backdrop) closeSheet();
   });
+  const onKeyDown = (e) => {
+    if (e.key === "Escape") closeSheet();
+  };
+  document.addEventListener("keydown", onKeyDown);
+  activeSheetCleanup = () => document.removeEventListener("keydown", onKeyDown);
   activeSheet = backdrop;
+  sheet.querySelector("input, select, textarea, button")?.focus({ preventScroll: true });
   return { close: closeSheet };
 }
 
@@ -77,6 +110,8 @@ export function closeSheet() {
   if (!activeSheet) return;
   const backdrop = activeSheet;
   activeSheet = null;
+  activeSheetCleanup?.();
+  activeSheetCleanup = null;
   backdrop.classList.remove("show");
   setTimeout(() => backdrop.remove(), 220);
 }
@@ -208,13 +243,20 @@ export function overallAverage(marks) {
 /** Render the Courses screen into `container`. */
 export async function renderCourses(container) {
   const user = getCurrentUser();
-  // Show the header immediately + shimmering skeletons instead of a blank screen.
-  container.innerHTML = `<div class="screen-header"><h1>Courses</h1></div>${skeletonCards(4)}`;
+  const headerHtml = `<div class="screen-header"><h1>Courses</h1></div>`;
+  let loading = true;
+  container.innerHTML = headerHtml;
+  const skeletonTimer = setTimeout(() => {
+    if (loading) container.innerHTML = `${headerHtml}${skeletonCards(4)}`;
+  }, 180);
 
   const [{ courses, categories, evaluations }, profile] = await Promise.all([
     loadAll(user.id),
     getProfile(user.id),
   ]);
+  loading = false;
+  clearTimeout(skeletonTimer);
+  document.getElementById("fab")?.classList.toggle("fab-attention", !courses.length);
 
   // Pre-compute each course's current mark and the overall average.
   const markById = {};
@@ -236,7 +278,7 @@ export async function renderCourses(container) {
   const header = el(`
     <div>
       <div class="screen-header"><h1>Courses</h1></div>
-      <button class="term-pill" id="term-pill">📅 ${escapeHtml(termText)}</button>
+      <button class="term-pill" id="term-pill">${calendarIcon()} ${escapeHtml(termText)}</button>
     </div>
   `);
   container.appendChild(header);
@@ -264,8 +306,8 @@ export async function renderCourses(container) {
   if (!courses.length) {
     container.appendChild(
       el(`
-      <div class="empty">
-        <div class="empty-icon">📚</div>
+      <div class="empty centered">
+        <div class="empty-icon">${emptyBookIcon()}</div>
         <div class="empty-title">No courses yet</div>
         Tap the + button to add your first course.
       </div>
@@ -377,10 +419,11 @@ export async function openCourseForm(courseId, onSaved) {
 
   const v = (k) => escapeHtml(course?.[k] ?? "");
   const body = el(`
-    <form>
-      <div class="field">
-        <label>Course code *</label>
-        <input name="code" placeholder="ENG4U" value="${v("code")}" required />
+    <form novalidate>
+      <div class="field" id="course-code-field">
+        <label for="course-code">Course code *</label>
+        <input id="course-code" name="code" placeholder="ENG4U" value="${v("code")}" required aria-describedby="course-code-error" />
+        <div class="field-error-text" id="course-code-error"></div>
       </div>
       <div class="field">
         <label>Course name</label>
@@ -430,6 +473,11 @@ export async function openCourseForm(courseId, onSaved) {
   `);
 
   body.querySelector("[data-cancel]").addEventListener("click", closeSheet);
+  body.querySelector("#course-code").addEventListener("input", () => {
+    body.querySelector("#course-code-field").classList.remove("field-error");
+    body.querySelector("#course-code").removeAttribute("aria-invalid");
+    body.querySelector("#course-code-error").textContent = "";
+  });
 
   if (courseId) {
     body.querySelector("[data-delete]").addEventListener("click", async () => {
@@ -456,8 +504,17 @@ export async function openCourseForm(courseId, onSaved) {
       final: num("final"),
     };
     const errEl = body.querySelector(".error-text");
+    const codeField = body.querySelector("#course-code-field");
+    const codeInput = body.querySelector("#course-code");
+    const codeError = body.querySelector("#course-code-error");
+    codeField.classList.remove("field-error");
+    codeInput.removeAttribute("aria-invalid");
+    codeError.textContent = "";
     if (!payload.code) {
-      errEl.textContent = "Course code is required.";
+      codeField.classList.add("field-error");
+      codeInput.setAttribute("aria-invalid", "true");
+      codeError.textContent = "Course code is required.";
+      codeInput.focus();
       return;
     }
     try {

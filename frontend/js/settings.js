@@ -1,8 +1,8 @@
 // ============================================================================
 // Settings
 // ----------------------------------------------------------------------------
-// Shows the signed-in email, lets the user edit the term date range, toggle a
-// (placeholder) dark theme, and sign out.
+// Shows the signed-in email, lets the user edit the term date range, toggle
+// dark mode, and sign out.
 // ============================================================================
 
 import { getCurrentUser, signOut } from "./auth.js";
@@ -15,8 +15,10 @@ import {
   skeletonCards,
 } from "./courses.js";
 import { getWorkerConfig, setWorkerConfig, fetchMarks } from "./marks-api.js";
+import { SUPABASE_URL } from "./config.js";
 
 const THEME_KEY = "theme";
+const APP_VERSION = "1.1.0";
 
 /** Apply the saved theme on app boot (called from app.html). */
 export function applyStoredTheme() {
@@ -73,17 +75,17 @@ export async function renderSettings(container) {
     );
   container.appendChild(termRows);
 
-  // Appearance (dark theme placeholder)
+  // Appearance
   container.appendChild(el(`<div class="section-label">Appearance</div>`));
   const appearance = el(`
     <div class="rows">
       <div class="row" style="cursor:default">
         <div class="row-main">
           <div class="row-title">Dark theme</div>
-          <div class="row-sub">Placeholder — basic dark palette</div>
+          <div class="row-sub">Switch between light and dark mode</div>
         </div>
         <label class="switch">
-          <input type="checkbox" id="theme-toggle" ${isDark ? "checked" : ""} />
+          <input type="checkbox" id="theme-toggle" aria-label="Toggle dark theme" ${isDark ? "checked" : ""} />
         </label>
       </div>
     </div>
@@ -159,9 +161,33 @@ export async function renderSettings(container) {
   });
   container.appendChild(sync);
 
+  // About
+  container.appendChild(el(`<div class="section-label">About</div>`));
+  container.appendChild(
+    el(`
+    <div class="rows">
+      <div class="row" style="cursor:default">
+        <div class="row-main">
+          <div class="row-title">Version</div>
+          <div class="row-sub">${APP_VERSION}</div>
+        </div>
+      </div>
+      <a class="row" href="${escapeHtml(SUPABASE_URL)}" target="_blank" rel="noopener">
+        <div class="row-main">
+          <div class="row-title">Supabase project</div>
+          <div class="row-sub">Open project endpoint</div>
+        </div>
+        <span class="chevron"></span>
+      </a>
+    </div>
+  `)
+  );
+
   // Sign out
   const out = el(`<button class="btn danger" style="margin-top:26px">Sign Out</button>`);
-  out.addEventListener("click", () => signOut());
+  out.addEventListener("click", () => {
+    if (confirm("Sign out of Grade Dashboard?")) signOut();
+  });
   container.appendChild(out);
 
   container.appendChild(

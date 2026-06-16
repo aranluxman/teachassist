@@ -45,6 +45,7 @@
   --max-width: 480px;
   --tabbar-h: 64px;
   --tabbar-gap: 14px;
+  --fab-offset: calc((min(100vw, var(--max-width)) / 2) - 76px);
 
   /* Motion */
   --t: 150ms cubic-bezier(0.2, 0.7, 0.3, 1);
@@ -87,6 +88,7 @@ body {
   color: var(--text);
   font-size: 16px;
   line-height: 1.4;
+  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -100,11 +102,17 @@ body {
 
 /* Centered mobile column with a faint blue wash at the very top */
 .shell {
+  width: 100%;
   max-width: var(--max-width);
   margin: 0 auto;
   min-height: 100vh;
   position: relative;
   background: linear-gradient(180deg, var(--bg-tint-top) 0%, var(--bg) 220px);
+}
+@media (min-width: 520px) {
+  .shell {
+    box-shadow: 0 0 0 1px rgba(16, 24, 40, 0.04), 0 24px 70px rgba(16, 24, 40, 0.08);
+  }
 }
 
 /* ------------------------------ Typography ------------------------------ */
@@ -221,6 +229,9 @@ a {
   cursor: pointer;
   transition: background var(--t);
 }
+a.row {
+  text-decoration: none;
+}
 .row:last-child {
   border-bottom: none;
 }
@@ -260,6 +271,7 @@ a {
   padding-bottom: calc(
     var(--tabbar-gap) + var(--tabbar-h) + 36px + env(safe-area-inset-bottom)
   );
+  min-height: 100vh;
   animation: screen-in 0.28s ease both;
 }
 @keyframes screen-in {
@@ -387,6 +399,14 @@ a {
   text-align: center;
   color: var(--text-secondary);
   padding: 56px 24px;
+  animation: empty-in 0.38s ease both;
+}
+.empty.centered {
+  min-height: calc(100vh - 178px - var(--tabbar-h) - var(--tabbar-gap));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 .empty .empty-icon {
   width: 76px;
@@ -399,12 +419,37 @@ a {
   font-size: 38px;
   background: var(--accent-tint);
   box-shadow: var(--shadow-sm);
+  animation: empty-icon 1.8s ease-in-out infinite;
+}
+.empty .empty-state-book {
+  width: 42px;
+  height: 42px;
+  color: var(--accent);
 }
 .empty .empty-title {
   color: var(--text);
   font-weight: 700;
   font-size: 18px;
   margin-bottom: 4px;
+}
+@keyframes empty-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes empty-icon {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 /* ------------------------------- Tab bar -------------------------------- */
@@ -491,6 +536,9 @@ a {
   justify-content: center;
   transition: transform var(--t), background var(--t);
 }
+.fab.fab-attention {
+  animation: fab-pulse 1.9s ease-in-out infinite;
+}
 .fab:active {
   transform: scale(0.92);
   background: var(--accent-press);
@@ -499,10 +547,19 @@ a {
   .fab {
     right: auto;
     left: 50%;
-    transform: translateX(calc(var(--max-width) / 2 - 76px));
+    transform: translateX(var(--fab-offset));
   }
   .fab:active {
-    transform: translateX(calc(var(--max-width) / 2 - 76px)) scale(0.92);
+    transform: translateX(var(--fab-offset)) scale(0.92);
+  }
+}
+@keyframes fab-pulse {
+  0%,
+  100% {
+    box-shadow: var(--shadow-accent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0.12), var(--shadow-accent);
   }
 }
 
@@ -729,10 +786,41 @@ a {
   background: #d1d1d6;
   margin: 6px auto 14px;
 }
+.sheet-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-bottom: 12px;
+}
 .sheet h2 {
   font-size: 20px;
-  margin-bottom: 16px;
+  margin: 0;
   text-align: center;
+}
+.sheet-close {
+  position: absolute;
+  right: -4px;
+  top: 0;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--pill);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--t), background var(--t);
+}
+.sheet-close:active {
+  transform: scale(0.94);
+  background: var(--accent-tint);
 }
 
 /* Forms */
@@ -760,11 +848,25 @@ a {
   appearance: none;
   transition: border-color var(--t), box-shadow var(--t);
 }
+.field input::placeholder {
+  color: #b4b4bb;
+  font-size: 15px;
+}
 .field input:focus,
 .field select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-tint);
+}
+.field.field-error input,
+.field.field-error select {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.14);
+}
+.field-error-text {
+  color: var(--danger);
+  font-size: 13px;
+  margin: 7px 2px 0;
 }
 .field-row {
   display: flex;

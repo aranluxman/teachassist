@@ -12,6 +12,7 @@ import { getCurrentUser } from "./auth.js";
 import { DEFAULT_LINKS, COURSE_COLORS } from "./config.js";
 
 let editing = false;
+const DEFAULT_CATEGORY = "Student Tools";
 
 function storageKey() {
   return "links:" + (getCurrentUser()?.id || "anon");
@@ -20,17 +21,31 @@ function storageKey() {
 function loadLinks() {
   try {
     const raw = localStorage.getItem(storageKey());
-    if (raw) return JSON.parse(raw);
+    if (raw) return normalizeLinks(JSON.parse(raw));
   } catch {
     /* ignore corrupt storage */
   }
-  const seeded = DEFAULT_LINKS.map((l) => ({ ...l }));
+  const seeded = normalizeLinks(DEFAULT_LINKS.map((l) => ({ ...l })));
   saveLinks(seeded);
   return seeded;
 }
 
 function saveLinks(arr) {
-  localStorage.setItem(storageKey(), JSON.stringify(arr));
+  localStorage.setItem(storageKey(), JSON.stringify(normalizeLinks(arr)));
+}
+
+function normalizeLinks(arr) {
+  return (Array.isArray(arr) ? arr : []).map((link) => ({
+    ...link,
+    category: link.category?.trim() || DEFAULT_CATEGORY,
+  }));
+}
+
+function linkEmptyIcon() {
+  return `<svg class="empty-state-book" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <path d="M17 31 31 17M20 14l2.5-2.5a8 8 0 0 1 11.3 11.3L31.5 25M28 34l-2.5 2.5a8 8 0 0 1-11.3-11.3l2.3-2.2" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M9 39h30" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".28"/>
+  </svg>`;
 }
 
 /** Render the Links screen into `container`. */
@@ -47,29 +62,50 @@ export async function renderLinks(container) {
     </div>
   `);
   container.appendChild(header);
-  container.appendChild(el(`<div class="section-label">Student Tools</div>`));
 
-  const rows = el(`<div class="rows"></div>`);
-  links.forEach((link, i) => {
-    const color = COURSE_COLORS[i % COURSE_COLORS.length];
-    const letter = (link.label || "?").trim().charAt(0).toUpperCase();
-    const row = el(`
-      <button class="row">
-        <div class="icon-circle" style="width:36px;height:36px;min-width:36px;font-size:15px;background:${color}">${escapeHtml(letter)}</div>
-        <div class="row-main"><div class="row-title">${escapeHtml(link.label)}</div></div>
-        <span class="chevron"></span>
-      </button>
-    `);
-    row.addEventListener("click", () => {
-      if (editing) {
-        openLinkForm(links, i, container);
-      } else {
-        window.open(link.url, "_blank", "noopener");
-      }
+  if (!links.length) {
+    container.appendChild(
+      el(`
+      <div class="empty centered">
+        <div class="empty-icon">${linkEmptyIcon()}</div>
+        <div class="empty-title">No links saved</div>
+        Add your first student tool to keep it handy.
+      </div>
+    `)
+    );
+  } else {
+    const groups = links.reduce((acc, link, i) => {
+      const key = link.category || DEFAULT_CATEGORY;
+      acc[key] ||= [];
+      acc[key].push([link, i]);
+      return acc;
+    }, {});
+
+    Object.entries(groups).forEach(([category, items]) => {
+      container.appendChild(el(`<div class="section-label">${escapeHtml(category)}</div>`));
+      const rows = el(`<div class="rows"></div>`);
+      items.forEach(([link, i]) => {
+        const color = COURSE_COLORS[i % COURSE_COLORS.length];
+        const letter = (link.label || "?").trim().charAt(0).toUpperCase();
+        const row = el(`
+          <button class="row">
+            <div class="icon-circle" style="width:36px;height:36px;min-width:36px;font-size:15px;background:${color}">${escapeHtml(letter)}</div>
+            <div class="row-main"><div class="row-title">${escapeHtml(link.label)}</div></div>
+            <span class="chevron"></span>
+          </button>
+        `);
+        row.addEventListener("click", () => {
+          if (editing) {
+            openLinkForm(links, i, container);
+          } else {
+            window.open(link.url, "_blank", "noopener");
+          }
+        });
+        rows.appendChild(row);
+      });
+      container.appendChild(rows);
     });
-    rows.appendChild(row);
-  });
-  container.appendChild(rows);
+  }
 
   if (editing) {
     const add = el(`<button class="btn secondary" style="margin-top:14px">+ Add Link</button>`);
@@ -93,12 +129,22 @@ export async function renderLinks(container) {
 
 /** Add (index = null) or edit a link row. */
 function openLinkForm(links, index, container) {
-  const link = index != null ? links[index] : { label: "", url: "" };
+  const link = index != null ? links[index] : { label: "", url: "", category: DEFAULT_CATEGORY };
   const body = el(`
     <form>
       <div class="field">
         <label>Label</label>
         <input name="label" value="${escapeHtml(link.label)}" placeholder="My Pathway Planner" required />
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <input name="category" value="${escapeHtml(link.category || DEFAULT_CATEGORY)}" placeholder="Student Tools" list="link-categories" />
+        <datalist id="link-categories">
+          <option value="Student Tools"></option>
+          <option value="School"></option>
+          <option value="Study"></option>
+          <option value="Calculators"></option>
+        </datalist>
       </div>
       <div class="field">
         <label>URL</label>
@@ -128,7 +174,11 @@ function openLinkForm(links, index, container) {
     const f = new FormData(body);
     let url = f.get("url").trim();
     if (url && !/^https?:\/\//i.test(url)) url = "https://" + url; // be forgiving
-    const entry = { label: f.get("label").trim(), url };
+    const entry = {
+      label: f.get("label").trim(),
+      category: f.get("category").trim() || DEFAULT_CATEGORY,
+      url,
+    };
     if (!entry.label || !entry.url) {
       body.querySelector(".error-text").textContent = "Label and URL are required.";
       return;
