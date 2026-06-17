@@ -1,0 +1,18 @@
+{
+  "name": "Grade Dashboard",
+  "short_name": "Grades",
+  "description": "A mobile-first dashboard for tracking courses, grades, term dates, and student links.",
+  "start_url": "app.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f2f7",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
