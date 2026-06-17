@@ -98,14 +98,16 @@ export function mapWorkerCourses(list) {
   return (list || []).map((c, i) => {
     const evals = Array.isArray(c.evaluations) ? c.evaluations : [];
 
-    // Categories = the app's Ontario defaults plus any extra strand names the
-    // Worker reported, so every evaluation has a matching category.
-    const names = new Set(DEFAULT_CATEGORIES.map((d) => d.name));
-    for (const e of evals) if (e && e.category) names.add(e.category);
-    const categories = [...names].map((name) => {
-      const def = DEFAULT_CATEGORIES.find((d) => d.name === name);
-      return { name, weight: def ? def.weight : 0 };
-    });
+    // Categories with their REAL weights, taken from the Worker's per-category
+    // breakdown entries (each carries a `weight`). Empty when the Worker had no
+    // report for this course, so the sync leaves such courses' categories alone.
+    const catWeights = new Map();
+    for (const e of evals) {
+      if (e && e.category && !catWeights.has(e.category)) {
+        catWeights.set(e.category, typeof e.weight === "number" ? e.weight : 0);
+      }
+    }
+    const categories = [...catWeights].map(([name, weight]) => ({ name, weight }));
 
     return {
       code: c.code || "",
@@ -132,14 +134,14 @@ export function mapWorkerCourses(list) {
 /**
  * Pull marks from the Worker and import them into Supabase so they show up in
  * the dashboard. Matches existing courses by `code` (per user):
- *   * existing course -> update name + midterm (+ currentMark passthrough)
+ *   * existing course -> update name + midterm + current_mark
  *   * new course      -> insert it and seed the default categories
- * Idempotent: re-running just updates the same rows. Evaluations are NOT
- * touched here (they sync once the Worker's report parser is confirmed), so
- * your manually-entered evaluations are never overwritten.
+ * When the Worker reported a category breakdown for a course, its category
+ * weights are upserted too. Per-assignment evaluations are NOT touched, so your
+ * manually-entered evaluations are never overwritten. Idempotent.
  *
  * @param {string} userId
- * @returns {Promise<{created:number, updated:number, total:number}>}
+ * @returns {Promise<{created:number, updated:number, total:number, missingColumn:boolean}>}
  */
 export async function syncFromTeachAssist(userId) {
   const mapped = mapWorkerCourses(await fetchMarks());
@@ -150,33 +152,79 @@ export async function syncFromTeachAssist(userId) {
     .eq("user_id", userId);
   const idByCode = new Map((existing || []).map((c) => [c.code, c.id]));
 
+  const state = { missingColumn: false };
   let created = 0;
   let updated = 0;
+
   for (const m of mapped) {
     if (!m.code) continue;
-    const fields = { name: m.name || m.code, midterm: m.midterm };
+    const fields = { name: m.name || m.code, midterm: m.midterm, current_mark: m.currentMark };
+    let courseId;
+
     if (idByCode.has(m.code)) {
-      const { error } = await sb.from("courses").update(fields).eq("id", idByCode.get(m.code));
-      if (error) throw error;
+      courseId = idByCode.get(m.code);
+      await updateCourse(courseId, fields, state);
       updated++;
     } else {
-      const { data: ins, error } = await sb
-        .from("courses")
-        .insert({ user_id: userId, code: m.code, color_index: m.color_index, ...fields })
-        .select("id")
-        .single();
-      if (error) throw error;
-      // Seed the Ontario default categories for the new course.
-      await sb.from("categories").insert(
-        DEFAULT_CATEGORIES.map((d) => ({
-          user_id: userId,
-          course_id: ins.id,
-          name: d.name,
-          weight: d.weight,
-        }))
-      );
+      courseId = await insertCourse(userId, m, fields, state);
       created++;
     }
+
+    // Update category weights only when the Worker actually reported them
+    // (so courses without a report keep your manual category weights).
+    if (m.categories.length) {
+      await upsertCategoryWeights(userId, courseId, m.categories);
+    }
   }
-  return { created, updated, total: mapped.length };
+  return { created, updated, total: mapped.length, missingColumn: state.missingColumn };
+}
+
+/** Update a course; if the current_mark column doesn't exist yet, retry without it. */
+async function updateCourse(id, fields, state) {
+  let res = await sb.from("courses").update(fields).eq("id", id);
+  if (res.error && /current_mark/i.test(res.error.message || "")) {
+    state.missingColumn = true;
+    const { current_mark, ...rest } = fields;
+    res = await sb.from("courses").update(rest).eq("id", id);
+  }
+  if (res.error) throw res.error;
+}
+
+/** Insert a course (seeding default categories); current_mark-tolerant. */
+async function insertCourse(userId, m, fields, state) {
+  const base = { user_id: userId, code: m.code, color_index: m.color_index, ...fields };
+  let res = await sb.from("courses").insert(base).select("id").single();
+  if (res.error && /current_mark/i.test(res.error.message || "")) {
+    state.missingColumn = true;
+    const { current_mark, ...rest } = base;
+    res = await sb.from("courses").insert(rest).select("id").single();
+  }
+  if (res.error) throw res.error;
+  await sb.from("categories").insert(
+    DEFAULT_CATEGORIES.map((d) => ({
+      user_id: userId,
+      course_id: res.data.id,
+      name: d.name,
+      weight: d.weight,
+    }))
+  );
+  return res.data.id;
+}
+
+/** Match the Worker's categories to the course's by name; update weight or insert. */
+async function upsertCategoryWeights(userId, courseId, cats) {
+  const { data: existing } = await sb
+    .from("categories")
+    .select("id, name")
+    .eq("course_id", courseId);
+  const idByName = new Map((existing || []).map((c) => [c.name, c.id]));
+  for (const c of cats) {
+    if (idByName.has(c.name)) {
+      await sb.from("categories").update({ weight: c.weight }).eq("id", idByName.get(c.name));
+    } else {
+      await sb
+        .from("categories")
+        .insert({ user_id: userId, course_id: courseId, name: c.name, weight: c.weight });
+    }
+  }
 }

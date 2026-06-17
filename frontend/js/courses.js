@@ -324,9 +324,21 @@ export async function renderCourses(container) {
       // Show the calculated current mark when there are evaluations; otherwise
       // fall back to the midterm mark (e.g. "Please see teacher" courses), with
       // a small tag so it's clear which one is shown.
+      // Prefer the mark computed from entered evaluations; else the live
+      // current mark synced from TeachAssist; else the midterm.
       const computed = markById[c.id];
-      const big = computed != null ? computed : c.midterm;
-      const tag = computed != null ? "current" : c.midterm != null ? "midterm" : "";
+      let big = null;
+      let tag = "";
+      if (computed != null) {
+        big = computed;
+        tag = "current";
+      } else if (c.current_mark != null) {
+        big = c.current_mark;
+        tag = "current";
+      } else if (c.midterm != null) {
+        big = c.midterm;
+        tag = "midterm";
+      }
       const card = el(`
         <div class="card course-card" data-id="${c.id}">
           <div class="icon-circle" style="background:${color}">${escapeHtml(letter)}</div>

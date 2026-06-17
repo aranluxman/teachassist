@@ -26,10 +26,13 @@ create table if not exists public.courses (
   end_date    date,
   midterm     numeric,
   final       numeric,
+  current_mark numeric,   -- live "current mark" reported by TeachAssist (sync)
   color_index int  not null default 0,
   created_at  timestamptz not null default now()
 );
 create index if not exists courses_user_id_idx on public.courses (user_id);
+-- For databases created before current_mark existed (safe to re-run):
+alter table public.courses add column if not exists current_mark numeric;
 
 -- 3. CATEGORIES (weighted achievement categories per course) -----------------
 create table if not exists public.categories (

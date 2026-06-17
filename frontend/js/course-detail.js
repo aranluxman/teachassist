@@ -94,21 +94,25 @@ function buildNav(state, reload) {
 // ─────────────────────────── Carousel (3 panels) ───────────────────────────
 
 function buildCarousel(state) {
-  const mark = courseMark(state.categories, state.evaluations);
+  // Prefer the mark computed from entered evaluations; else the live current
+  // mark synced from TeachAssist.
+  const computed = courseMark(state.categories, state.evaluations);
+  const reported = state.course.current_mark != null ? Number(state.course.current_mark) : null;
+  const mark = computed != null ? computed : reported;
+  const fromTA = computed == null && reported != null;
   const wrap = el(`<div class="carousel" id="detail-carousel"></div>`);
 
   // Panel 1 — gauge
+  const subBits = [];
+  if (state.course.midterm != null) subBits.push("Midterm: " + fmtPercent(Number(state.course.midterm)));
+  if (fromTA) subBits.push("from TeachAssist");
   wrap.appendChild(
     el(`
     <div class="panel"><div class="card">
       <div class="gauge-wrap">
         ${gaugeSVG(mark)}
         <div class="gauge-label">Current Mark</div>
-        <div class="gauge-sub">${
-          state.course.midterm != null
-            ? "Midterm: " + fmtPercent(Number(state.course.midterm))
-            : "No midterm yet"
-        }</div>
+        <div class="gauge-sub">${escapeHtml(subBits.join(" · ") || "No mark yet")}</div>
       </div>
     </div></div>
   `)
@@ -441,6 +445,22 @@ function openEvalForm(state, ev, reload) {
 
 function buildBreakdown(state, reload) {
   const frag = document.createElement("div");
+
+  // Explain blank category averages when no assignment marks exist yet.
+  const hasEvals = state.evaluations.length > 0;
+  if (!hasEvals && state.categories.length) {
+    frag.appendChild(
+      el(`
+      <div class="card" style="margin-bottom:12px;background:var(--accent-tint);box-shadow:none">
+        <div class="muted small" style="color:var(--text)">
+          Your teacher hasn't posted assignment marks yet, so category
+          percentages are blank (0%). The weightings below are from TeachAssist.
+        </div>
+      </div>
+    `)
+    );
+  }
+
   const rows = el(`<div class="rows"></div>`);
   for (const cat of state.categories) {
     const avg = categoryAverage(cat.id, state.evaluations);

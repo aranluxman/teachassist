@@ -155,8 +155,10 @@ export async function renderSettings(container) {
     statusEl.textContent = "";
     try {
       const r = await syncFromTeachAssist(user.id);
-      statusEl.style.color = "var(--good)";
-      statusEl.textContent = `✓ Synced ${r.total} course${r.total === 1 ? "" : "s"} (${r.created} new, ${r.updated} updated). Midterms updated — check the Courses tab.`;
+      statusEl.style.color = r.missingColumn ? "var(--danger)" : "var(--good)";
+      statusEl.textContent = r.missingColumn
+        ? `Synced ${r.total} course(s), but the current_mark column is missing — run the migration in schema.sql (ALTER TABLE … add current_mark) then sync again.`
+        : `✓ Synced ${r.total} course${r.total === 1 ? "" : "s"} (${r.created} new, ${r.updated} updated). Marks + weightings updated — check the Courses tab.`;
     } catch (err) {
       statusEl.style.color = "var(--danger)";
       statusEl.textContent = err.message || "Sync failed.";
