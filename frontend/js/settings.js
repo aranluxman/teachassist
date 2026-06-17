@@ -20,7 +20,6 @@ import {
   fetchMarks,
   syncFromTeachAssist,
 } from "./marks-api.js";
-import { getWorkerConfig, setWorkerConfig, fetchMarks } from "./marks-api.js";
 import { SUPABASE_URL } from "./config.js";
 
 const THEME_KEY = "theme";
