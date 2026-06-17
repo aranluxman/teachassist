@@ -45,7 +45,7 @@ const courseHtml = `
 <tr>
   <td>SCH4U-01 : Block: P3 (no mark yet)<br></td>
   <td>2024-09-03</td>
-  <td>&nbsp;</td>
+  <td bgcolor="#ff0000">MIDTERM MARK: 78%<br>Please see teacher</td>
 </tr>
 </table></body></html>`;
 
@@ -68,6 +68,8 @@ const sch = courses.find((c) => c.code === "SCH4U-01");
 assert.ok(sch, "course without a mark still appears");
 assert.strictEqual(sch.currentMark, null, "no-mark course -> null");
 assert.strictEqual(sch.subjectId, null, "no-mark course has no subjectId");
+assert.strictEqual(sch.midterm, 78, "midterm mark parsed from the list row");
+assert.strictEqual(eng.midterm, null, "no midterm text -> null");
 
 // ---- Evaluation / report sample (nested tables) ----------------------------
 const reportHtml = `
