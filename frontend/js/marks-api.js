@@ -22,6 +22,7 @@
 //     * For a personal, single-user tool this is an acceptable tradeoff.
 // ============================================================================
 
+import { sb } from "./supabase.js";
 import { DEFAULT_CATEGORIES, COURSE_COLORS } from "./config.js";
 
 const LS_URL = "ta_worker_url";
@@ -110,6 +111,7 @@ export function mapWorkerCourses(list) {
       code: c.code || "",
       name: c.name || "",
       currentMark: typeof c.currentMark === "number" ? c.currentMark : null,
+      midterm: typeof c.midterm === "number" ? c.midterm : null,
       color_index: i % COURSE_COLORS.length,
       categories,
       evaluations: evals.map((e) => {
@@ -125,4 +127,56 @@ export function mapWorkerCourses(list) {
       }),
     };
   });
+}
+
+/**
+ * Pull marks from the Worker and import them into Supabase so they show up in
+ * the dashboard. Matches existing courses by `code` (per user):
+ *   * existing course -> update name + midterm (+ currentMark passthrough)
+ *   * new course      -> insert it and seed the default categories
+ * Idempotent: re-running just updates the same rows. Evaluations are NOT
+ * touched here (they sync once the Worker's report parser is confirmed), so
+ * your manually-entered evaluations are never overwritten.
+ *
+ * @param {string} userId
+ * @returns {Promise<{created:number, updated:number, total:number}>}
+ */
+export async function syncFromTeachAssist(userId) {
+  const mapped = mapWorkerCourses(await fetchMarks());
+
+  const { data: existing } = await sb
+    .from("courses")
+    .select("id, code")
+    .eq("user_id", userId);
+  const idByCode = new Map((existing || []).map((c) => [c.code, c.id]));
+
+  let created = 0;
+  let updated = 0;
+  for (const m of mapped) {
+    if (!m.code) continue;
+    const fields = { name: m.name || m.code, midterm: m.midterm };
+    if (idByCode.has(m.code)) {
+      const { error } = await sb.from("courses").update(fields).eq("id", idByCode.get(m.code));
+      if (error) throw error;
+      updated++;
+    } else {
+      const { data: ins, error } = await sb
+        .from("courses")
+        .insert({ user_id: userId, code: m.code, color_index: m.color_index, ...fields })
+        .select("id")
+        .single();
+      if (error) throw error;
+      // Seed the Ontario default categories for the new course.
+      await sb.from("categories").insert(
+        DEFAULT_CATEGORIES.map((d) => ({
+          user_id: userId,
+          course_id: ins.id,
+          name: d.name,
+          weight: d.weight,
+        }))
+      );
+      created++;
+    }
+  }
+  return { created, updated, total: mapped.length };
 }

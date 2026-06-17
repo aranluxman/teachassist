@@ -14,7 +14,12 @@ import {
   openTermEditor,
   skeletonCards,
 } from "./courses.js";
-import { getWorkerConfig, setWorkerConfig, fetchMarks } from "./marks-api.js";
+import {
+  getWorkerConfig,
+  setWorkerConfig,
+  fetchMarks,
+  syncFromTeachAssist,
+} from "./marks-api.js";
 
 const THEME_KEY = "theme";
 
@@ -117,8 +122,13 @@ export async function renderSettings(container) {
       </div>
       <div id="ta-status" class="error-text" style="color:var(--text-secondary)"></div>
       <div class="form-actions">
-        <button id="ta-test" class="btn">Test connection</button>
-        <button id="ta-save" class="btn secondary">Save</button>
+        <button id="ta-sync" class="btn">Sync now</button>
+        <button id="ta-test" class="btn secondary">Test connection</button>
+        <button id="ta-save" class="btn ghost">Save</button>
+      </div>
+      <div class="muted small" style="margin-top:8px;text-align:center">
+        Sync imports your courses + midterm marks. Evaluations sync once the
+        report parser is finalized.
       </div>
     </div>
   `);
@@ -131,6 +141,27 @@ export async function renderSettings(container) {
     persist();
     statusEl.style.color = "var(--good)";
     statusEl.textContent = "Saved on this device.";
+  });
+
+  sync.querySelector("#ta-sync").addEventListener("click", async (e) => {
+    persist();
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.innerHTML = '<span class="spinner"></span>';
+    statusEl.style.color = "var(--text-secondary)";
+    statusEl.textContent = "";
+    try {
+      const r = await syncFromTeachAssist(user.id);
+      statusEl.style.color = "var(--good)";
+      statusEl.textContent = `✓ Synced ${r.total} course${r.total === 1 ? "" : "s"} (${r.created} new, ${r.updated} updated). Midterms updated — check the Courses tab.`;
+    } catch (err) {
+      statusEl.style.color = "var(--danger)";
+      statusEl.textContent = err.message || "Sync failed.";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
   });
 
   sync.querySelector("#ta-test").addEventListener("click", async (e) => {

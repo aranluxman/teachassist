@@ -381,6 +381,17 @@ a {
   align-items: center;
   gap: 4px;
 }
+.course-card .cc-markwrap {
+  text-align: right;
+}
+.course-card .cc-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-top: -2px;
+}
 
 /* Empty state */
 .empty {

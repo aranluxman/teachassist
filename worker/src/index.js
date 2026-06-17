@@ -130,9 +130,13 @@ export default {
       return json({ error: "Not found", hint: "Use GET /api/marks" }, 404);
     }
 
-    // Optional shared-secret gate so only you can call this.
+    // Optional shared-secret gate so only you can call this. Accept the key via
+    // the x-api-key header OR a ?key= query param, so the debug routes can be
+    // opened directly in a browser. (A query-param key is visible in the URL /
+    // browser history — acceptable for the temporary debug routes on a personal
+    // single-user tool; prefer the header for normal use.)
     if (REQUIRE_API_KEY) {
-      const provided = request.headers.get(API_KEY_HEADER);
+      const provided = request.headers.get(API_KEY_HEADER) || url.searchParams.get("key");
       if (!env.API_KEY || !provided || !timingSafeEqual(provided, env.API_KEY)) {
         return json({ error: "Unauthorized" }, 401);
       }
