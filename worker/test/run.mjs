@@ -71,53 +71,52 @@ assert.strictEqual(sch.subjectId, null, "no-mark course has no subjectId");
 assert.strictEqual(sch.midterm, 78, "midterm mark parsed from the list row");
 assert.strictEqual(eng.midterm, null, "no midterm text -> null");
 
-// ---- Evaluation / report sample (nested tables) ----------------------------
+// ---- Report sample: real viewReport.php structure --------------------------
+// Strand colours are on the <tr>; the category summary table has
+// Category | Weighting | Course Weighting | Student Achievement. The legend,
+// Term/Course mark rows, and the Analysis/Trends plot rows must all be skipped.
 const reportHtml = `
-<html><body><table border="1">
-<tr>
-  <td>&nbsp;</td>
-  <td bgcolor="ffffaa">Knowledge/<br>Understanding</td>
-  <td bgcolor="c0fea4">Thinking</td>
-  <td bgcolor="afafff">Communication</td>
-  <td bgcolor="ffd490">Application</td>
-</tr>
-<tr>
-  <td>Unit 1 Test</td>
-  <td bgcolor="ffffaa"><table><tr><td>17 / 20 = 85%</td></tr><tr><td>weight=10</td></tr></table></td>
-  <td bgcolor="c0fea4"><table><tr><td>no mark</td></tr><tr><td>weight=10</td></tr></table></td>
-  <td bgcolor="afafff"><table><tr><td>9 / 10 = 90%</td></tr><tr><td>weight=10</td></tr></table></td>
-  <td bgcolor="ffd490"><table><tr><td>18 / 20 = 91%</td></tr><tr><td>weight=10</td></tr></table></td>
-</tr>
-<tr>
-  <td>Final Essay</td>
-  <td bgcolor="ffffaa"><table><tr><td>no mark</td></tr></table></td>
-  <td bgcolor="c0fea4"><table><tr><td>8 / 10 = 80%</td></tr><tr><td>weight=5</td></tr></table></td>
-  <td bgcolor="afafff"><table><tr><td>7 / 10 = 70%</td></tr><tr><td>weight=5</td></tr></table></td>
-  <td bgcolor="ffd490"><table><tr><td>19 / 20 = 95%</td></tr><tr><td>weight=5</td></tr></table></td>
-</tr>
-</table></body></html>`;
+<html><body>
+<table border="1"><tr><td bgcolor="#ffaaaa">&nbsp;</td><td>legend not used</td></tr></table>
+<table width="90%">
+  <tr bgcolor="ffffaa"><td><h3>Knowledge/Understanding</h3><img src="../plot.php"></td></tr>
+  <tr bgcolor="c0fea4"><td><h3>Thinking</h3><img src="../plot.php"></td></tr>
+</table>
+<table border="0"><tr bgcolor="#336633"><td>0.0%</td><td>Term</td></tr>
+  <tr bgcolor="#ddddcc"><td>90.7%</td><td>Course</td></tr></table>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Category</th><th>Weighting</th><th>Course Weighting</th><th>Student Achievement</th></tr>
+  <tr bgcolor="#ffffaa"><td>Knowledge/Understanding</td><td align="right">20%</td><td align="right">14%</td><td align="right">85%</td></tr>
+  <tr bgcolor="#c0fea4"><td>Thinking</td><td align="right">20%</td><td align="right">14%</td><td align="right">90%</td></tr>
+  <tr bgcolor="#afafff"><td>Communication</td><td align="right">20%</td><td align="right">14%</td><td align="right">0%</td></tr>
+  <tr bgcolor="#ffd490"><td>Application</td><td align="right">20%</td><td align="right">14%</td><td align="right">88%</td></tr>
+  <tr bgcolor="#eeeeee"><td>Other</td><td align="right">20%</td><td align="right">14%</td><td align="right">0%</td></tr>
+  <tr bgcolor="#cccccc"><td colspan="2">Final/Culminating</td><td align="right">30%</td><td align="right">0%</td></tr>
+</table>
+</body></html>`;
 
 const evals = await post("/evals", reportHtml);
 console.log("evals =", JSON.stringify(evals, null, 2));
 
-// Header row -> no evals; "no mark" strands skipped.
-assert.strictEqual(evals.length, 6, "should parse 6 graded strands");
+// 6 category rows; legend / Term / Course / Analysis-Trends rows all skipped.
+assert.strictEqual(evals.length, 6, "should parse 6 category rows");
 
-const u1 = evals.filter((e) => e.name === "Unit 1 Test");
-assert.strictEqual(u1.length, 3, "Unit 1 Test has 3 graded strands (T skipped)");
-const ku = u1.find((e) => e.category === "Knowledge/Understanding");
-assert.strictEqual(ku.percent, 85, "KU percent 85");
-assert.strictEqual(ku.weight, 10, "KU weight 10");
-assert.ok(!u1.some((e) => e.category === "Thinking"), "no-mark Thinking skipped");
-const app = u1.find((e) => e.category === "Application");
-assert.strictEqual(app.percent, 91, "Application percent 91");
+const ku = evals.find((e) => e.category === "Knowledge/Understanding");
+assert.strictEqual(ku.weight, 20, "KU weighting 20");
+assert.strictEqual(ku.percent, 85, "KU achievement 85 (last % in the row)");
+assert.strictEqual(ku.name, "Knowledge/Understanding", "name from first cell");
 
-const essay = evals.filter((e) => e.name === "Final Essay");
-assert.strictEqual(essay.length, 3, "Final Essay has 3 graded strands");
-assert.strictEqual(
-  essay.find((e) => e.category === "Communication").percent,
-  70,
-  "Essay Communication 70"
+const fin = evals.find((e) => e.category === "Final");
+assert.strictEqual(fin.weight, 30, "Final weighting 30");
+assert.strictEqual(fin.percent, 0, "Final achievement 0");
+
+assert.ok(
+  evals.every((e) => e.percent != null && typeof e.percent === "number"),
+  "every category row has a numeric percent"
+);
+assert.ok(
+  !evals.some((e) => /term|course/i.test(e.name)),
+  "Term/Course mark rows are not treated as categories"
 );
 
 await mf.dispose();

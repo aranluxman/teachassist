@@ -87,8 +87,9 @@ const STRAND_COLOURS = {
   c0fea4: "Thinking",
   afafff: "Communication",
   ffd490: "Application",
-  dedede: "Other",
-  cccccc: "Final",
+  eeeeee: "Other", // the real report uses #eeeeee for "Other"
+  dedede: "Other", // kept as an alternate
+  cccccc: "Final", // "Final/Culminating"
 };
 
 // Regex used to recognise a course code such as "ENG4U", "MHF4U-01",
@@ -124,9 +125,8 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
-    // Routes: GET /api/marks  and  GET /api/debug-report (temporary).
-    const path = url.pathname;
-    if (request.method !== "GET" || (path !== "/api/marks" && path !== "/api/debug-report")) {
+    // Single route: GET /api/marks
+    if (request.method !== "GET" || url.pathname !== "/api/marks") {
       return json({ error: "Not found", hint: "Use GET /api/marks" }, 404);
     }
 
@@ -186,23 +186,6 @@ export default {
 
       // debug=courses returns the raw page so you can verify the HTML structure.
       if (debug === "courses") return text(listHtml);
-
-      // TEMPORARY debug route: return the RAW HTML of the first course that has
-      // a report link (your Geography course), so we can fix parseEvaluations.
-      // Remove this block once the report parser is confirmed working.
-      if (path === "/api/debug-report") {
-        const stubs = await parseCourseList(listHtml);
-        const target = stubs.find((c) => c.subjectId);
-        if (!target) {
-          return json({ error: "No course on the list has a report link." }, 404);
-        }
-        const sid = target.studentId || session.studentId;
-        const reportUrl =
-          `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(target.subjectId)}` +
-          `&student_id=${encodeURIComponent(sid)}`;
-        const reportHtml = await fetchWithSession(reportUrl, session.cookie, COURSE_LIST_URL);
-        return text(reportHtml);
-      }
 
       assertLoggedIn(listHtml);
 
@@ -557,31 +540,33 @@ function extractMidterm(text) {
 }
 
 // ============================================================================
-// HTML PARSING — EVALUATION ROWS  (Step 5)
+// HTML PARSING — CATEGORY BREAKDOWN  (Step 5)
 // ----------------------------------------------------------------------------
-// The report page is a maze of nested <table>s where each assessment is a row
-// and each strand (weight category) is a background-coloured <td> containing a
-// small inner table like "17 / 20 = 85%" and "weight=10".
+// TeachAssist's viewReport.php does not always list individual assignments (for
+// this account the "Assignment" table is empty). The per-strand data lives in a
+// summary table whose ROWS are background-coloured by strand:
 //
-// We again use HTMLRewriter with state, made nesting-proof by:
-//   * a STACK of open <tr> rows (so a nested inner-table <tr> can't clobber the
-//     outer assessment row);
-//   * an `activeCell` pointer set when we enter a strand-coloured <td> and
-//     cleared on its end tag — so all inner text (even inside the nested table)
-//     is attributed to that strand;
-//   * the universal "*" text handler again, routed to either the active strand
-//     cell or, when no strand cell is open, the current row's name buffer.
+//   <tr bgcolor="#ffffaa"><td>Knowledge/Understanding</td>
+//       <td>20%</td>      <- Weighting
+//       <td>14%</td>      <- Course Weighting
+//       <td>0%</td></tr>  <- Student Achievement
+//   ...
+//   <tr bgcolor="#cccccc"><td colspan=2>Final/Culminating</td><td>30%</td><td>0%</td></tr>
 //
-// One evaluation object is emitted per (assessment x strand-with-a-mark):
-//   { name, category, percent, weight }
+// The SAME colours also appear on the "Analysis/Trends" rows, but those contain
+// only plot images (no "%"), so we skip any coloured row without a percent.
+//
+// One entry is emitted per category: { name, category, percent, weight } where
+// `weight` = the Weighting column and `percent` = the Student Achievement (the
+// last percent in the row). The strand colour is read off the <tr> (not a <td>).
 // ============================================================================
 
 /**
  * @typedef {Object} Evaluation
- * @property {string} name      assessment name
- * @property {string} category  strand label, e.g. "Application"
- * @property {number} percent   strand percent for this assessment
- * @property {number|null} weight  strand weight, when present
+ * @property {string} name      category label, e.g. "Knowledge/Understanding"
+ * @property {string} category  strand label from the row's background colour
+ * @property {number} percent   student achievement for the category
+ * @property {number|null} weight  the category weighting, when present
  */
 
 /**
@@ -591,45 +576,25 @@ function extractMidterm(text) {
 async function parseEvaluations(html) {
   /** @type {Evaluation[]} */
   const evaluations = [];
-
-  const rowStack = []; // [{ nameBuf, cells: [] }, ...]
-  let activeCell = null; // { category, buf } while inside a strand <td>
+  let row = null; // { category, buf } for the currently-open <tr>
 
   const rewriter = new HTMLRewriter()
     .on("tr", {
       element(el) {
-        const current = { nameBuf: "", cells: [] };
-        rowStack.push(current);
-        el.onEndTag(() => {
-          // Pop this row (it should be on top in well-formed HTML).
-          const idx = rowStack.lastIndexOf(current);
-          if (idx !== -1) rowStack.splice(idx, 1);
-          flushEvaluationRow(current, evaluations);
-        });
-      },
-    })
-    .on("td", {
-      element(el) {
+        // The strand is identified by the ROW's background colour.
         const colour = cellColour(el);
-        const category = colour ? STRAND_COLOURS[colour] : null;
-        if (!category) return; // not a strand cell (e.g. the name cell)
-        const cell = { category, buf: "" };
-        const owner = rowStack[rowStack.length - 1];
-        if (owner) owner.cells.push(cell);
-        activeCell = cell;
+        const current = { category: colour ? STRAND_COLOURS[colour] : null, buf: "" };
+        row = current;
         el.onEndTag(() => {
-          finalizeStrandCell(cell);
-          if (activeCell === cell) activeCell = null;
+          flushCategoryRow(current, evaluations);
+          if (row === current) row = null;
         });
       },
     })
+    // Universal text capture routed into the open row.
     .on("*", {
       text(t) {
-        if (activeCell) {
-          activeCell.buf += t.text;
-        } else if (rowStack.length) {
-          rowStack[rowStack.length - 1].nameBuf += t.text;
-        }
+        if (row) row.buf += t.text;
       },
     });
 
@@ -658,30 +623,24 @@ function normaliseHex(value) {
   return m ? value.trim().replace(/^#/, "").toLowerCase() : null;
 }
 
-/** Parse "17 / 20 = 85%" and "weight=10" out of a strand cell's text. */
-function finalizeStrandCell(cell) {
-  const pct = cell.buf.match(/=\s*([\d.]+)\s*%/);
-  const weight = cell.buf.match(/weight\s*=\s*([\d.]+)/i);
-  cell.percent = pct ? parseFloat(pct[1]) : null;
-  cell.weight = weight ? parseFloat(weight[1]) : null;
-}
-
 /**
- * Emit one Evaluation per strand cell that actually carried a percent. Rows
- * with no name or no marked strands (headers, the summary table) drop out.
+ * Turn one strand-coloured summary row into a category Evaluation. Skips rows
+ * that are not strand-coloured, and coloured rows with no percent (e.g. the
+ * Analysis/Trends plot rows). `weight` = first percent (Weighting column);
+ * `percent` = last percent (Student Achievement column).
  */
-function flushEvaluationRow(rowState, out) {
-  const name = collapseWhitespace(rowState.nameBuf);
-  if (!name) return;
-  for (const cell of rowState.cells) {
-    if (cell.percent == null) continue;
-    out.push({
-      name,
-      category: cell.category,
-      percent: cell.percent,
-      weight: cell.weight ?? null,
-    });
-  }
+function flushCategoryRow(rowState, out) {
+  if (!rowState.category) return;
+  const text = collapseWhitespace(rowState.buf);
+  const pcts = [...text.matchAll(/([\d.]+)\s*%/g)].map((m) => parseFloat(m[1]));
+  if (!pcts.length) return; // coloured but no marks (e.g. the plot rows)
+  const name = (text.split(/[\d.]+\s*%/)[0] || "").trim() || rowState.category;
+  out.push({
+    name,
+    category: rowState.category,
+    percent: pcts[pcts.length - 1],
+    weight: pcts.length > 1 ? pcts[0] : null,
+  });
 }
 
 // ============================================================================
