@@ -124,8 +124,9 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
-    // Single route: GET /api/marks
-    if (request.method !== "GET" || url.pathname !== "/api/marks") {
+    // Routes: GET /api/marks  and  GET /api/debug-report (temporary).
+    const path = url.pathname;
+    if (request.method !== "GET" || (path !== "/api/marks" && path !== "/api/debug-report")) {
       return json({ error: "Not found", hint: "Use GET /api/marks" }, 404);
     }
 
@@ -182,6 +183,23 @@ export default {
       // debug=courses returns the raw page so you can verify the HTML structure.
       if (debug === "courses") return text(listHtml);
 
+      // TEMPORARY debug route: return the RAW HTML of the first course that has
+      // a report link (your Geography course), so we can fix parseEvaluations.
+      // Remove this block once the report parser is confirmed working.
+      if (path === "/api/debug-report") {
+        const stubs = await parseCourseList(listHtml);
+        const target = stubs.find((c) => c.subjectId);
+        if (!target) {
+          return json({ error: "No course on the list has a report link." }, 404);
+        }
+        const sid = target.studentId || session.studentId;
+        const reportUrl =
+          `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(target.subjectId)}` +
+          `&student_id=${encodeURIComponent(sid)}`;
+        const reportHtml = await fetchWithSession(reportUrl, session.cookie, COURSE_LIST_URL);
+        return text(reportHtml);
+      }
+
       assertLoggedIn(listHtml);
 
       // 4: parse course code, name and current mark.
@@ -232,6 +250,7 @@ export default {
         code: c.code,
         name: c.name,
         currentMark: c.currentMark,
+        midterm: c.midterm ?? null,
         evaluations: c.evaluations,
         ...(c.reportError ? { reportError: c.reportError } : {}),
       }));
@@ -424,6 +443,7 @@ function cookieHeader(jar) {
  * @property {string|null} code
  * @property {string} name
  * @property {number|null} currentMark
+ * @property {number|null} midterm   "MIDTERM MARK: NN%" shown on the list page
  * @property {string|null} subjectId
  * @property {string|null} studentId
  */
@@ -485,12 +505,16 @@ function finalizeCourseRow(rowState, out, seen) {
 
   const code = extractCourseCode(text);
   const currentMark = extractCurrentMark(text);
+  const midterm = extractMidterm(text);
 
   // A row is only a course if it has a report link or a recognisable code.
   if (!rowState.subjectId && !code) return;
 
-  // Build a friendly name: the row text minus the "current mark = ..%" phrase.
-  let name = text.replace(/current mark\s*=\s*[\d.]+\s*%/i, "").trim();
+  // Build a friendly name: row text minus the mark phrases that live in it.
+  let name = text
+    .replace(/current mark\s*=\s*[\d.]+\s*%/i, "")
+    .replace(/midterm mark\s*:?\s*[\d.]+\s*%/i, "")
+    .trim();
   name = collapseWhitespace(name).slice(0, 200);
   if (!name) name = code || "Unknown course";
 
@@ -503,6 +527,7 @@ function finalizeCourseRow(rowState, out, seen) {
     code,
     name,
     currentMark,
+    midterm,
     subjectId: rowState.subjectId,
     studentId: rowState.studentId,
   });
@@ -517,6 +542,13 @@ function extractCourseCode(text) {
 /** Pull the "current mark = 95.5%" number out of row text, else null. */
 function extractCurrentMark(text) {
   const m = text.match(/current mark\s*=\s*([\d.]+)\s*%/i);
+  return m ? parseFloat(m[1]) : null;
+}
+
+/** Pull the "MIDTERM MARK: 85%" number out of row text, else null. This value
+ *  lives on the course-list page (a red cell), not on the report page. */
+function extractMidterm(text) {
+  const m = text.match(/midterm\s*mark\s*:?\s*([\d.]+)\s*%/i);
   return m ? parseFloat(m[1]) : null;
 }
 
