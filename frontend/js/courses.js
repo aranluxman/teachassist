@@ -321,6 +321,12 @@ export async function renderCourses(container) {
       const meta = [c.period && `P${escapeHtml(c.period)}`, c.room && `rm ${escapeHtml(c.room)}`]
         .filter(Boolean)
         .join(" · ");
+      // Show the calculated current mark when there are evaluations; otherwise
+      // fall back to the midterm mark (e.g. "Please see teacher" courses), with
+      // a small tag so it's clear which one is shown.
+      const computed = markById[c.id];
+      const big = computed != null ? computed : c.midterm;
+      const tag = computed != null ? "current" : c.midterm != null ? "midterm" : "";
       const card = el(`
         <div class="card course-card" data-id="${c.id}">
           <div class="icon-circle" style="background:${color}">${escapeHtml(letter)}</div>
@@ -330,7 +336,10 @@ export async function renderCourses(container) {
             ${meta ? `<div class="cc-meta">${meta}</div>` : ""}
           </div>
           <div class="cc-right">
-            <div class="cc-mark">${fmtPercent(markById[c.id])}</div>
+            <div class="cc-markwrap">
+              <div class="cc-mark">${fmtPercent(big)}</div>
+              ${tag ? `<div class="cc-tag">${tag}</div>` : ""}
+            </div>
             <span class="chevron"></span>
           </div>
         </div>
