@@ -19,6 +19,11 @@
   </head>
   <body>
     <div class="shell">
+      <!-- PWA Install Banner -->
+      <div id="install-banner" class="hidden" style="padding: 12px; background: var(--accent); color: white; text-align: center; border-radius: 0 0 16px 16px; margin-bottom: 12px; box-shadow: var(--shadow-sm);">
+        <button id="install-btn" style="background: transparent; border: 1px solid white; border-radius: 8px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; padding: 6px 12px; margin-left: 8px;">Download App ↓</button>
+      </div>
+
       <!-- Each "screen" is rendered into by a JS module. Only one is visible. -->
       <main id="screen-courses" class="screen">
         <div class="center-loader"><span class="spinner"></span></div>
@@ -134,6 +139,24 @@
       });
 
       fab.addEventListener("click", () => openCourseForm(null));
+
+      // PWA Install Logic
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        document.getElementById('install-banner').classList.remove('hidden');
+      });
+
+      document.getElementById('install-btn').addEventListener('click', async () => {
+        document.getElementById('install-banner').classList.add('hidden');
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log(`User response to the install prompt: ${outcome}`);
+          deferredPrompt = null;
+        }
+      });
 
       // Boot: require a session, then load the Courses screen.
       (async () => {

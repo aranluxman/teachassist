@@ -6,19 +6,20 @@
 
 :root {
   /* Surfaces */
-  --bg: #f2f2f7;
-  --bg-tint-top: #eef1fb; /* faint blue wash at the top of the screen */
-  --card: #ffffff;
+  --bg: #f5f7fa;
+  --bg-tint-top: #e2e8f0; /* elegant blue wash */
+  --card: rgba(255, 255, 255, 0.65);
+  --card-border: rgba(255, 255, 255, 0.8);
 
   /* Text */
-  --text: #1c1c1e;
-  --text-secondary: #8e8e93;
+  --text: #0f172a;
+  --text-secondary: #64748b;
 
   /* Accent + light tints for active elements */
-  --accent: #2563eb;
-  --accent-press: #1e54d6;
-  --accent-tint: #eaf0ff; /* light blue background for active/secondary */
-  --accent-tint-2: #f3f7ff;
+  --accent: #4f46e5;
+  --accent-press: #4338ca;
+  --accent-tint: #e0e7ff; 
+  --accent-tint-2: #ede9fe;
 
   /* Lines / fills */
   --separator: #ececf1;
@@ -186,6 +187,9 @@ a {
   border-radius: var(--radius);
   padding: var(--gap);
   box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--card-border);
 }
 
 /* Colored circular icon (≥44px tap-friendly visual) */
