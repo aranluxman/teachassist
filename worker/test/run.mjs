@@ -1,9 +1,78 @@
+import assert from "node:assert";
+import worker from "../src/index.js";
+
+// ---- Friendly routing diagnostics ------------------------------------------
+{
+  const root = await worker.fetch(new Request("http://localhost/"), {});
+  assert.strictEqual(root.status, 200, "Worker root should return a helpful status");
+  const body = await root.json();
+  assert.strictEqual(body.endpoint, "http://localhost/api/marks");
+
+  const doubled = await worker.fetch(
+    new Request("http://localhost/api/marks/api/marks"),
+    {}
+  );
+  assert.strictEqual(doubled.status, 400, "double endpoint should explain the URL problem");
+  const doubledBody = await doubled.json();
+  assert.match(doubledBody.hint, /endpoint/i);
+}
+
+// ---- Login request contract -------------------------------------------------
+// The live TeachAssist login form posts to /yrdsb/index.php with two constant
+// fields in addition to username/password. Keep this as a quick regression
+// check because a wrong login POST makes the sync fail before parsing starts.
+{
+  const originalFetch = globalThis.fetch;
+  let captured;
+  globalThis.fetch = async (url, init) => {
+    captured = { url: String(url), init };
+    return new Response("", {
+      status: 302,
+      headers: {
+        location: "https://ta.yrdsb.ca/live/students/listReports.php?student_id=242965",
+        "set-cookie": "session_token=fake-session; Path=/; HttpOnly",
+      },
+    });
+  };
+
+  try {
+    const res = await worker.fetch(
+      new Request("http://localhost/api/marks?debug=login", {
+        headers: { "x-api-key": "test-key" },
+      }),
+      {
+        API_KEY: "test-key",
+        TA_USERNAME: "student-number",
+        TA_PASSWORD: "student-password",
+      }
+    );
+    assert.strictEqual(res.status, 200, "debug login request should succeed");
+    assert.strictEqual(
+      captured.url,
+      "https://ta.yrdsb.ca/yrdsb/index.php",
+      "login should post to the live TeachAssist login path"
+    );
+
+    const form = new URLSearchParams(captured.init.body);
+    assert.strictEqual(form.get("subject_id"), "0", "login should include subject_id=0");
+    assert.strictEqual(form.get("username"), "student-number", "login should include username");
+    assert.strictEqual(form.get("password"), "student-password", "login should include password");
+    assert.strictEqual(form.get("submit"), "Login", "login should include submit=Login");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+if (process.env.SKIP_PARSER_TESTS === "1") {
+  console.log("Login contract assertion passed.");
+  process.exit(0);
+}
+
 // Bundles the test harness with esbuild and runs it under Miniflare (real
 // workerd runtime, so HTMLRewriter behaves exactly like production), then
 // asserts the parser output against sample TeachAssist-shaped HTML.
-import { build } from "esbuild";
-import { Miniflare } from "miniflare";
-import assert from "node:assert";
+const { build } = await import("esbuild");
+const { Miniflare } = await import("miniflare");
 
 const bundle = await build({
   entryPoints: ["test/harness.js"],

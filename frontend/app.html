@@ -19,10 +19,22 @@
   </head>
   <body>
     <div class="shell">
-      <!-- PWA Install Banner -->
-      <div id="install-banner" class="hidden" style="padding: 12px; background: var(--accent); color: white; text-align: center; border-radius: 0 0 16px 16px; margin-bottom: 12px; box-shadow: var(--shadow-sm);">
-        <button id="install-btn" style="background: transparent; border: 1px solid white; border-radius: 8px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; padding: 6px 12px; margin-left: 8px;">Download App ↓</button>
-      </div>
+      <header class="app-topbar">
+        <a class="app-brand" href="app.html" aria-label="Grade Dashboard home">
+          <span class="app-mark">G</span>
+          <span class="app-brand-text">
+            <span class="app-name">Grade Dashboard</span>
+            <span class="app-status">TeachAssist sync</span>
+          </span>
+        </a>
+        <button class="install-btn" id="install-app" type="button" aria-label="Install Grade Dashboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v11m0 0 4-4m-4 4-4-4" />
+            <path d="M5 15v3a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-3" />
+          </svg>
+          <span class="install-label">Install</span>
+        </button>
+      </header>
 
       <!-- Each "screen" is rendered into by a JS module. Only one is visible. -->
       <main id="screen-courses" class="screen">
@@ -81,6 +93,7 @@
       import { openCourseDetail } from "./js/course-detail.js";
       import { renderLinks } from "./js/links.js";
       import { renderSettings, applyStoredTheme } from "./js/settings.js";
+      import { initInstallButton } from "./js/install.js";
 
       const screens = {
         courses: document.getElementById("screen-courses"),
@@ -90,6 +103,7 @@
       };
       const tabbar = document.getElementById("tabbar");
       const fab = document.getElementById("fab");
+      initInstallButton();
 
       // Show one screen; manage tab-bar + FAB visibility.
       function showScreen(name) {
@@ -139,24 +153,6 @@
       });
 
       fab.addEventListener("click", () => openCourseForm(null));
-
-      // PWA Install Logic
-      let deferredPrompt;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        document.getElementById('install-banner').classList.remove('hidden');
-      });
-
-      document.getElementById('install-btn').addEventListener('click', async () => {
-        document.getElementById('install-banner').classList.add('hidden');
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          console.log(`User response to the install prompt: ${outcome}`);
-          deferredPrompt = null;
-        }
-      });
 
       // Boot: require a session, then load the Courses screen.
       (async () => {

@@ -1,9 +1,7 @@
-// ============================================================================
 // Settings
 // ----------------------------------------------------------------------------
 // Shows the signed-in email, lets the user edit the term date range, toggle
 // dark mode, and sign out.
-// ============================================================================
 
 import { getCurrentUser, signOut } from "./auth.js";
 import {
@@ -106,11 +104,11 @@ export async function renderSettings(container) {
   container.appendChild(el(`<div class="section-label">TeachAssist Sync</div>`));
   const cfg = getWorkerConfig();
   const sync = el(`
-    <div class="card">
+    <div class="card sync-card">
       <div class="field">
-        <label for="ta-url">Worker URL</label>
+        <label for="ta-url">Worker URL or endpoint</label>
         <input id="ta-url" type="url" inputmode="url" autocapitalize="off" autocorrect="off"
-          spellcheck="false" placeholder="https://teachassist-marks.you.workers.dev"
+          spellcheck="false" placeholder="https://teachassist-marks.you.workers.dev/api/marks"
           value="${escapeHtml(cfg.url)}" />
       </div>
       <div class="field">
@@ -120,7 +118,7 @@ export async function renderSettings(container) {
       </div>
       <div class="muted small" style="margin:2px 2px 12px">
         Stored on this device only (not in the repo). The key just gates who can
-        fetch your marks — it is not your TeachAssist password.
+        fetch your marks - it is not your TeachAssist password.
       </div>
       <div id="ta-status" class="error-text" style="color:var(--text-secondary)"></div>
       <div class="form-actions">
@@ -129,8 +127,7 @@ export async function renderSettings(container) {
         <button id="ta-save" class="btn ghost">Save</button>
       </div>
       <div class="muted small" style="margin-top:8px;text-align:center">
-        Sync imports your courses + midterm marks. Evaluations sync once the
-        report parser is finalized.
+        Sync imports your courses, current marks, category weights, and parsed evaluations.
       </div>
     </div>
   `);
@@ -157,8 +154,8 @@ export async function renderSettings(container) {
       const r = await syncFromTeachAssist(user.id);
       statusEl.style.color = r.missingColumn ? "var(--danger)" : "var(--good)";
       statusEl.textContent = r.missingColumn
-        ? `Synced ${r.total} course(s), but the current_mark column is missing — run the migration in schema.sql (ALTER TABLE … add current_mark) then sync again.`
-        : `✓ Synced ${r.total} course${r.total === 1 ? "" : "s"} (${r.created} new, ${r.updated} updated). Marks + weightings updated — check the Courses tab.`;
+        ? `Synced ${r.total} course(s), but the current_mark column is missing - run the schema.sql migration, then sync again.`
+        : `Synced ${r.total} course${r.total === 1 ? "" : "s"} (${r.created} new, ${r.updated} updated). Marks and weightings updated - check the Courses tab.`;
     } catch (err) {
       statusEl.style.color = "var(--danger)";
       statusEl.textContent = err.message || "Sync failed.";
@@ -183,7 +180,7 @@ export async function renderSettings(container) {
         0
       );
       statusEl.style.color = "var(--good)";
-      statusEl.textContent = `✓ Fetched ${courses.length} course${courses.length === 1 ? "" : "s"} (${evalCount} evaluations).`;
+      statusEl.textContent = `Fetched ${courses.length} course${courses.length === 1 ? "" : "s"} (${evalCount} evaluations).`;
     } catch (err) {
       statusEl.style.color = "var(--danger)";
       statusEl.textContent = err.message || "Could not reach the Worker.";
@@ -224,6 +221,6 @@ export async function renderSettings(container) {
   container.appendChild(out);
 
   container.appendChild(
-    el(`<div class="muted small" style="text-align:center;margin-top:18px">Grade Dashboard · data stored in your Supabase project</div>`)
+    el(`<div class="muted small" style="text-align:center;margin-top:18px">Grade Dashboard - data stored in your Supabase project</div>`)
   );
 }

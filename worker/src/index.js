@@ -40,7 +40,7 @@ const API_KEY_HEADER = "x-api-key";
 // verified against the live site's Network tab.
 const TA_ORIGIN = "https://ta.yrdsb.ca";
 
-// The login form POST target (verified — returns 302 on success).
+// The login form POST target from the current TeachAssist login redirect.
 const LOGIN_URL = `${TA_ORIGIN}/yrdsb/index.php`;
 
 // The marks-list page that lists your courses after login. TeachAssist assigns
@@ -54,22 +54,21 @@ const COURSE_LIST_URL = `${TA_ORIGIN}/live/students/listReports.php?student_id=2
 const REPORT_URL_BASE = `${TA_ORIGIN}/live/students/viewReport.php`;
 
 // --- Login form field names -------------------------------------------------
-// The EXACT form field names submitted by the login <form> (verified: only
-// username + password are required). `extra` holds any constant hidden/submit
-// fields — left empty per your capture. If a login ever returns the login page
-// instead of a 302, uncomment submit (some TA deployments require it).
+// The EXACT form field names submitted by the login <form>. `extra` holds the
+// constant hidden/submit fields in the page.
 const LOGIN_FIELDS = {
   username: "username",
   password: "password",
   extra: {
-    // submit: "Login",
+    subject_id: "0",
+    submit: "Login",
   },
 };
 
 // --- Session cookie ---------------------------------------------------------
-// The cookie TeachAssist sets to carry the logged-in session (verified). The
-// Worker captures it from the login response's Set-Cookie header and sends it
-// on every subsequent request. (TeachAssist also sets a `student_id` cookie.)
+// The cookie TeachAssist sets to carry the logged-in session. The Worker
+// captures it from the login response's Set-Cookie header and sends it on every
+// subsequent request.
 const SESSION_COOKIE_NAME = "session_token";
 
 // --- Report fetching --------------------------------------------------------
@@ -125,7 +124,31 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
-    // Single route: GET /api/marks
+    if (request.method === "GET" && url.pathname === "/") {
+      return json({
+        ok: true,
+        service: "TeachAssist marks Worker",
+        endpoint: `${url.origin}/api/marks`,
+        hint: "Use this endpoint from the dashboard Settings sync section.",
+      });
+    }
+
+    if (request.method === "GET" && /^\/api\/marks\/+$/i.test(url.pathname)) {
+      return Response.redirect(`${url.origin}/api/marks${url.search}`, 308);
+    }
+
+    if (request.method === "GET" && /^\/api\/marks\/api\/marks\/?$/i.test(url.pathname)) {
+      return json(
+        {
+          error: "The endpoint was added twice.",
+          hint:
+            "In dashboard Settings, paste either your Worker base URL or /api/marks endpoint; the app now normalizes both.",
+        },
+        400
+      );
+    }
+
+    // Single marks route: GET /api/marks
     if (request.method !== "GET" || url.pathname !== "/api/marks") {
       return json({ error: "Not found", hint: "Use GET /api/marks" }, 404);
     }
@@ -263,8 +286,8 @@ export default {
 
 /**
  * Step 1 + 2: POST the login form (form-url-encoded) and capture the session
- * cookie. TeachAssist replies 302 and sets `session_token` (+ a `student_id`
- * cookie). We use `redirect: "manual"` so the Set-Cookie header survives.
+ * cookie. TeachAssist replies 302 and sets `session_token`. We use
+ * `redirect: "manual"` so the Set-Cookie header survives.
  *
  * @param {{ TA_USERNAME: string, TA_PASSWORD: string }} env
  * @returns {Promise<Session>}

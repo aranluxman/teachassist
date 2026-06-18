@@ -19,6 +19,16 @@
   </head>
   <body>
     <div class="auth-wrap">
+      <div class="auth-topbar">
+        <button class="install-btn" id="install-app" type="button" aria-label="Install Grade Dashboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v11m0 0 4-4m-4 4-4-4" />
+            <path d="M5 15v3a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-3" />
+          </svg>
+          <span class="install-label">Install</span>
+        </button>
+      </div>
+
       <div class="auth-logo">
         <div class="mark">G</div>
         <h1>Grade Dashboard</h1>
@@ -69,5 +79,9 @@
 
     <!-- App modules -->
     <script type="module" src="js/auth.js"></script>
+    <script type="module">
+      import { initInstallButton } from "./js/install.js";
+      initInstallButton();
+    </script>
   </body>
 </html>
