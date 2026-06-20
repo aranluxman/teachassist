@@ -15,6 +15,24 @@
   </head>
   <body>
     <div class="shell">
+      <header class="app-topbar">
+        <a class="app-brand" href="app.html" aria-label="TeachAssist home">
+          <span class="app-mark">TA</span>
+          <span class="app-brand-text">
+            <span class="app-name">TeachAssist</span>
+            <span class="app-status">Live marks</span>
+          </span>
+        </a>
+        <button class="install-btn" id="install-app" type="button" aria-label="Install TeachAssist">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v11m0 0 4-4m-4 4-4-4" />
+            <path d="M5 15v3a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-3" />
+          </svg>
+          <span class="install-label">Install</span>
+        </button>
+      </header>
+
+      <!-- Each "screen" is rendered into by a JS module. Only one is visible. -->
       <main id="screen-courses" class="screen">
         <div class="center-loader"><span class="spinner"></span></div>
       </main>
@@ -64,6 +82,7 @@
       import { renderGuidance } from "./js/guidance.js";
       import { renderLinks } from "./js/links.js";
       import { renderSettings, applyStoredTheme } from "./js/settings.js";
+      import { initInstallButton } from "./js/install.js";
 
       const screens = {
         courses: document.getElementById("screen-courses"),
@@ -73,6 +92,7 @@
         settings: document.getElementById("screen-settings"),
       };
       const tabbar = document.getElementById("tabbar");
+      initInstallButton();
 
       function showScreen(name) {
         for (const [k, elx] of Object.entries(screens)) elx.classList.toggle("hidden", k !== name);

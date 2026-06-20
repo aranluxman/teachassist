@@ -16,6 +16,16 @@
   </head>
   <body>
     <div class="auth-wrap">
+      <div class="auth-topbar">
+        <button class="install-btn" id="install-app" type="button" aria-label="Install Grade Dashboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v11m0 0 4-4m-4 4-4-4" />
+            <path d="M5 15v3a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-3" />
+          </svg>
+          <span class="install-label">Install</span>
+        </button>
+      </div>
+
       <div class="auth-logo">
         <div class="mark">TA</div>
         <h1>TeachAssist</h1>
@@ -80,6 +90,9 @@
         apiKey,
         setApiKey,
       } from "./js/ta-client.js";
+      import { initInstallButton } from "./js/install.js";
+
+      initInstallButton();
 
       // Already signed in? Go straight to the app.
       if (isLoggedIn()) window.location.replace("app.html");

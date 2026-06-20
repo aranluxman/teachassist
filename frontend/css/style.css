@@ -6,19 +6,23 @@
 
 :root {
   /* Surfaces */
-  --bg: #f2f2f7;
-  --bg-tint-top: #eef1fb; /* faint blue wash at the top of the screen */
-  --card: #ffffff;
+  --bg: #f5f7fa;
+  --bg-tint-top: #e2e8f0; /* elegant blue wash */
+  --card: rgba(255, 255, 255, 0.65);
+  --card-soft: rgba(255, 255, 255, 0.78);
+  --card-border: rgba(255, 255, 255, 0.8);
 
   /* Text */
-  --text: #1c1c1e;
-  --text-secondary: #8e8e93;
+  --text: #0f172a;
+  --text-secondary: #64748b;
 
   /* Accent + light tints for active elements */
-  --accent: #2563eb;
-  --accent-press: #1e54d6;
-  --accent-tint: #eaf0ff; /* light blue background for active/secondary */
-  --accent-tint-2: #f3f7ff;
+  --accent: #4f46e5;
+  --accent-press: #4338ca;
+  --accent-tint: #e0e7ff; 
+  --accent-tint-2: #ede9fe;
+  --accent-2: #0f9f8f;
+  --accent-3: #ff7a59;
 
   /* Lines / fills */
   --separator: #ececf1;
@@ -45,6 +49,7 @@
   --max-width: 480px;
   --tabbar-h: 64px;
   --tabbar-gap: 14px;
+  --topbar-h: 68px;
   --fab-offset: calc((min(100vw, var(--max-width)) / 2) - 76px);
 
   /* Motion */
@@ -58,9 +63,12 @@
   --bg: #000000;
   --bg-tint-top: #0b1020;
   --card: #1c1c1e;
+  --card-soft: rgba(28, 28, 30, 0.78);
   --text: #ffffff;
   --text-secondary: #8e8e93;
   --accent: #4f86ff;
+  --accent-2: #39d0bd;
+  --accent-3: #ff9f7f;
   --accent-tint: #182338;
   --accent-tint-2: #141a28;
   --separator: #2c2c2e;
@@ -107,7 +115,9 @@ body {
   margin: 0 auto;
   min-height: 100vh;
   position: relative;
-  background: linear-gradient(180deg, var(--bg-tint-top) 0%, var(--bg) 220px);
+  background:
+    linear-gradient(140deg, rgba(15, 159, 143, 0.11) 0%, transparent 34%),
+    linear-gradient(180deg, var(--bg-tint-top) 0%, var(--bg) 248px);
 }
 @media (min-width: 520px) {
   .shell {
@@ -185,7 +195,14 @@ a {
   background: var(--card);
   border-radius: var(--radius);
   padding: var(--gap);
+  border: 1px solid rgba(255, 255, 255, 0.72);
   box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--card-border);
+}
+[data-theme="dark"] .card {
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Colored circular icon (≥44px tap-friendly visual) */
@@ -209,6 +226,10 @@ a {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+}
+[data-theme="dark"] .rows {
+  border-color: rgba(255, 255, 255, 0.08);
 }
 .row {
   display: flex;
@@ -238,6 +259,11 @@ a.row {
 .row:active {
   background: var(--accent-tint-2);
 }
+@media (hover: hover) {
+  .row:hover {
+    background: var(--accent-tint-2);
+  }
+}
 .row .row-main {
   flex: 1;
   min-width: 0;
@@ -265,6 +291,114 @@ a.row {
 }
 
 /* ------------------------------ App layout ------------------------------ */
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(8px + env(safe-area-inset-top)) var(--gap) 8px;
+  background: color-mix(in srgb, var(--bg-tint-top) 82%, transparent);
+  backdrop-filter: saturate(180%) blur(22px);
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+}
+[data-theme="dark"] .app-topbar {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text);
+  text-decoration: none;
+}
+.app-mark {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 850;
+  letter-spacing: -0.4px;
+  background: linear-gradient(145deg, var(--accent-2), var(--accent));
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+}
+.app-brand-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.08;
+}
+.app-name {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+.app-status {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.install-btn {
+  min-height: 40px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 999px;
+  background: var(--card-soft);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 13px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--t), background var(--t), color var(--t), opacity var(--t);
+}
+.install-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.install-btn:active {
+  transform: scale(0.97);
+  background: var(--accent-tint);
+}
+.install-btn.is-installed {
+  color: var(--accent-2);
+  opacity: 0.82;
+}
+.install-btn:disabled {
+  cursor: default;
+}
+@media (max-width: 360px) {
+  .app-status {
+    display: none;
+  }
+  .install-btn {
+    padding-inline: 11px;
+  }
+  .install-label {
+    display: none;
+  }
+}
+
 .screen {
   padding: var(--gap);
   /* Clear the floating tab bar AND the iOS home indicator (safe-area inset). */
@@ -292,10 +426,10 @@ a.row {
   align-items: center;
   justify-content: space-between;
   min-height: 44px;
-  margin: 8px 2px 18px;
+  margin: 4px 2px 16px;
 }
 .screen-header h1 {
-  font-size: 32px;
+  font-size: 30px;
 }
 
 .section-label {
@@ -336,6 +470,9 @@ a.row {
   align-items: center;
   gap: 14px;
   margin-bottom: 16px;
+  background:
+    linear-gradient(135deg, rgba(15, 159, 143, 0.12), transparent 46%),
+    var(--card);
 }
 .overall .overall-main {
   flex: 1;
@@ -355,7 +492,14 @@ a.row {
   gap: 14px;
   margin-bottom: 12px;
   cursor: pointer;
-  transition: transform var(--t), box-shadow var(--t);
+  border-left: 4px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  transition: transform var(--t), box-shadow var(--t), background var(--t);
+}
+@media (hover: hover) {
+  .course-card:hover {
+    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--card) 88%, var(--accent-tint));
+  }
 }
 .course-card:active {
   transform: scale(0.985);
@@ -394,15 +538,21 @@ a.row {
   gap: 4px;
 }
 .course-card .cc-markwrap {
+  min-width: 70px;
   text-align: right;
 }
 .course-card .cc-tag {
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--text-secondary);
   margin-top: -2px;
+}
+.sync-card {
+  background:
+    linear-gradient(145deg, rgba(37, 99, 235, 0.08), rgba(15, 159, 143, 0.08)),
+    var(--card);
 }
 
 /* Empty state */
@@ -582,8 +732,8 @@ a.row {
   padding: 12px var(--gap);
   min-height: 52px;
   position: sticky;
-  top: 0;
-  background: linear-gradient(180deg, var(--bg-tint-top), rgba(242, 242, 247, 0.85));
+  top: var(--topbar-h);
+  background: color-mix(in srgb, var(--bg-tint-top) 88%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   z-index: 10;
@@ -905,10 +1055,20 @@ a.row {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  position: relative;
   padding: 24px;
   max-width: var(--max-width);
   margin: 0 auto;
-  background: linear-gradient(180deg, var(--bg-tint-top), var(--bg) 60%);
+  background:
+    linear-gradient(145deg, rgba(255, 122, 89, 0.12), transparent 34%),
+    linear-gradient(180deg, var(--bg-tint-top), var(--bg) 60%);
+}
+.auth-topbar {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 18px;
+  display: flex;
+  justify-content: flex-end;
 }
 .auth-logo {
   text-align: center;
@@ -918,7 +1078,7 @@ a.row {
   width: 68px;
   height: 68px;
   border-radius: 20px;
-  background: linear-gradient(160deg, #4f86ff, var(--accent));
+  background: linear-gradient(160deg, var(--accent-2), var(--accent));
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -940,6 +1100,7 @@ a.row {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
 }
 .auth-toggle {
   text-align: center;

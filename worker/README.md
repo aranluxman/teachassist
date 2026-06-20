@@ -41,9 +41,9 @@ Returns an array of courses:
 
 ### Login flow (confirmed from a real HAR capture)
 
-1. `POST https://ta.yrdsb.ca/live/index.php` (form-url-encoded) with
+1. `POST https://ta.yrdsb.ca/yrdsb/index.php` (form-url-encoded) with
    `subject_id=0`, `username`, `password`, `submit=Login`.
-2. TeachAssist replies **302** with a `Set-Cookie: PHPSESSID=…` and a
+2. TeachAssist replies **302** with a `Set-Cookie: session_token=...` and a
    `Location: …/live/students/listReports.php?student_id=NNNN`. The Worker reads
    the cookie and the `student_id` off that 302 (it uses `redirect: "manual"` so
    neither is lost) — `student_id` is **never hardcoded**.
