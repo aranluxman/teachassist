@@ -1,24 +1,16 @@
 // ============================================================================
-// Supabase configuration
+// Config
 // ----------------------------------------------------------------------------
-// These are the PUBLIC project URL and the PUBLISHABLE (anon) key. They are
-// designed to be shipped in browser code and are protected by Row Level
-// Security policies in the database — so it is safe to commit them here.
-//
-// NEVER put a Supabase *service_role* (secret) key in this file. The frontend
-// must only ever use the anon / publishable key.
-//
-// To point this dashboard at your own Supabase project, replace the two values
-// below with the ones from: Supabase Dashboard → Project Settings → API.
+// This is a live TeachAssist client (single user): you sign in with your YRDSB
+// student number + password, the Cloudflare Worker logs into ta.yrdsb.ca and
+// returns your marks, and this app renders them. No database, no manual entry.
 // ============================================================================
 
-export const SUPABASE_URL = "https://zciulgqkqusjxomyapcz.supabase.co";
+// Your deployed Worker. Not a secret (the API key + your login are what gate
+// access). Can be overridden per-device on the sign-in screen ("Advanced").
+export const WORKER_URL = "https://teachassist-marks.aran-luxman.workers.dev";
 
-// Publishable (anon) key — safe for the browser. Replace with your own.
-export const SUPABASE_ANON_KEY =
-  "sb_publishable_t3LKmsyqW22dT4ZMlKWQkg_UIyTziIe";
-
-// The six course icon colors, rotated through by `color_index`.
+// Course icon colours, rotated through by course order.
 export const COURSE_COLORS = [
   "#FF9500", // orange
   "#34C759", // green
@@ -28,23 +20,12 @@ export const COURSE_COLORS = [
   "#5AC8FA", // light blue
 ];
 
-// Default weighted categories seeded for every new course (Ontario achievement
-// chart). Weights are editable later in the Breakdown tab.
-export const DEFAULT_CATEGORIES = [
-  { name: "Knowledge/Understanding", weight: 25 },
-  { name: "Thinking", weight: 25 },
-  { name: "Communication", weight: 25 },
-  { name: "Application", weight: 25 },
-  { name: "Other", weight: 0 },
-];
-
-// Default rows for the Links (Student Tools) tab. Stored/edited locally per
-// device — see js/links.js.
+// Default rows for the Links (Student Tools) tab. Stored/edited locally.
 export const DEFAULT_LINKS = [
-  { label: "TeachAssist Website", url: "https://ta.yrdsb.ca" },
-  { label: "My Pathway Planner", url: "https://www.myblueprint.ca" },
-  { label: "Brightspace / D2L", url: "https://yrdsb.elearningontario.ca" },
-  { label: "Google Classroom", url: "https://classroom.google.com" },
-  { label: "YRDSB Threads", url: "https://threads.yrdsb.ca" },
-  { label: "Desmos Calculator", url: "https://www.desmos.com/calculator" },
+  { label: "TeachAssist Website", url: "https://ta.yrdsb.ca", category: "Student Tools" },
+  { label: "My Pathway Planner", url: "https://www.myblueprint.ca", category: "Student Tools" },
+  { label: "Brightspace / D2L", url: "https://yrdsb.elearningontario.ca", category: "Student Tools" },
+  { label: "Google Classroom", url: "https://classroom.google.com", category: "School" },
+  { label: "YRDSB Threads", url: "https://threads.yrdsb.ca", category: "School" },
+  { label: "Desmos Calculator", url: "https://www.desmos.com/calculator", category: "Calculators" },
 ];

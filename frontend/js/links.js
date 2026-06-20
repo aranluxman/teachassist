@@ -8,14 +8,13 @@
 // ============================================================================
 
 import { el, escapeHtml, openSheet, closeSheet } from "./courses.js";
-import { getCurrentUser } from "./auth.js";
 import { DEFAULT_LINKS, COURSE_COLORS } from "./config.js";
 
 let editing = false;
 const DEFAULT_CATEGORY = "Student Tools";
 
 function storageKey() {
-  return "links:" + (getCurrentUser()?.id || "anon");
+  return "ta_links";
 }
 
 function loadLinks() {
