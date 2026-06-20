@@ -43,10 +43,10 @@ const TA_ORIGIN = "https://ta.yrdsb.ca";
 // The login form POST target from the current TeachAssist login redirect.
 const LOGIN_URL = `${TA_ORIGIN}/yrdsb/index.php`;
 
-// The marks-list page that lists your courses after login. TeachAssist assigns
-// your student_id (also set as a cookie on login); this personal tool pins it
-// here. If you ever log in as a different account, change the student_id below.
-const COURSE_LIST_URL = `${TA_ORIGIN}/live/students/listReports.php?student_id=242965`;
+// The marks-list page base. The Worker appends ?student_id=NNNN using the
+// student_id TeachAssist assigns at login (read from the login response), so it
+// works for whichever account signs in — no hardcoded id.
+const COURSE_LIST_URL = `${TA_ORIGIN}/live/students/listReports.php`;
 
 // The per-course report page. The Worker appends ?subject_id=..&student_id=..
 // using the subject_id scraped from each course link and your student_id, so a
@@ -124,40 +124,34 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
+    // Friendly root + path-normalization helpers.
     if (request.method === "GET" && url.pathname === "/") {
       return json({
         ok: true,
         service: "TeachAssist marks Worker",
         endpoint: `${url.origin}/api/marks`,
-        hint: "Use this endpoint from the dashboard Settings sync section.",
+        hint: "Sign in from the dashboard; it POSTs your credentials here.",
       });
     }
-
     if (request.method === "GET" && /^\/api\/marks\/+$/i.test(url.pathname)) {
       return Response.redirect(`${url.origin}/api/marks${url.search}`, 308);
     }
-
     if (request.method === "GET" && /^\/api\/marks\/api\/marks\/?$/i.test(url.pathname)) {
       return json(
         {
           error: "The endpoint was added twice.",
-          hint:
-            "In dashboard Settings, paste either your Worker base URL or /api/marks endpoint; the app now normalizes both.",
+          hint: "Use your Worker base URL; the app appends the /api/marks endpoint itself.",
         },
         400
       );
     }
 
-    // Single marks route: GET /api/marks
-    if (request.method !== "GET" || url.pathname !== "/api/marks") {
-      return json({ error: "Not found", hint: "Use GET /api/marks" }, 404);
+    // Route: GET (uses Worker secrets) or POST (browser sign-in with creds).
+    if (url.pathname !== "/api/marks" || (request.method !== "GET" && request.method !== "POST")) {
+      return json({ error: "Not found", hint: "Use GET or POST /api/marks" }, 404);
     }
 
-    // Optional shared-secret gate so only you can call this. Accept the key via
-    // the x-api-key header OR a ?key= query param, so the debug routes can be
-    // opened directly in a browser. (A query-param key is visible in the URL /
-    // browser history — acceptable for the temporary debug routes on a personal
-    // single-user tool; prefer the header for normal use.)
+    // Shared-secret gate: x-api-key header or ?key= query param.
     if (REQUIRE_API_KEY) {
       const provided = request.headers.get(API_KEY_HEADER) || url.searchParams.get("key");
       if (!env.API_KEY || !provided || !timingSafeEqual(provided, env.API_KEY)) {
@@ -165,14 +159,26 @@ export default {
       }
     }
 
-    // Secrets must be configured (wrangler secret put ...).
-    if (!env.TA_USERNAME || !env.TA_PASSWORD) {
+    // Credentials: from the POST body (browser sign-in) or the Worker secrets
+    // (GET fallback). The password is never logged, stored, or returned.
+    let creds = null;
+    if (request.method === "POST") {
+      try {
+        const b = await request.json();
+        if (b && b.username && b.password) {
+          creds = { username: String(b.username), password: String(b.password) };
+        }
+      } catch {
+        /* ignore bad/empty body */
+      }
+    }
+    if (!creds && (!env.TA_USERNAME || !env.TA_PASSWORD)) {
       return json(
         {
           error:
-            "Server not configured: missing TA_USERNAME / TA_PASSWORD secrets.",
+            "No credentials. Send {username, password} in a POST body, or set TA_USERNAME/TA_PASSWORD secrets.",
         },
-        500
+        400
       );
     }
 
@@ -187,7 +193,7 @@ export default {
       // debug=login runs the POST directly so you can see WHY a login failed
       // (status, redirect Location, which cookies came back) without throwing.
       if (debug === "login") {
-        const res = await loginResponse(env);
+        const res = await loginResponse(env, creds);
         const jar = extractCookies(res);
         const location = res.headers.get("location") || "";
         return json({
@@ -202,10 +208,11 @@ export default {
       }
 
       // 1 + 2: log in; capture the session cookie + student_id.
-      const session = await login(env);
+      const session = await login(env, creds);
 
-      // 3: fetch the marks-list page (COURSE_LIST_URL) with that cookie.
-      const listHtml = await fetchWithSession(COURSE_LIST_URL, session.cookie, LOGIN_URL);
+      // 3: fetch the marks-list page with that cookie (student_id from login).
+      const listUrl = `${COURSE_LIST_URL}?student_id=${encodeURIComponent(session.studentId)}`;
+      const listHtml = await fetchWithSession(listUrl, session.cookie, LOGIN_URL);
 
       // debug=courses returns the raw page so you can verify the HTML structure.
       if (debug === "courses") return text(listHtml);
@@ -225,7 +232,7 @@ export default {
         const html = await fetchWithSession(
           `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(sid)}&student_id=${encodeURIComponent(session.studentId)}`,
           session.cookie,
-          COURSE_LIST_URL
+          listUrl
         );
         return text(html);
       }
@@ -292,8 +299,8 @@ export default {
  * @param {{ TA_USERNAME: string, TA_PASSWORD: string }} env
  * @returns {Promise<Session>}
  */
-async function login(env) {
-  const res = await loginResponse(env);
+async function login(env, creds) {
+  const res = await loginResponse(env, creds);
 
   const jar = extractCookies(res);
   const session = jar[SESSION_COOKIE_NAME];
@@ -306,31 +313,37 @@ async function login(env) {
       ? "TeachAssist rejected the credentials"
       : `no valid '${SESSION_COOKIE_NAME}' cookie returned`;
     throw new AuthError(
-      `Login failed: ${reason}. Check credentials, LOGIN_URL, LOGIN_FIELDS and SESSION_COOKIE_NAME.`
+      `Login failed: ${reason}. Check your student number and password.`
     );
   }
 
-  // student_id for report URLs: prefer the cookie TeachAssist sets; fall back
-  // to the one pinned in COURSE_LIST_URL, then the redirect Location.
+  // student_id (used to build the marks-list + report URLs): prefer the cookie
+  // TeachAssist sets at login, else the redirect Location.
   const studentId =
-    jar.student_id ||
-    (COURSE_LIST_URL.match(/student_id=(\d+)/) || [])[1] ||
-    (location.match(/student_id=(\d+)/) || [])[1] ||
-    null;
+    jar.student_id || (location.match(/student_id=(\d+)/) || [])[1] || null;
+  if (!studentId) {
+    throw new AuthError("Logged in, but could not determine your student_id.");
+  }
 
   if (DEBUG) {
     console.log(
-      `Login OK — cookies: ${Object.keys(jar).join(", ")}; studentId: ${studentId || "(none)"}`
+      `Login OK — cookies: ${Object.keys(jar).join(", ")}; studentId resolved`
     );
   }
   return { cookie: cookieHeader(jar), studentId };
 }
 
-/** Perform the raw login POST (shared by login() and the debug endpoint). */
-function loginResponse(env) {
+/**
+ * Perform the raw login POST. Credentials come from the request (`creds`) when
+ * provided (browser sign-in), otherwise from the Worker secrets (GET fallback).
+ * The password is never logged or stored.
+ */
+function loginResponse(env, creds) {
+  const username = creds?.username ?? env.TA_USERNAME;
+  const password = creds?.password ?? env.TA_PASSWORD;
   const body = new URLSearchParams();
-  body.set(LOGIN_FIELDS.username, env.TA_USERNAME);
-  body.set(LOGIN_FIELDS.password, env.TA_PASSWORD);
+  body.set(LOGIN_FIELDS.username, username || "");
+  body.set(LOGIN_FIELDS.password, password || "");
   for (const [k, v] of Object.entries(LOGIN_FIELDS.extra || {})) body.set(k, v);
 
   return fetch(LOGIN_URL, {
@@ -704,7 +717,7 @@ function collapseWhitespace(s) {
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": DASHBOARD_ORIGIN,
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": `Content-Type, ${API_KEY_HEADER}`,
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",

@@ -1238,3 +1238,48 @@ a.row {
 .hidden {
   display: none !important;
 }
+
+/* ---- Live TeachAssist additions ---------------------------------------- */
+/* Recent-updates feed cards */
+.update-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.update-card .cc-main { flex: 1; min-width: 0; }
+.update-trend {
+  margin-top: 4px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.delta-pill {
+  flex: none;
+  font-weight: 700;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--pill);
+}
+.delta-pill.up { color: var(--good); }
+.delta-pill.down { color: var(--danger); }
+
+/* Advanced (Worker setup) disclosure on the sign-in screen */
+details#advanced { margin: 4px 2px 16px; }
+details#advanced > summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+  list-style: none;
+  padding: 6px 0;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+details#advanced > summary::-webkit-details-marker { display: none; }
+details#advanced > summary::before { content: "⚙\00a0 "; }
+
+/* Center an empty-state block vertically a bit */
+.empty.centered { padding-top: 40px; }

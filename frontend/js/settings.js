@@ -1,27 +1,23 @@
+// ============================================================================
 // Settings
 // ----------------------------------------------------------------------------
-// Shows the signed-in email, lets the user edit the term date range, toggle
-// dark mode, and sign out.
+// Shows the signed-in student number, a dark-theme toggle, a refresh action,
+// the Worker connection settings, and Sign Out.
+// ============================================================================
 
-import { getCurrentUser, signOut } from "./auth.js";
+import { el, escapeHtml } from "./courses.js";
 import {
-  el,
-  escapeHtml,
-  fmtDate,
-  getProfile,
-  openTermEditor,
-  skeletonCards,
-} from "./courses.js";
-import {
-  getWorkerConfig,
-  setWorkerConfig,
-  fetchMarks,
-  syncFromTeachAssist,
-} from "./marks-api.js";
-import { SUPABASE_URL } from "./config.js";
+  studentNumber,
+  signOut,
+  getCourses,
+  workerUrl,
+  setWorkerUrl,
+  apiKey,
+  setApiKey,
+} from "./ta-client.js";
 
 const THEME_KEY = "theme";
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "2.0.0";
 
 /** Apply the saved theme on app boot (called from app.html). */
 export function applyStoredTheme() {
@@ -29,18 +25,9 @@ export function applyStoredTheme() {
   document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
 }
 
-/** Render the Settings screen into `container`. */
+/** Render the Settings screen. */
 export async function renderSettings(container) {
-  const user = getCurrentUser();
-  container.innerHTML = `<div class="screen-header"><h1>Settings</h1></div>${skeletonCards(3)}`;
-  const profile = await getProfile(user.id);
-
-  const termText =
-    profile?.term_start && profile?.term_end
-      ? `${fmtDate(profile.term_start)} to ${fmtDate(profile.term_end)}`
-      : "Not set";
   const isDark = localStorage.getItem(THEME_KEY) === "dark";
-
   container.innerHTML = "";
   container.appendChild(el(`<div class="screen-header"><h1>Settings</h1></div>`));
 
@@ -52,31 +39,37 @@ export async function renderSettings(container) {
       <div class="row" style="cursor:default">
         <div class="row-main">
           <div class="row-title">Signed in as</div>
-          <div class="row-sub">${escapeHtml(user.email || "")}</div>
+          <div class="row-sub">Student #${escapeHtml(studentNumber() || "—")}</div>
         </div>
       </div>
     </div>
   `)
   );
 
-  // Term
-  container.appendChild(el(`<div class="section-label">Term</div>`));
-  const termRows = el(`
+  // Data — refresh now
+  container.appendChild(el(`<div class="section-label">Data</div>`));
+  const dataRows = el(`
     <div class="rows">
-      <button class="row" id="edit-term">
-        <div class="row-main"><div class="row-title">Term date range</div></div>
-        <div class="row-sub" style="margin-right:6px">${escapeHtml(termText)}</div>
+      <button class="row" id="refresh">
+        <div class="row-main">
+          <div class="row-title">Refresh from TeachAssist</div>
+          <div class="row-sub" id="refresh-sub">Re-scrape your latest marks</div>
+        </div>
         <span class="chevron"></span>
       </button>
     </div>
   `);
-  termRows
-    .querySelector("#edit-term")
-    .addEventListener("click", () =>
-      // Refresh Settings after saving so the displayed range updates.
-      openTermEditor(profile, () => renderSettings(container))
-    );
-  container.appendChild(termRows);
+  dataRows.querySelector("#refresh").addEventListener("click", async (e) => {
+    const sub = e.currentTarget.querySelector("#refresh-sub");
+    sub.textContent = "Refreshing…";
+    try {
+      const courses = await getCourses({ refresh: true });
+      sub.textContent = `Updated — ${courses.length} course${courses.length === 1 ? "" : "s"}. Open the Courses tab.`;
+    } catch (err) {
+      sub.textContent = err.message || "Refresh failed.";
+    }
+  });
+  container.appendChild(dataRows);
 
   // Appearance
   container.appendChild(el(`<div class="section-label">Appearance</div>`));
@@ -100,127 +93,37 @@ export async function renderSettings(container) {
   });
   container.appendChild(appearance);
 
-  // TeachAssist Sync (pull marks from the personal Worker) ------------------
-  container.appendChild(el(`<div class="section-label">TeachAssist Sync</div>`));
-  const cfg = getWorkerConfig();
-  const sync = el(`
-    <div class="card sync-card">
+  // Worker connection
+  container.appendChild(el(`<div class="section-label">Worker</div>`));
+  const conn = el(`
+    <div class="card">
       <div class="field">
-        <label for="ta-url">Worker URL or endpoint</label>
-        <input id="ta-url" type="url" inputmode="url" autocapitalize="off" autocorrect="off"
-          spellcheck="false" placeholder="https://teachassist-marks.you.workers.dev/api/marks"
-          value="${escapeHtml(cfg.url)}" />
+        <label for="w-url">Worker URL</label>
+        <input id="w-url" type="url" autocapitalize="off" spellcheck="false" value="${escapeHtml(workerUrl())}" />
       </div>
       <div class="field">
-        <label for="ta-key">API key (x-api-key)</label>
-        <input id="ta-key" type="password" autocomplete="off" placeholder="your API_KEY secret"
-          value="${escapeHtml(cfg.apiKey)}" />
+        <label for="w-key">API key</label>
+        <input id="w-key" type="password" autocomplete="off" value="${escapeHtml(apiKey())}" />
       </div>
-      <div class="muted small" style="margin:2px 2px 12px">
-        Stored on this device only (not in the repo). The key just gates who can
-        fetch your marks - it is not your TeachAssist password.
-      </div>
-      <div id="ta-status" class="error-text" style="color:var(--text-secondary)"></div>
-      <div class="form-actions">
-        <button id="ta-sync" class="btn">Sync now</button>
-        <button id="ta-test" class="btn secondary">Test connection</button>
-        <button id="ta-save" class="btn ghost">Save</button>
-      </div>
-      <div class="muted small" style="margin-top:8px;text-align:center">
-        Sync imports your courses, current marks, category weights, and parsed evaluations.
-      </div>
+      <div id="w-status" class="error-text" style="color:var(--good)"></div>
+      <button class="btn secondary" id="w-save">Save connection</button>
     </div>
   `);
-  const urlEl = sync.querySelector("#ta-url");
-  const keyEl = sync.querySelector("#ta-key");
-  const statusEl = sync.querySelector("#ta-status");
-  const persist = () => setWorkerConfig(urlEl.value, keyEl.value);
-
-  sync.querySelector("#ta-save").addEventListener("click", () => {
-    persist();
-    statusEl.style.color = "var(--good)";
-    statusEl.textContent = "Saved on this device.";
+  conn.querySelector("#w-save").addEventListener("click", () => {
+    setWorkerUrl(conn.querySelector("#w-url").value);
+    setApiKey(conn.querySelector("#w-key").value);
+    conn.querySelector("#w-status").textContent = "Saved on this device.";
   });
-
-  sync.querySelector("#ta-sync").addEventListener("click", async (e) => {
-    persist();
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    const label = btn.textContent;
-    btn.innerHTML = '<span class="spinner"></span>';
-    statusEl.style.color = "var(--text-secondary)";
-    statusEl.textContent = "";
-    try {
-      const r = await syncFromTeachAssist(user.id);
-      statusEl.style.color = r.missingColumn ? "var(--danger)" : "var(--good)";
-      statusEl.textContent = r.missingColumn
-        ? `Synced ${r.total} course(s), but the current_mark column is missing - run the schema.sql migration, then sync again.`
-        : `Synced ${r.total} course${r.total === 1 ? "" : "s"} (${r.created} new, ${r.updated} updated). Marks and weightings updated - check the Courses tab.`;
-    } catch (err) {
-      statusEl.style.color = "var(--danger)";
-      statusEl.textContent = err.message || "Sync failed.";
-    } finally {
-      btn.disabled = false;
-      btn.textContent = label;
-    }
-  });
-
-  sync.querySelector("#ta-test").addEventListener("click", async (e) => {
-    persist(); // test what's currently typed in
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    const label = btn.textContent;
-    btn.innerHTML = '<span class="spinner"></span>';
-    statusEl.style.color = "var(--text-secondary)";
-    statusEl.textContent = "";
-    try {
-      const courses = await fetchMarks();
-      const evalCount = courses.reduce(
-        (n, c) => n + (Array.isArray(c.evaluations) ? c.evaluations.length : 0),
-        0
-      );
-      statusEl.style.color = "var(--good)";
-      statusEl.textContent = `Fetched ${courses.length} course${courses.length === 1 ? "" : "s"} (${evalCount} evaluations).`;
-    } catch (err) {
-      statusEl.style.color = "var(--danger)";
-      statusEl.textContent = err.message || "Could not reach the Worker.";
-    } finally {
-      btn.disabled = false;
-      btn.textContent = label;
-    }
-  });
-  container.appendChild(sync);
-
-  // About
-  container.appendChild(el(`<div class="section-label">About</div>`));
-  container.appendChild(
-    el(`
-    <div class="rows">
-      <div class="row" style="cursor:default">
-        <div class="row-main">
-          <div class="row-title">Version</div>
-          <div class="row-sub">${APP_VERSION}</div>
-        </div>
-      </div>
-      <a class="row" href="${escapeHtml(SUPABASE_URL)}" target="_blank" rel="noopener">
-        <div class="row-main">
-          <div class="row-title">Supabase project</div>
-          <div class="row-sub">Open project endpoint</div>
-        </div>
-        <span class="chevron"></span>
-      </a>
-    </div>
-  `)
-  );
+  container.appendChild(conn);
 
   // Sign out
   const out = el(`<button class="btn danger" style="margin-top:26px">Sign Out</button>`);
   out.addEventListener("click", () => {
-    if (confirm("Sign out of Grade Dashboard?")) signOut();
+    if (confirm("Sign out? Your saved login will be cleared from this device.")) signOut();
   });
   container.appendChild(out);
 
   container.appendChild(
-    el(`<div class="muted small" style="text-align:center;margin-top:18px">Grade Dashboard - data stored in your Supabase project</div>`)
+    el(`<div class="muted small" style="text-align:center;margin-top:18px">TeachAssist Dashboard · v${APP_VERSION}</div>`)
   );
 }

@@ -7,11 +7,8 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1"
     />
     <meta name="theme-color" content="#f2f2f7" />
-    <meta
-      name="description"
-      content="Sign in to Grade Dashboard to track courses, marks, and term progress from your phone."
-    />
-    <title>Grade Dashboard - Sign in</title>
+    <meta name="description" content="Sign in with your YRDSB TeachAssist student number to see your marks." />
+    <title>TeachAssist - Sign in</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icons/app-icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icons/app-icon.svg" />
@@ -30,22 +27,23 @@
       </div>
 
       <div class="auth-logo">
-        <div class="mark">G</div>
-        <h1>Grade Dashboard</h1>
-        <p id="auth-subtitle">Sign in to track your marks</p>
+        <div class="mark">TA</div>
+        <h1>TeachAssist</h1>
+        <p>Sign in with your YRDSB student number</p>
       </div>
 
       <div class="auth-card">
         <form id="auth-form" autocomplete="on">
           <div class="field">
-            <label for="email">Email</label>
+            <label for="student">Student number</label>
             <input
-              type="email"
-              id="email"
-              name="email"
-              placeholder="you@example.com"
+              type="text"
+              id="student"
+              name="student"
+              inputmode="numeric"
+              autocomplete="username"
+              placeholder="123456789"
               required
-              autocomplete="email"
             />
           </div>
           <div class="field">
@@ -54,34 +52,85 @@
               type="password"
               id="password"
               name="password"
+              autocomplete="current-password"
               placeholder="••••••••"
               required
-              minlength="6"
-              autocomplete="current-password"
             />
           </div>
 
-          <div class="error-text" id="auth-error"></div>
+          <details id="advanced">
+            <summary>Advanced (Worker setup)</summary>
+            <div class="field" style="margin-top:12px">
+              <label for="worker-url">Worker URL</label>
+              <input type="url" id="worker-url" placeholder="https://teachassist-marks.you.workers.dev" />
+            </div>
+            <div class="field">
+              <label for="api-key">API key (x-api-key)</label>
+              <input type="password" id="api-key" placeholder="your API_KEY secret" autocomplete="off" />
+            </div>
+          </details>
 
+          <div class="error-text" id="auth-error"></div>
           <button type="submit" class="btn" id="auth-submit">Sign In</button>
         </form>
       </div>
 
-      <div class="auth-toggle">
-        <span id="toggle-text">Don't have an account?</span>
-        <button type="button" id="toggle-mode">Sign Up</button>
-      </div>
+      <p class="muted small" style="text-align:center;margin-top:18px">
+        Your login is sent only to your own Worker, which signs into TeachAssist
+        and returns your marks. It is never shared or stored elsewhere.
+      </p>
     </div>
 
-    <!-- Supabase JS (CDN, UMD build → exposes window.supabase). Must load
-         before the module scripts below. -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- App modules -->
-    <script type="module" src="js/auth.js"></script>
     <script type="module">
+      import {
+        login,
+        isLoggedIn,
+        workerUrl,
+        setWorkerUrl,
+        apiKey,
+        setApiKey,
+      } from "./js/ta-client.js";
       import { initInstallButton } from "./js/install.js";
+
       initInstallButton();
+
+      // Already signed in? Go straight to the app.
+      if (isLoggedIn()) window.location.replace("app.html");
+
+      const form = document.getElementById("auth-form");
+      const submit = document.getElementById("auth-submit");
+      const errorEl = document.getElementById("auth-error");
+      const urlEl = document.getElementById("worker-url");
+      const keyEl = document.getElementById("api-key");
+
+      // Prefill Advanced from saved values.
+      urlEl.value = workerUrl();
+      keyEl.value = apiKey();
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        errorEl.textContent = "";
+        setWorkerUrl(urlEl.value);
+        setApiKey(keyEl.value);
+
+        const num = document.getElementById("student").value.trim();
+        const pass = document.getElementById("password").value;
+        submit.disabled = true;
+        submit.innerHTML = '<span class="spinner"></span>';
+        try {
+          await login(num, pass);
+          window.location.replace("app.html");
+        } catch (err) {
+          errorEl.textContent = err?.message || "Sign in failed.";
+          // Open Advanced if it looks like a setup problem.
+          if (/worker|api key|unauthorized|reach/i.test(err?.message || "")) {
+            document.getElementById("advanced").open = true;
+          }
+        } finally {
+          submit.disabled = false;
+          submit.textContent = "Sign In";
+        }
+      });
     </script>
   </body>
 </html>
