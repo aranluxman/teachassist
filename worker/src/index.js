@@ -225,10 +225,26 @@ export default {
       for (const c of courses) c.studentId = c.studentId || session.studentId;
       if (DEBUG) console.log(`Parsed ${courses.length} courses`);
 
-      // debug=report returns one raw report page (needs &subject_id=NNN).
+      // debug=report returns one raw report page. Use &code=SNC (matched against
+      // your course codes) or &subject_id=NNN. Open it in a browser with &key=.
       if (debug === "report") {
-        const sid = url.searchParams.get("subject_id");
-        if (!sid) return json({ error: "Add &subject_id=NNN (from a course link)." }, 400);
+        let sid = url.searchParams.get("subject_id");
+        const code = url.searchParams.get("code");
+        if (!sid && code) {
+          const match = courses.find(
+            (c) => c.subjectId && (c.code || "").toUpperCase().includes(code.toUpperCase())
+          );
+          if (match) sid = match.subjectId;
+        }
+        if (!sid) {
+          return json(
+            {
+              error: "Add &code=SNC (or your course code) or &subject_id=NNN.",
+              courses: courses.map((c) => ({ code: c.code, subjectId: c.subjectId })),
+            },
+            400
+          );
+        }
         const html = await fetchWithSession(
           `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(sid)}&student_id=${encodeURIComponent(session.studentId)}`,
           session.cookie,
