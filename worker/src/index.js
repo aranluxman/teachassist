@@ -267,6 +267,10 @@ export default {
                 `&student_id=${encodeURIComponent(c.studentId)}`;
               const reportHtml = await fetchWithSession(reportUrl, session.cookie, COURSE_LIST_URL);
               c.evaluations = await parseEvaluations(reportHtml);
+              // The report carries the calculated "Course" mark even when the
+              // list page only says "please see teacher". Use it as currentMark.
+              const cm = parseReportCourseMark(reportHtml);
+              if (cm != null && c.currentMark == null) c.currentMark = cm;
             } catch (err) {
               // One bad report should not sink the whole response.
               c.evaluations = [];
@@ -316,37 +320,39 @@ export default {
  * @returns {Promise<Session>}
  */
 async function login(env, creds) {
-  const res = await loginResponse(env, creds);
+  // TeachAssist's login is flaky from Cloudflare (intermittent timeouts /
+  // missing Set-Cookie), so retry a few times — but stop immediately if the
+  // credentials are genuinely rejected.
+  let lastErr = new AuthError("Login failed.");
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await loginResponse(env, creds);
+      const jar = extractCookies(res);
+      const session = jar[SESSION_COOKIE_NAME];
+      const location = res.headers.get("location") || "";
 
-  const jar = extractCookies(res);
-  const session = jar[SESSION_COOKIE_NAME];
-  const location = res.headers.get("location") || "";
-
-  // A real session cookie (not empty, not "deleted") is the success signal;
-  // extractCookies already drops "deleted"/empty values, so absence == failure.
-  if (!session) {
-    const reason = /error/i.test(location)
-      ? "TeachAssist rejected the credentials"
-      : `no valid '${SESSION_COOKIE_NAME}' cookie returned`;
-    throw new AuthError(
-      `Login failed: ${reason}. Check your student number and password.`
-    );
+      if (session) {
+        const studentId =
+          jar.student_id || (location.match(/student_id=(\d+)/) || [])[1] || null;
+        if (!studentId) throw new AuthError("Logged in, but could not determine your student_id.");
+        if (DEBUG) console.log(`Login OK on attempt ${attempt}; cookies: ${Object.keys(jar).join(", ")}`);
+        return { cookie: cookieHeader(jar), studentId };
+      }
+      // No session cookie. If TeachAssist redirected with an error, the
+      // credentials are wrong — don't keep retrying.
+      if (/error/i.test(location)) {
+        throw new AuthError("Login failed: TeachAssist rejected your student number or password.");
+      }
+      lastErr = new AuthError(
+        `Login failed: no valid '${SESSION_COOKIE_NAME}' cookie returned.`
+      );
+    } catch (e) {
+      lastErr = e;
+      if (e instanceof AuthError && /rejected/i.test(e.message)) throw e;
+    }
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 500));
   }
-
-  // student_id (used to build the marks-list + report URLs): prefer the cookie
-  // TeachAssist sets at login, else the redirect Location.
-  const studentId =
-    jar.student_id || (location.match(/student_id=(\d+)/) || [])[1] || null;
-  if (!studentId) {
-    throw new AuthError("Logged in, but could not determine your student_id.");
-  }
-
-  if (DEBUG) {
-    console.log(
-      `Login OK — cookies: ${Object.keys(jar).join(", ")}; studentId resolved`
-    );
-  }
-  return { cookie: cookieHeader(jar), studentId };
+  throw lastErr;
 }
 
 /**
@@ -588,6 +594,19 @@ function extractCurrentMark(text) {
  *  lives on the course-list page (a red cell), not on the report page. */
 function extractMidterm(text) {
   const m = text.match(/midterm\s*mark\s*:?\s*([\d.]+)\s*%/i);
+  return m ? parseFloat(m[1]) : null;
+}
+
+/**
+ * Pull the calculated "Course" mark out of a viewReport.php page. The report
+ * shows it as a big number in the cell immediately before a "Course" label:
+ *   <td ...><div ...> 93.4%</div></td><td><div ...>Course</div></td>
+ * Returns the percent (number) or null.
+ */
+function parseReportCourseMark(html) {
+  const m = html.match(
+    /([\d.]+)\s*%\s*<\/div>\s*<\/td>\s*<td>\s*<div[^>]*>\s*Course\s*<\/div>/i
+  );
   return m ? parseFloat(m[1]) : null;
 }
 
