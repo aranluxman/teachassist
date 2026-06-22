@@ -14,6 +14,7 @@ import {
   markKind,
   getUpdates,
 } from "./ta-client.js";
+import { renderAdInto } from "./ads.js";
 
 // ───────────────────────────── UI helpers ──────────────────────────────────
 
@@ -89,6 +90,33 @@ export function closeSheet() {
   setTimeout(() => backdrop.remove(), 220);
 }
 
+/** Semicircular gauge (big, for the Overall Average) with the percent centered. */
+export function semiGauge(percent) {
+  const cx = 100,
+    cy = 100,
+    r = 82,
+    sw = 15;
+  const clamped = Math.max(0, Math.min(100, percent ?? 0));
+  const len = Math.PI * r;
+  const fill = (clamped / 100) * len;
+  const arc = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+  return `
+    <svg viewBox="0 0 200 116" width="100%" style="max-width:248px" role="img" aria-label="${percent == null ? "no average" : fmtPercent(percent)}">
+      <defs><linearGradient id="ovGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#6aa8ff"/><stop offset="1" stop-color="#4f46e5"/>
+      </linearGradient></defs>
+      <path d="${arc}" fill="none" style="stroke:var(--track)" stroke-width="${sw}" stroke-linecap="round"/>
+      ${
+        clamped > 0
+          ? `<path d="${arc}" fill="none" stroke="url(#ovGrad)" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${fill} ${len + 4}"/>`
+          : ""
+      }
+      <text x="100" y="92" text-anchor="middle" font-size="40" font-weight="800" letter-spacing="-1" style="fill:var(--text)" font-family="-apple-system, sans-serif">${
+        percent == null ? "—" : fmtPercent(percent)
+      }</text>
+    </svg>`;
+}
+
 /** Shimmering placeholder cards shown while data loads. */
 export function skeletonCards(n = 4) {
   const one = `
@@ -145,30 +173,25 @@ export async function renderCourses(container, { refresh = false } = {}) {
   );
   container.appendChild(header);
 
-  // Overall average card.
+  // Overall average — semicircular gauge with a change pill (reference look).
+  const ov = updates.find((u) => u.overall);
+  const delta = ov ? ov.to - ov.from : null;
+  const deltaPill =
+    delta != null && Math.abs(delta) >= 0.05
+      ? `<div class="delta-pill ${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "↑" : "↓"} ${Math.abs(Math.round(delta * 10) / 10).toFixed(1)}%</div>`
+      : "";
   container.appendChild(
     el(`
-    <div class="card overall">
-      <div class="icon-circle" style="background:var(--good)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M5 19V11M12 19V5M19 19v-6" /></svg>
-      </div>
-      <div class="overall-main">
-        <div class="cc-code">Overall Average</div>
-        <div class="muted small">${courses.length} course${courses.length === 1 ? "" : "s"}</div>
-      </div>
-      <div class="big-number">${fmtPercent(overall)}</div>
+    <div class="card overall-gauge">
+      ${semiGauge(overall)}
+      ${deltaPill}
+      <div class="gauge-cap">Overall Average · ${courses.length} course${courses.length === 1 ? "" : "s"}</div>
     </div>
   `)
   );
 
-  // Recent updates feed (day-over-day changes), like the reference.
-  if (updates.length) {
-    container.appendChild(el(`<div class="section-label">Recent updates</div>`));
-    const feed = el(`<div></div>`);
-    for (const u of updates) feed.appendChild(updateCard(u));
-    container.appendChild(feed);
-    container.appendChild(el(`<div class="section-label">Courses</div>`));
-  }
+  // Ad banner (AdSense if configured, else a placeholder) — right up top.
+  renderAdInto(container);
 
   // Course cards.
   if (!courses.length) {
