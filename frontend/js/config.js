@@ -29,3 +29,16 @@ export const DEFAULT_LINKS = [
   { label: "YRDSB Threads", url: "https://threads.yrdsb.ca", category: "School" },
   { label: "Desmos Calculator", url: "https://www.desmos.com/calculator", category: "Calculators" },
 ];
+
+// ── Ads (Google AdSense) ────────────────────────────────────────────────────
+// Shown as a banner under the Overall Average. To run REAL ads you need an
+// approved Google AdSense account, then set enabled:true and fill in your
+// publisher id (ca-pub-…) + an ad unit slot id. Until then a tasteful
+// placeholder is shown so the layout matches. The site is already live, which
+// AdSense requires for approval (apply at https://adsense.google.com).
+export const AD_CONFIG = {
+  enabled: false,
+  client: "ca-pub-XXXXXXXXXXXXXXXX", // your AdSense publisher ID
+  slot: "XXXXXXXXXX", // your ad unit (slot) ID
+};
+
