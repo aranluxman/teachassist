@@ -1,335 +1,238 @@
 // ============================================================================
-// Science marks analytics
+// Science course detail
 // ----------------------------------------------------------------------------
-// Minimal science-only dashboard built from the live TeachAssist course payload.
+// A self-contained Science marks page that follows the same app shell,
+// section, card, row, table, and Chart.js language as the TeachAssist dashboard.
 // ============================================================================
 
-import { el, escapeHtml, fmtPercent, skeletonCards } from "./courses.js";
-import { getCourses, overallAverage, displayMark, markKind } from "./ta-client.js";
-import { COURSE_COLORS } from "./config.js";
+import { el, escapeHtml, fmtPercent } from "./courses.js";
 
-export const scienceCoursePrefixes = ["SNC", "SBI", "SCH", "SPH", "SES", "SVN"];
+const SCIENCE_COURSE = {
+  title: "Science",
+  subtitle: "Grade 9 Science Performance Overview",
+  calculatedMark: 93.4,
+  termWork: 95.7,
+  culminatingWork: 87.9,
+  termEntries: 18,
+  culminatingTasks: 2,
+  expectationsTracked: 10,
+  highestWeightedExpectation: 105.0,
+  lowestWeightedExpectation: 88.3,
+};
 
-let scienceTrendChart = null;
+const EXPECTATIONS = [
+  {
+    code: "A1",
+    strand: "STEM Skills, Careers, and Connections",
+    expectation: "STEM Investigation Skills",
+    mark: 88.3,
+    weight: 3,
+  },
+  {
+    code: "A2",
+    strand: "STEM Skills, Careers, and Connections",
+    expectation: "Applications, Careers, and Connections",
+    mark: null,
+    weight: 0,
+  },
+  {
+    code: "B1",
+    strand: "Biology",
+    expectation: "Relating Science to Our Changing World",
+    mark: 101.7,
+    weight: 2,
+  },
+  {
+    code: "B2",
+    strand: "Biology",
+    expectation: "Investigating and Understanding Concepts",
+    mark: 101.7,
+    weight: 2,
+  },
+  {
+    code: "C1",
+    strand: "Chemistry",
+    expectation: "Relating Science to Our Changing World",
+    mark: 90.2,
+    weight: 4,
+  },
+  {
+    code: "C2",
+    strand: "Chemistry",
+    expectation: "Investigating and Understanding Concepts",
+    mark: 94.1,
+    weight: 4,
+  },
+];
 
-export async function renderScienceAnalytics(container, { refresh = false } = {}) {
-  container.innerHTML = `<div class="screen-header"><h1>Science Marks</h1></div>${skeletonCards(3)}`;
+let expectationsChart = null;
 
-  let courses;
-  try {
-    courses = await getCourses({ refresh });
-  } catch (err) {
-    container.innerHTML = "";
-    container.appendChild(el(`<div class="screen-header"><h1>Science Marks</h1></div>`));
-    container.appendChild(
-      el(`
-        <div class="empty centered">
-          <div class="empty-title">Couldn't load science marks</div>
-          ${escapeHtml(err.message || "Please try again.")}
-        </div>
-      `)
-    );
-    const retry = el(`<button class="btn" style="margin-top:8px">Try again</button>`);
-    retry.addEventListener("click", () => renderScienceAnalytics(container, { refresh: true }));
-    container.appendChild(retry);
-    return;
-  }
-
-  const state = buildScienceState(courses);
+export async function renderScienceAnalytics(container) {
   destroyScienceChart();
-
   container.innerHTML = "";
-  container.appendChild(buildHeader(container));
-
-  if (!state.courses.length) {
-    container.appendChild(
-      el(`
-        <div class="empty centered">
-          <div class="empty-icon science-empty-icon">${scienceIcon()}</div>
-          <div class="empty-title">No science courses yet</div>
-          Science courses are detected from SNC, SBI, SCH, SPH, SES, and SVN codes.
-        </div>
-      `)
-    );
-    return;
-  }
-
-  container.appendChild(buildScienceHero(state));
-  container.appendChild(buildMetrics(state));
-  container.appendChild(buildTrendCard(state));
-  container.appendChild(buildInsights(state));
-  container.appendChild(buildCourseList(state));
-  renderScienceTrendChart(container, state);
+  container.appendChild(buildBreadcrumb());
+  container.appendChild(buildCourseHeader());
+  container.appendChild(buildSummaryCards());
+  container.appendChild(buildChartSection());
+  container.appendChild(buildExpectationsTable());
+  renderScienceTrendChart(container);
 }
 
-function buildScienceState(courses) {
-  const scienceCourses = (courses || []).filter(isScienceCourse);
-  const courseSummaries = scienceCourses.map((course, index) => {
-    const evaluations = normalizedEvaluations(course);
-    return {
-      course,
-      evaluations,
-      mark: displayMark(course),
-      source: markKind(course) || "none",
-      color: COURSE_COLORS[index % COURSE_COLORS.length],
-    };
-  });
-
-  const scienceAverage = overallAverage(scienceCourses);
-  const target = nextScienceTarget(scienceAverage);
-
-  return {
-    courses: scienceCourses,
-    courseSummaries,
-    evaluations: courseSummaries.flatMap((item) => item.evaluations),
-    scienceAverage,
-    target,
-  };
-}
-
-function normalizedEvaluations(course) {
-  return (Array.isArray(course.evaluations) ? course.evaluations : []).filter(
-    (evaluation) => evaluation && typeof evaluation.percent === "number"
-  );
-}
-
-function isScienceCourse(course) {
-  const code = String(course.code || "").trim().toUpperCase();
-  const name = String(course.name || "").trim().toUpperCase();
-  return scienceCoursePrefixes.some((prefix) => code.startsWith(prefix)) || name.includes("SCIENCE");
-}
-
-function nextScienceTarget(mark) {
-  if (mark == null) return null;
-  const targets = [50, 60, 70, 80, 90, 95, 100];
-  return targets.find((target) => mark < target) || 100;
-}
-
-function buildHeader(container) {
-  const header = el(`
-    <div class="screen-header analytics-header">
-      <h1>Science Marks</h1>
-      <button class="btn ghost" id="science-refresh" style="width:auto;padding:6px 10px" aria-label="Refresh science marks">Refresh</button>
-    </div>
-  `);
-  header
-    .querySelector("#science-refresh")
-    .addEventListener("click", () => renderScienceAnalytics(container, { refresh: true }));
-  return header;
-}
-
-function buildScienceHero(state) {
-  const average = state.scienceAverage;
-  const targetText =
-    average == null || state.target == null
-      ? "Add marks"
-      : `${Math.max(0, state.target - average).toFixed(1)} pts to ${state.target}%`;
-
-  return el(`
-    <section class="card science-hero" aria-label="Science Average">
-      <div class="science-hero-label">Overall Average</div>
-      <div class="science-average tnum">${fmtPercent(average)}</div>
-      <div class="science-target">Next target: ${escapeHtml(targetText)}</div>
-    </section>
-  `);
-}
-
-function buildMetrics(state) {
-  const graded = state.courseSummaries.filter((item) => item.mark != null).length;
-  const completed = state.evaluations.length;
-  const strongest = strongestCategory(state);
-
-  return el(`
-    <section class="metric-grid" aria-label="Science summary">
-      <div class="card metric-card">
-        <span>Courses</span>
-        <strong class="tnum">${state.courses.length}</strong>
-      </div>
-      <div class="card metric-card">
-        <span>With marks</span>
-        <strong class="tnum">${graded}</strong>
-      </div>
-      <div class="card metric-card">
-        <span>Evaluations</span>
-        <strong class="tnum">${completed}</strong>
-      </div>
-      <div class="card metric-card">
-        <span>Strongest</span>
-        <strong>${escapeHtml(strongest)}</strong>
-      </div>
-    </section>
-  `);
-}
-
-function strongestCategory(state) {
-  const byCategory = new Map();
-  for (const evaluation of state.evaluations) {
-    const key = evaluation.category || "Assessments";
-    const row = byCategory.get(key) || { total: 0, count: 0 };
-    row.total += evaluation.percent;
-    row.count += 1;
-    byCategory.set(key, row);
-  }
-
-  const best = [...byCategory.entries()]
-    .map(([name, row]) => ({ name, average: row.total / row.count }))
-    .sort((a, b) => b.average - a.average)[0];
-  return best ? best.name : "Not yet";
-}
-
-function buildTrendCard(state) {
-  const trend = scienceTrend(state);
-  return el(`
-    <section class="card analytics-card">
-      <div class="analytics-card-head">
-        <div>
-          <h2>Mark Trend</h2>
-          <p>${escapeHtml(trend)}</p>
-        </div>
-      </div>
-      <div class="chart-box science-chart-box"><canvas id="science-trend-chart"></canvas></div>
-    </section>
-  `);
-}
-
-function scienceTrend(state) {
-  const points = buildScienceTrendPoints(state);
-  if (points.length < 2) return "Add more evaluations to build a trend.";
-  const change = points.at(-1).mark - points.at(-2).mark;
-  if (Math.abs(change) < 0.05) return "Holding steady from the last update.";
-  return `${change > 0 ? "Up" : "Down"} ${Math.abs(change).toFixed(1)} pts from the last update.`;
-}
-
-export function buildScienceInsights(state) {
-  const rows = state.courseSummaries
-    .filter((item) => item.mark != null)
-    .sort((a, b) => b.mark - a.mark);
-
-  const top = rows[0];
-  const focus = rows.at(-1);
-  const target =
-    state.scienceAverage == null || state.target == null
-      ? "Add one science mark to unlock targets."
-      : `${Math.max(0, state.target - state.scienceAverage).toFixed(1)} points away from ${state.target}%.`;
-
-  return [
-    ["Best course", top ? `${top.course.code}: ${fmtPercent(top.mark)}` : "No marks yet"],
-    ["Focus course", focus ? `${focus.course.code}: ${fmtPercent(focus.mark)}` : "No marks yet"],
-    ["Next target", target],
-  ];
-}
-
-function buildInsights(state) {
-  const rows = buildScienceInsights(state)
-    .map(
-      ([label, value]) => `
-        <div class="info-row">
-          <span>${escapeHtml(label)}</span>
-          <span>${escapeHtml(value)}</span>
-        </div>`
-    )
-    .join("");
-
-  return el(`
-    <section>
-      <div class="section-label">Science Analytics</div>
-      <div class="rows science-insights">${rows}</div>
-    </section>
-  `);
-}
-
-function buildCourseList(state) {
+function buildBreadcrumb() {
   const node = el(`
-    <section>
-      <div class="section-label">Courses</div>
-      <div class="rows"></div>
-    </section>
+    <nav class="science-breadcrumb" aria-label="Courses / Science">
+      <button type="button" class="science-back-link">Courses</button>
+      <span aria-hidden="true">/</span>
+      <span>Science</span>
+    </nav>
   `);
-  const rows = node.querySelector(".rows");
-
-  state.courseSummaries.forEach((item) => {
-    const source = item.source || "mark";
-    const row = el(`
-      <button class="row science-course-row">
-        <span class="analytics-dot" style="background:${item.color}"></span>
-        <span class="row-main">
-          <span class="row-title">${escapeHtml(item.course.code || "Science")}</span>
-          <span class="row-sub">${escapeHtml(item.course.name || source)}</span>
-          <span class="analytics-bar" aria-hidden="true">
-            <span style="width:${markWidth(item.mark)}%"></span>
-          </span>
-        </span>
-        <span class="row-value">${fmtPercent(item.mark)}</span>
-        <span class="chevron"></span>
-      </button>
-    `);
-    row.addEventListener("click", () => window.AppNav.toDetail(item.course));
-    rows.appendChild(row);
-  });
-
+  node.querySelector(".science-back-link").addEventListener("click", () => window.AppNav.toCourses());
   return node;
 }
 
-function buildScienceTrendPoints(state) {
-  const evaluations = state.courseSummaries.flatMap((summary) =>
-    summary.evaluations.map((evaluation, index) => ({
-      label: shortLabel(evaluation.name || summary.course.code || "Mark", index),
-      percent: evaluation.percent,
-    }))
-  );
-
-  const points = [];
-  let sum = 0;
-  evaluations.forEach((evaluation, index) => {
-    sum += evaluation.percent;
-    points.push({
-      label: evaluation.label || `Mark ${index + 1}`,
-      mark: sum / (index + 1),
-    });
-  });
-  return points;
+function buildCourseHeader() {
+  return el(`
+    <section class="card science-course-hero" aria-labelledby="science-title">
+      <div class="science-course-copy">
+        <h1 id="science-title">${escapeHtml(SCIENCE_COURSE.title)}</h1>
+        <p>${escapeHtml(SCIENCE_COURSE.subtitle)}</p>
+        <div class="science-mini-meta" aria-label="Course metadata">
+          <span>${SCIENCE_COURSE.termEntries} term assessment entries</span>
+          <span>${SCIENCE_COURSE.culminatingTasks} culminating tasks</span>
+          <span>${SCIENCE_COURSE.expectationsTracked} overall expectations tracked</span>
+        </div>
+      </div>
+      <div class="science-main-mark" aria-label="Calculated mark">
+        <span class="science-main-mark-value tnum">${fmtPercent(SCIENCE_COURSE.calculatedMark)}</span>
+        <span class="science-main-mark-label">Calculated Mark</span>
+      </div>
+      <div class="science-work-split" aria-label="Science mark components">
+        <div>
+          <span>Term Work</span>
+          <strong class="tnum">${fmtPercent(SCIENCE_COURSE.termWork)}</strong>
+        </div>
+        <div>
+          <span>Culminating Work</span>
+          <strong class="tnum">${fmtPercent(SCIENCE_COURSE.culminatingWork)}</strong>
+        </div>
+      </div>
+    </section>
+  `);
 }
 
-export function renderScienceTrendChart(container, state) {
-  const canvas = container.querySelector("#science-trend-chart");
+function buildSummaryCards() {
+  const atOrAbove = expectationsAtOrAbove100(EXPECTATIONS);
+  const cards = [
+    ["Calculated Mark", fmtPercent(SCIENCE_COURSE.calculatedMark)],
+    ["Term Work", fmtPercent(SCIENCE_COURSE.termWork)],
+    ["Culminating Work", fmtPercent(SCIENCE_COURSE.culminatingWork)],
+    ["Highest weighted expectation", fmtPercent(SCIENCE_COURSE.highestWeightedExpectation)],
+    ["Lowest weighted expectation", fmtPercent(SCIENCE_COURSE.lowestWeightedExpectation)],
+    ["Expectations at or above 100%", String(atOrAbove)],
+  ];
+
+  return el(`
+    <section aria-labelledby="science-summary-title">
+      <div class="section-label" id="science-summary-title">Summary</div>
+      <div class="science-summary-grid">
+        ${cards
+          .map(
+            ([label, value]) => `
+              <article class="card science-summary-card">
+                <span>${escapeHtml(label)}</span>
+                <strong class="tnum">${escapeHtml(value)}</strong>
+              </article>`
+          )
+          .join("")}
+      </div>
+    </section>
+  `);
+}
+
+export function expectationsAtOrAbove100(expectations = EXPECTATIONS) {
+  return expectations.filter((item) => typeof item.mark === "number" && item.mark >= 100).length;
+}
+
+function buildChartSection() {
+  return el(`
+    <section aria-labelledby="science-chart-title">
+      <div class="section-label" id="science-chart-title">Analytics</div>
+      <div class="card science-chart-card">
+        <div class="muted small science-chart-label">EXPECTATION PERFORMANCE</div>
+        <div class="chart-box science-chart-box"><canvas id="science-expectations-chart"></canvas></div>
+      </div>
+    </section>
+  `);
+}
+
+function buildExpectationsTable() {
+  const rows = EXPECTATIONS.map(
+    (item) => `
+      <tr>
+        <td class="expectation-code">${escapeHtml(item.code)}</td>
+        <td>${escapeHtml(item.strand)}</td>
+        <td>${escapeHtml(`${item.code}. ${item.expectation}`)}</td>
+        <td class="tnum">${item.mark == null ? "No mark shown" : fmtPercent(item.mark)}</td>
+        <td class="tnum">${escapeHtml(String(item.weight))}</td>
+        <td>${expectationStatus(item)}</td>
+      </tr>`
+  ).join("");
+
+  return el(`
+    <section aria-labelledby="overall-expectations-title">
+      <div class="section-label" id="overall-expectations-title">Overall Expectations</div>
+      <div class="card expectations-table-card">
+        <div class="expectations-table-wrap">
+          <table class="expectations-table" id="overall-expectations-table">
+            <thead>
+              <tr>
+                <th scope="col">Code</th>
+                <th scope="col">Strand</th>
+                <th scope="col">Expectation</th>
+                <th scope="col">Mark</th>
+                <th scope="col">Weight</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  `);
+}
+
+function expectationStatus(item) {
+  if (item.weight === 0 || item.mark == null) return '<span class="status-pill neutral">Not weighted</span>';
+  if (item.mark >= 100) return '<span class="status-pill strong">Above target</span>';
+  if (item.mark >= 90) return '<span class="status-pill good">On track</span>';
+  return '<span class="status-pill watch">Watch</span>';
+}
+
+export function renderScienceTrendChart(container) {
+  const canvas = container.querySelector("#science-expectations-chart");
   if (!canvas || !window.Chart) return;
 
-  const points = buildScienceTrendPoints(state);
-  if (!points.length) {
-    canvas.replaceWith(
-      el(`<div class="muted science-chart-empty">Add science evaluations to see your trend.</div>`)
-    );
-    return;
-  }
-
+  const chartRows = EXPECTATIONS.filter((item) => typeof item.mark === "number");
   const accent =
-    getComputedStyle(document.documentElement).getPropertyValue("--accent-2").trim() || "#0f9f8f";
-  const ys = points.map((point) => Math.round(point.mark * 10) / 10);
-  const lo = Math.max(0, Math.floor(Math.min(...ys)) - 3);
-  const hi = Math.min(100, Math.ceil(Math.max(...ys)) + 2);
+    getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4f46e5";
+  const good =
+    getComputedStyle(document.documentElement).getPropertyValue("--good").trim() || "#34c759";
+  const warning =
+    getComputedStyle(document.documentElement).getPropertyValue("--accent-3").trim() || "#ff7a59";
 
-  const ctx = canvas.getContext("2d");
-  const grad = ctx.createLinearGradient(0, 0, 0, canvas.clientHeight || 186);
-  grad.addColorStop(0, accent + "3d");
-  grad.addColorStop(1, accent + "00");
-
-  scienceTrendChart = new window.Chart(canvas, {
-    type: "line",
+  expectationsChart = new window.Chart(canvas, {
+    type: "bar",
     data: {
-      labels: points.map((point) => point.label),
+      labels: chartRows.map((item) => item.code),
       datasets: [
         {
-          data: ys,
-          borderColor: accent,
-          backgroundColor: grad,
-          fill: true,
-          tension: 0.35,
-          pointRadius: 2.5,
-          pointHoverRadius: 5,
-          pointBackgroundColor: accent,
-          pointBorderColor: "#fff",
-          pointBorderWidth: 1.5,
-          borderWidth: 2.5,
+          data: chartRows.map((item) => item.mark),
+          backgroundColor: chartRows.map((item) =>
+            item.mark >= 100 ? good : item.mark >= 90 ? accent : warning
+          ),
+          borderRadius: 7,
+          maxBarThickness: 30,
         },
       ],
     },
@@ -339,15 +242,15 @@ export function renderScienceTrendChart(container, state) {
       plugins: { legend: { display: false }, tooltip: { displayColors: false } },
       scales: {
         y: {
-          min: lo,
-          max: hi,
+          min: 80,
+          max: 110,
           ticks: { callback: (value) => value + "%", maxTicksLimit: 5, color: "#9a9aa2" },
           grid: { color: "rgba(0,0,0,0.05)", drawTicks: false },
           border: { display: false },
         },
         x: {
           grid: { display: false },
-          ticks: { color: "#9a9aa2", maxRotation: 0, autoSkipPadding: 16 },
+          ticks: { color: "#9a9aa2" },
           border: { display: false },
         },
       },
@@ -356,25 +259,7 @@ export function renderScienceTrendChart(container, state) {
 }
 
 function destroyScienceChart() {
-  if (!scienceTrendChart) return;
-  scienceTrendChart.destroy();
-  scienceTrendChart = null;
-}
-
-function shortLabel(name, index) {
-  const text = String(name || `Mark ${index + 1}`).trim();
-  return text.length > 10 ? `${text.slice(0, 9)}...` : text;
-}
-
-function markWidth(mark) {
-  if (mark == null || Number.isNaN(mark)) return 0;
-  return Math.max(0, Math.min(100, Math.round(mark)));
-}
-
-function scienceIcon() {
-  return `<svg viewBox="0 0 48 48" width="42" height="42" fill="none" aria-hidden="true">
-    <path d="M20 6v12L10 36c-1.5 2.8.5 6 3.6 6h20.8c3.1 0 5.1-3.2 3.6-6L28 18V6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M17 29h14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-    <path d="M17 6h14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-  </svg>`;
+  if (!expectationsChart) return;
+  expectationsChart.destroy();
+  expectationsChart = null;
 }

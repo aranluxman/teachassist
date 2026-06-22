@@ -62,18 +62,28 @@ test("student utility tabs remain production-ready", () => {
   assert.match(settingsJs, /confirm\("Sign out/);
 });
 
-test("science analytics page includes marks analysis, projections, and chart UI", () => {
-  assert.match(scienceAnalyticsJs, /scienceCoursePrefixes/);
+test("science course page matches the requested TeachAssist-style detail view", () => {
+  assert.match(scienceAnalyticsJs, /SCIENCE_COURSE/);
   assert.match(scienceAnalyticsJs, /export async function renderScienceAnalytics/);
-  assert.match(scienceAnalyticsJs, /buildScienceInsights/);
+  assert.match(scienceAnalyticsJs, /Grade 9 Science Performance Overview/);
+  assert.match(scienceAnalyticsJs, /Courses \/ Science/);
+  assert.match(scienceAnalyticsJs, /Term Work/);
+  assert.match(scienceAnalyticsJs, /Culminating Work/);
+  assert.match(scienceAnalyticsJs, /18 term assessment entries/);
+  assert.match(scienceAnalyticsJs, /2 culminating tasks/);
+  assert.match(scienceAnalyticsJs, /10 overall expectations tracked/);
+  assert.match(scienceAnalyticsJs, /buildSummaryCards/);
+  assert.match(scienceAnalyticsJs, /expectationsAtOrAbove100/);
   assert.match(scienceAnalyticsJs, /renderScienceTrendChart/);
-  assert.match(scienceAnalyticsJs, /Science Marks/);
-  assert.match(scienceAnalyticsJs, /Science Average/);
-  assert.match(scienceAnalyticsJs, /Overall Average/);
-  assert.match(scienceAnalyticsJs, /Next target/);
-  assert.match(css, /\.science-hero/);
-  assert.match(css, /\.metric-grid/);
-  assert.match(css, /\.analytics-bar/);
+  assert.match(scienceAnalyticsJs, /overall-expectations-table/);
+  assert.match(scienceAnalyticsJs, /Courses \/ Science/);
+  assert.match(scienceAnalyticsJs, /STEM Investigation Skills/);
+  assert.match(scienceAnalyticsJs, /Relating Science to Our Changing World/);
+  assert.match(scienceAnalyticsJs, /Investigating and Understanding Concepts/);
+  assert.match(css, /\.science-course-hero/);
+  assert.match(css, /\.science-summary-grid/);
+  assert.match(css, /\.expectations-table/);
+  assert.doesNotMatch(css, /\.metric-grid/);
 });
 
 test("mobile layout keeps chrome inside the centered app column", () => {
