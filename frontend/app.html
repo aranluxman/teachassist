@@ -38,6 +38,7 @@
       </main>
       <main id="screen-detail" class="screen hidden"></main>
       <main id="screen-guidance" class="screen hidden"></main>
+      <main id="screen-science" class="screen hidden"></main>
       <main id="screen-links" class="screen hidden"></main>
       <main id="screen-settings" class="screen hidden"></main>
 
@@ -63,6 +64,14 @@
           </svg>
           Links
         </button>
+        <button data-tab="science">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 2v6L5 18a3 3 0 0 0 2.7 4h8.6A3 3 0 0 0 19 18L14 8V2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M8 14h8" stroke-linecap="round" />
+            <path d="M9 2h6" stroke-linecap="round" />
+          </svg>
+          Science
+        </button>
         <button data-tab="settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3" />
@@ -81,6 +90,7 @@
       import { renderCourses } from "./js/courses.js";
       import { openCourseDetail } from "./js/course-detail.js";
       import { renderGuidance } from "./js/guidance.js";
+      import { renderScienceAnalytics } from "./js/science-analytics.js";
       import { renderLinks } from "./js/links.js";
       import { renderSettings, applyStoredTheme } from "./js/settings.js";
       import { initInstallButton } from "./js/install.js";
@@ -89,6 +99,7 @@
         courses: document.getElementById("screen-courses"),
         detail: document.getElementById("screen-detail"),
         guidance: document.getElementById("screen-guidance"),
+        science: document.getElementById("screen-science"),
         links: document.getElementById("screen-links"),
         settings: document.getElementById("screen-settings"),
       };
@@ -100,13 +111,15 @@
         tabbar.querySelectorAll("button").forEach((b) =>
           b.classList.toggle("active", b.dataset.tab === name)
         );
-        tabbar.classList.toggle("hidden", !["courses", "guidance", "links", "settings"].includes(name));
+        const tabbed = ["courses", "guidance", "science", "links", "settings"].includes(name);
+        tabbar.classList.toggle("hidden", !tabbed);
         window.scrollTo(0, 0);
       }
 
       window.AppNav = {
         toCourses: async () => { showScreen("courses"); await renderCourses(screens.courses); },
         toGuidance: async () => { showScreen("guidance"); await renderGuidance(screens.guidance); },
+        toScience: async () => { showScreen("science"); await renderScienceAnalytics(screens.science); },
         toLinks: async () => { showScreen("links"); await renderLinks(screens.links); },
         toSettings: async () => { showScreen("settings"); await renderSettings(screens.settings); },
         toDetail: async (course) => { showScreen("detail"); await openCourseDetail(screens.detail, course); },
@@ -118,6 +131,7 @@
         ({
           courses: window.AppNav.toCourses,
           guidance: window.AppNav.toGuidance,
+          science: window.AppNav.toScience,
           links: window.AppNav.toLinks,
           settings: window.AppNav.toSettings,
         })[btn.dataset.tab]();
