@@ -1,20 +1,19 @@
 // ============================================================================
-// Course detail (live) — reference-style layout
-// ----------------------------------------------------------------------------
-// Header gauge + performance label + midterm, an "Evaluations" list of cards
-// (each with its own ring gauge + performance label), and an "Analytics"
-// section with a Grade Progression line chart and an Assignment Overview bar
-// chart. Renders whatever the Worker returns in `course.evaluations`.
+// Course detail (live) — reference style: semicircular gauge carousel +
+// Evaluations / Breakdown tabs.
 // ============================================================================
 
-import { el, escapeHtml, fmtPercent } from "./courses.js";
+import { el, escapeHtml, fmtPercent, semiGauge } from "./courses.js";
 import { displayMark, markKind } from "./ta-client.js";
+import { COURSE_COLORS } from "./config.js";
 
 let charts = [];
+let activeSeg = "evals";
 
 /** Open the detail screen for a (live) course object. */
 export async function openCourseDetail(container, course) {
   destroyCharts();
+  activeSeg = "evals";
   container.innerHTML = "";
 
   const evals = (Array.isArray(course.evaluations) ? course.evaluations : []).filter(
@@ -23,133 +22,160 @@ export async function openCourseDetail(container, course) {
   const mark = displayMark(course);
   const kind = markKind(course);
 
-  // ── Top nav ──
+  // ── Nav ──
   const nav = el(`
     <div class="detail-nav">
       <button class="back-btn">Courses</button>
-      <span class="detail-title">${escapeHtml(course.code || "")}</span>
+      <div class="detail-titlewrap">
+        <div class="detail-title">${escapeHtml(course.code || "")}</div>
+        <div class="detail-subtitle">${escapeHtml(course.name || "")}</div>
+      </div>
       <div class="detail-actions"></div>
     </div>
   `);
   nav.querySelector(".back-btn").addEventListener("click", () => window.AppNav.toCourses());
   container.appendChild(nav);
 
-  // ── Header card: course info + big ring gauge + midterm + performance ──
-  const header = el(`
-    <div class="card course-hero">
-      <div class="hero-info">
-        <div class="hero-perf">${escapeHtml(performanceLabel(mark))}</div>
-        <div class="hero-name">${escapeHtml(course.name || course.code || "")}</div>
-        <div class="hero-sub">${escapeHtml(course.code || "")}</div>
-        ${
-          course.midterm != null
-            ? `<span class="hero-badge">Midterm ${fmtPercent(Number(course.midterm))}</span>`
-            : ""
-        }
+  // ── Carousel: gauge / progression chart / info ──
+  const carousel = el(`<div class="carousel" id="d-carousel"></div>`);
+
+  carousel.appendChild(
+    el(`
+    <div class="panel"><div class="card gauge-card">
+      ${semiGauge(mark)}
+      ${
+        course.midterm != null
+          ? `<div class="midterm-pill">Midterm: ${fmtPercent(Number(course.midterm))}</div>`
+          : ""
+      }
+      <div class="gauge-cap">${kind === "midterm" ? "Midterm Mark" : "Current Mark"}</div>
+    </div></div>
+  `)
+  );
+
+  const hasChart = evals.length >= 1 && window.Chart;
+  if (hasChart) {
+    carousel.appendChild(
+      el(`
+      <div class="panel"><div class="card gauge-card">
+        <div class="muted small" style="font-weight:600;align-self:flex-start">GRADE PROGRESSION</div>
+        <div class="chart-box"><canvas id="d-chart"></canvas></div>
+      </div></div>
+    `)
+    );
+  }
+
+  carousel.appendChild(
+    el(`
+    <div class="panel"><div class="card gauge-card">
+      <div class="info-list" style="width:100%">
+        <div class="info-row"><span>Code</span><span>${escapeHtml(course.code || "—")}</span></div>
+        <div class="info-row"><span>Current mark</span><span>${course.currentMark != null ? fmtPercent(Number(course.currentMark)) : "—"}</span></div>
+        <div class="info-row"><span>Midterm</span><span>${course.midterm != null ? fmtPercent(Number(course.midterm)) : "—"}</span></div>
+        <div class="info-row"><span>Evaluations</span><span>${evals.length}</span></div>
       </div>
-      <div class="hero-gauge">${ringGauge(mark, 116, 11)}</div>
+    </div></div>
+  `)
+  );
+  container.appendChild(carousel);
+
+  // dots
+  const nPanels = carousel.querySelectorAll(".panel").length;
+  const dots = el(
+    `<div class="dots">${Array.from({ length: nPanels }, (_, i) => `<span class="dot ${i === 0 ? "active" : ""}"></span>`).join("")}</div>`
+  );
+  container.appendChild(dots);
+  carousel.addEventListener("scroll", () => {
+    const i = Math.round(carousel.scrollLeft / carousel.clientWidth);
+    dots.querySelectorAll(".dot").forEach((d, idx) => d.classList.toggle("active", idx === i));
+  });
+
+  // ── Segmented: Evaluations / Breakdown ──
+  const seg = el(`
+    <div class="segmented">
+      <button data-seg="evals">Evaluations</button>
+      <button data-seg="breakdown">Breakdown</button>
     </div>
   `);
-  container.appendChild(header);
+  const content = el(`<div id="seg-content"></div>`);
+  container.appendChild(seg);
+  container.appendChild(content);
 
-  // ── Evaluations list ──
-  container.appendChild(el(`<div class="section-label">Evaluations</div>`));
+  const show = (s) => {
+    activeSeg = s;
+    seg.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.seg === s));
+    content.innerHTML = "";
+    content.appendChild(s === "evals" ? buildEvals(evals, kind) : buildBreakdown(evals));
+  };
+  seg.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => show(b.dataset.seg)));
+  show(activeSeg);
+
+  if (hasChart) drawProgress(container, evals);
+}
+
+// ── Evaluations list (colored icon + name + percent + chevron) ──
+function buildEvals(evals, kind) {
+  const frag = document.createElement("div");
   if (!evals.length) {
-    container.appendChild(
+    frag.appendChild(
       el(`<div class="empty centered"><div class="empty-title">No evaluations yet</div>${
         kind === "midterm"
-          ? "This course is showing a midterm mark; individual assessments aren't posted yet."
+          ? "Showing the midterm mark — individual assessments aren't posted yet."
           : 'This course shows "please see teacher" on TeachAssist.'
       }</div>`)
     );
-  } else {
-    const list = document.createElement("div");
-    for (const e of evals) {
-      list.appendChild(
-        el(`
-        <div class="card eval-card">
-          <div class="eval-main">
-            <div class="eval-name">${escapeHtml(e.name || e.category || "Assessment")}</div>
-            <div class="eval-sub">${escapeHtml(
-              [performanceLabel(e.percent), e.category && e.category !== e.name ? e.category : ""]
-                .filter(Boolean)
-                .join(" · ")
-            )}${e.weight ? ` · weight ${escapeHtml(String(e.weight))}` : ""}</div>
-          </div>
-          <div class="eval-ring">${ringGauge(e.percent, 58, 6)}</div>
+    return frag;
+  }
+  evals.forEach((e, i) => {
+    const color = COURSE_COLORS[i % COURSE_COLORS.length];
+    const letter = (e.name || e.category || "?").trim().charAt(0).toUpperCase();
+    frag.appendChild(
+      el(`
+      <div class="card eval-row">
+        <div class="icon-circle" style="width:38px;height:38px;min-width:38px;font-size:15px;background:${color}">${escapeHtml(letter)}</div>
+        <div class="eval-main">
+          <div class="eval-name">${escapeHtml(e.name || e.category || "Assessment")}</div>
+          ${e.category && e.category !== e.name ? `<div class="eval-sub">${escapeHtml(e.category)}</div>` : ""}
         </div>
-      `)
-      );
-    }
-    container.appendChild(list);
-  }
-
-  // ── Analytics: Grade Progression + Assignment Overview ──
-  if (evals.length >= 1 && window.Chart) {
-    container.appendChild(el(`<div class="section-label">Analytics</div>`));
-    container.appendChild(
-      el(`
-      <div class="card">
-        <div class="muted small" style="font-weight:600">GRADE PROGRESSION</div>
-        <div class="chart-box"><canvas id="progress-chart"></canvas></div>
+        <div class="row-value">${fmtPercent(e.percent)}</div>
+        <span class="chevron"></span>
       </div>
     `)
     );
-    container.appendChild(
-      el(`
-      <div class="card" style="margin-top:12px">
-        <div class="muted small" style="font-weight:600">ASSIGNMENT OVERVIEW</div>
-        <div class="chart-box"><canvas id="overview-chart"></canvas></div>
-      </div>
-    `)
-    );
-    drawCharts(container, evals);
+  });
+  return frag;
+}
+
+// ── Breakdown (weight-focused) ──
+function buildBreakdown(evals) {
+  const frag = document.createElement("div");
+  if (!evals.length) {
+    frag.appendChild(el(`<div class="empty centered"><div class="empty-title">No breakdown available</div></div>`));
+    return frag;
   }
+  const allZero = evals.every((e) => !e.percent);
+  if (allZero) {
+    frag.appendChild(
+      el(`<div class="card" style="margin-bottom:12px;background:var(--accent-tint);box-shadow:none">
+        <div class="muted small" style="color:var(--text)">Your teacher hasn't posted assignment marks yet, so percentages are 0%. The weightings below are from TeachAssist.</div>
+      </div>`)
+    );
+  }
+  const rows = el(`<div class="rows"></div>`);
+  evals.forEach((e) =>
+    rows.appendChild(
+      el(`<div class="row" style="cursor:default">
+        <div class="row-main"><div class="row-title">${escapeHtml(e.name || e.category || "")}</div>
+        <div class="row-sub">Weight ${escapeHtml(String(e.weight ?? 0))}</div></div>
+        <div class="row-value">${fmtPercent(e.percent)}</div>
+      </div>`)
+    )
+  );
+  frag.appendChild(rows);
+  return frag;
 }
 
-// ───────────────────────────── helpers ─────────────────────────────────────
-
-function performanceLabel(p) {
-  if (p == null) return "Not marked yet";
-  if (p >= 97) return "Perfect Performance";
-  if (p >= 90) return "Excellent Performance";
-  if (p >= 85) return "Strong Performance";
-  if (p >= 75) return "Good Performance";
-  if (p >= 60) return "Fair Performance";
-  return "Developing";
-}
-
-function ringColor(p) {
-  if (p == null) return "var(--track)";
-  if (p >= 90) return "#34c759";
-  if (p >= 75) return "var(--accent)";
-  if (p >= 60) return "#ff9500";
-  return "#ff3b30";
-}
-
-/** Full-circle ring gauge with the percent centered. */
-function ringGauge(percent, size = 58, stroke = 6) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const p = Math.max(0, Math.min(100, percent ?? 0));
-  const dash = (p / 100) * c;
-  const cx = size / 2;
-  const label = percent == null ? "—" : fmtPercent(percent);
-  return `
-    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${label}">
-      <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" style="stroke:var(--track)" stroke-width="${stroke}"/>
-      ${
-        p > 0
-          ? `<circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${ringColor(percent)}" stroke-width="${stroke}"
-               stroke-linecap="round" stroke-dasharray="${dash} ${c}" transform="rotate(-90 ${cx} ${cx})"/>`
-          : ""
-      }
-      <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
-        font-size="${Math.round(size * 0.23)}" font-weight="800" style="fill:var(--text)"
-        font-family="-apple-system, sans-serif">${label}</text>
-    </svg>`;
-}
-
+// ── Grade Progression chart (running average) ──
 function destroyCharts() {
   for (const c of charts) {
     try {
@@ -161,97 +187,49 @@ function destroyCharts() {
   charts = [];
 }
 
-function drawCharts(container, evals) {
+function drawProgress(container, evals) {
+  const canvas = container.querySelector("#d-chart");
+  if (!canvas || !window.Chart) return;
   const accent =
-    getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#2563eb";
-  const grid = "rgba(127,127,127,0.15)";
-  const tick = "#9a9aa2";
-
-  // Grade Progression: running average across the evaluations (in order).
+    getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4f46e5";
   const running = [];
   let sum = 0;
   evals.forEach((e, i) => {
     sum += e.percent;
     running.push(Math.round((sum / (i + 1)) * 10) / 10);
   });
-  const labels = evals.map((_, i) => i + 1);
   const lo = Math.max(0, Math.floor(Math.min(...running, ...evals.map((e) => e.percent))) - 4);
-
-  const progCanvas = container.querySelector("#progress-chart");
-  if (progCanvas) {
-    const ctx = progCanvas.getContext("2d");
-    const grad = ctx.createLinearGradient(0, 0, 0, 180);
-    grad.addColorStop(0, accent + "40");
-    grad.addColorStop(1, accent + "00");
-    charts.push(
-      new window.Chart(progCanvas, {
-        type: "line",
-        data: {
-          labels,
-          datasets: [
-            {
-              data: running,
-              borderColor: accent,
-              backgroundColor: grad,
-              fill: true,
-              tension: 0.35,
-              pointRadius: 3,
-              pointBackgroundColor: accent,
-              borderWidth: 2.5,
-            },
-          ],
-        },
-        options: chartOpts(lo, 100, tick, grid, true),
-      })
-    );
-  }
-
-  // Assignment Overview: each evaluation's percent as a bar (green ≥90).
-  const overCanvas = container.querySelector("#overview-chart");
-  if (overCanvas) {
-    charts.push(
-      new window.Chart(overCanvas, {
-        type: "bar",
-        data: {
-          labels: evals.map((e, i) => shortName(e.name, i)),
-          datasets: [
-            {
-              data: evals.map((e) => Math.round(e.percent * 10) / 10),
-              backgroundColor: evals.map((e) => ringColor(e.percent)),
-              borderRadius: 6,
-              maxBarThickness: 26,
-            },
-          ],
-        },
-        options: chartOpts(0, 100, tick, grid, false),
-      })
-    );
-  }
-}
-
-function chartOpts(min, max, tick, grid, pct) {
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { displayColors: false } },
-    scales: {
-      y: {
-        min,
-        max,
-        ticks: { callback: (v) => v + (pct ? "%" : ""), maxTicksLimit: 5, color: tick },
-        grid: { color: grid, drawTicks: false },
-        border: { display: false },
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, 180);
+  grad.addColorStop(0, accent + "40");
+  grad.addColorStop(1, accent + "00");
+  charts.push(
+    new window.Chart(canvas, {
+      type: "line",
+      data: {
+        labels: running.map((_, i) => i + 1),
+        datasets: [
+          {
+            data: running,
+            borderColor: accent,
+            backgroundColor: grad,
+            fill: true,
+            tension: 0.35,
+            pointRadius: 3,
+            pointBackgroundColor: accent,
+            borderWidth: 2.5,
+          },
+        ],
       },
-      x: {
-        grid: { display: false },
-        ticks: { color: tick, maxRotation: 0, autoSkip: true, autoSkipPadding: 8 },
-        border: { display: false },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { displayColors: false } },
+        scales: {
+          y: { min: lo, max: 100, ticks: { callback: (v) => v + "%", maxTicksLimit: 5, color: "#9a9aa2" }, grid: { color: "rgba(127,127,127,0.15)", drawTicks: false }, border: { display: false } },
+          x: { grid: { display: false }, ticks: { color: "#9a9aa2" }, border: { display: false } },
+        },
       },
-    },
-  };
-}
-
-function shortName(name, i) {
-  const s = String(name || `#${i + 1}`).trim();
-  return s.length > 10 ? s.slice(0, 9) + "…" : s;
+    })
+  );
 }
