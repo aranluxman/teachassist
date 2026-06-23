@@ -1569,3 +1569,43 @@ details#advanced > summary::before { content: "⚙\00a0 "; }
 }
 .ad-ph-title { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
 .ad-ph-body code { font-size: 12px; background: var(--pill); padding: 1px 5px; border-radius: 4px; }
+
+/* ---- Course detail (reference: gauge carousel + Evaluations/Breakdown) --- */
+.detail-titlewrap { flex: 1; min-width: 0; text-align: center; }
+.detail-subtitle {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gauge-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 232px;
+  gap: 8px;
+}
+.midterm-pill {
+  background: var(--card-soft, #fff);
+  border: 1px solid var(--card-border, #eee);
+  box-shadow: var(--shadow-sm);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: 14px;
+  margin-top: 2px;
+}
+.eval-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 10px;
+  padding: 13px var(--gap);
+}
+.eval-row .eval-main { flex: 1; min-width: 0; }
+.eval-row .eval-name { font-weight: 700; font-size: 15px; }
+.eval-row .eval-sub { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }

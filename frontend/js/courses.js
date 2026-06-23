@@ -100,15 +100,18 @@ export function semiGauge(percent) {
   const len = Math.PI * r;
   const fill = (clamped / 100) * len;
   const arc = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+  // Unique gradient id per gauge — otherwise multiple gauges (incl. ones on a
+  // display:none screen) share an id and the fill fails to paint.
+  const gid = "ovg-" + Math.random().toString(36).slice(2, 9);
   return `
     <svg viewBox="0 0 200 116" width="100%" style="max-width:248px" role="img" aria-label="${percent == null ? "no average" : fmtPercent(percent)}">
-      <defs><linearGradient id="ovGrad" x1="0" y1="0" x2="1" y2="0">
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" stop-color="#6aa8ff"/><stop offset="1" stop-color="#4f46e5"/>
       </linearGradient></defs>
       <path d="${arc}" fill="none" style="stroke:var(--track)" stroke-width="${sw}" stroke-linecap="round"/>
       ${
         clamped > 0
-          ? `<path d="${arc}" fill="none" stroke="url(#ovGrad)" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${fill} ${len + 4}"/>`
+          ? `<path d="${arc}" fill="none" stroke="url(#${gid})" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${fill} ${len + 4}"/>`
           : ""
       }
       <text x="100" y="92" text-anchor="middle" font-size="40" font-weight="800" letter-spacing="-1" style="fill:var(--text)" font-family="-apple-system, sans-serif">${
