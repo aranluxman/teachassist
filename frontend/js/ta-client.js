@@ -21,6 +21,12 @@ const LS = {
 };
 
 let cache = null; // last fetched courses (this page load)
+let cachedAt = null; // ISO time the shown marks were scraped (from /api/cached)
+
+/** When the marks currently on screen were scraped (ISO string), or null. */
+export function lastSyncedAt() {
+  return cachedAt;
+}
 
 // ---- per-device settings ---------------------------------------------------
 export function workerUrl() {
@@ -99,15 +105,56 @@ export async function login(num, pass) {
   localStorage.setItem(LS.num, num.trim());
   localStorage.setItem(LS.pass, pass);
   cache = courses;
+  cachedAt = new Date().toISOString();
   saveSnapshot(courses);
   return courses;
 }
 
-/** Get courses for this page load (cached); pass {refresh:true} to re-scrape. */
+/**
+ * Read the daily snapshot the Worker caches in KV (populated by the Cron
+ * Trigger and by every live scrape). Returns the courses array, or null if
+ * there is no cache yet / it can't be reached — callers fall back to a live
+ * scrape. Also records when the snapshot was scraped (lastSyncedAt()).
+ */
+async function getCachedMarks() {
+  const url = workerUrl();
+  if (!url) return null;
+  try {
+    const res = await fetch(url + "/api/cached", {
+      headers: { ...(apiKey() ? { "x-api-key": apiKey() } : {}) },
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    if (body && Array.isArray(body.courses)) {
+      cachedAt = body.scrapedAt || null;
+      return body.courses;
+    }
+  } catch {
+    /* unreachable cache -> fall back to a live scrape */
+  }
+  return null;
+}
+
+/**
+ * Get courses for this page load. A normal load prefers the daily cache for an
+ * instant, login-free render; {refresh:true} forces a live re-scrape (which
+ * also repopulates the shared cache server-side).
+ */
 export async function getCourses({ refresh = false } = {}) {
   if (cache && !refresh) return cache;
+
+  if (!refresh) {
+    const cached = await getCachedMarks();
+    if (cached && cached.length) {
+      cache = cached;
+      saveSnapshot(cache);
+      return cache;
+    }
+  }
+
   if (!isLoggedIn()) throw new Error("Not signed in.");
   cache = await postMarks(studentNumber(), password());
+  cachedAt = new Date().toISOString();
   saveSnapshot(cache);
   return cache;
 }

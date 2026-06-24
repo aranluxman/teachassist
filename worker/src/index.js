@@ -114,9 +114,10 @@ class AuthError extends Error {}
 export default {
   /**
    * @param {Request} request
-   * @param {{ TA_USERNAME?: string, TA_PASSWORD?: string, API_KEY?: string }} env
+   * @param {{ TA_USERNAME?: string, TA_PASSWORD?: string, API_KEY?: string, MARKS?: KVNamespace }} env
+   * @param {{ waitUntil?: (p: Promise<any>) => void }} [ctx]
    */
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // CORS preflight — answer before any auth so the browser can proceed.
@@ -144,6 +145,30 @@ export default {
         },
         400
       );
+    }
+
+    // Cached marks: the snapshot written by the daily Cron Trigger (and by every
+    // live scrape). Lets the dashboard render instantly without a fresh, flaky
+    // TeachAssist login. Shape: { scrapedAt, courses: [...] }.
+    if (request.method === "GET" && url.pathname === "/api/cached") {
+      if (REQUIRE_API_KEY) {
+        const provided = request.headers.get(API_KEY_HEADER) || url.searchParams.get("key");
+        if (!env.API_KEY || !provided || !timingSafeEqual(provided, env.API_KEY)) {
+          return json({ error: "Unauthorized" }, 401);
+        }
+      }
+      if (!env.MARKS) return json({ error: "Cache is not configured (no KV binding)." }, 503);
+      const raw = await env.MARKS.get("latest");
+      if (!raw) {
+        return json(
+          { error: "No cached marks yet.", hint: "Sign in once, or wait for the daily sync." },
+          404
+        );
+      }
+      return new Response(raw, {
+        status: 200,
+        headers: { "content-type": "application/json; charset=utf-8", ...corsHeaders() },
+      });
     }
 
     // Route: GET (uses Worker secrets) or POST (browser sign-in with creds).
@@ -207,27 +232,22 @@ export default {
         });
       }
 
-      // 1 + 2: log in; capture the session cookie + student_id.
-      const session = await login(env, creds);
+      // Debug helpers that need the intermediate HTML (all behind the API-key
+      // gate; none ever expose the password or the session cookie value).
+      if (debug === "courses" || debug === "report") {
+        const session = await login(env, creds);
+        const listUrl = `${COURSE_LIST_URL}?student_id=${encodeURIComponent(session.studentId)}`;
+        const listHtml = await fetchWithSession(listUrl, session.cookie, LOGIN_URL);
 
-      // 3: fetch the marks-list page with that cookie (student_id from login).
-      const listUrl = `${COURSE_LIST_URL}?student_id=${encodeURIComponent(session.studentId)}`;
-      const listHtml = await fetchWithSession(listUrl, session.cookie, LOGIN_URL);
+        // debug=courses returns the raw page so you can verify the HTML structure.
+        if (debug === "courses") return text(listHtml);
 
-      // debug=courses returns the raw page so you can verify the HTML structure.
-      if (debug === "courses") return text(listHtml);
+        // debug=report returns one raw report page. Use &code=SNC (matched
+        // against your course codes) or &subject_id=NNN. Open it with &key=.
+        assertLoggedIn(listHtml);
+        const courses = await parseCourseList(listHtml);
+        for (const c of courses) c.studentId = c.studentId || session.studentId;
 
-      assertLoggedIn(listHtml);
-
-      // 4: parse course code, name and current mark.
-      const courses = await parseCourseList(listHtml);
-      // Fill in the student_id from the login redirect when a link omits it.
-      for (const c of courses) c.studentId = c.studentId || session.studentId;
-      if (DEBUG) console.log(`Parsed ${courses.length} courses`);
-
-      // debug=report returns one raw report page. Use &code=SNC (matched against
-      // your course codes) or &subject_id=NNN. Open it in a browser with &key=.
-      if (debug === "report") {
         let sid = url.searchParams.get("subject_id");
         const code = url.searchParams.get("code");
         if (!sid && code) {
@@ -253,45 +273,9 @@ export default {
         return text(html);
       }
 
-      // 5: optionally fetch + parse each course's evaluation rows.
-      if (FETCH_REPORTS) {
-        await Promise.all(
-          courses.map(async (c) => {
-            if (!c.subjectId || !c.studentId) {
-              c.evaluations = [];
-              return;
-            }
-            try {
-              const reportUrl =
-                `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(c.subjectId)}` +
-                `&student_id=${encodeURIComponent(c.studentId)}`;
-              const reportHtml = await fetchWithSession(reportUrl, session.cookie, COURSE_LIST_URL);
-              c.evaluations = await parseEvaluations(reportHtml);
-              // The report carries the calculated "Course" mark even when the
-              // list page only says "please see teacher". Use it as currentMark.
-              const cm = parseReportCourseMark(reportHtml);
-              if (cm != null && c.currentMark == null) c.currentMark = cm;
-            } catch (err) {
-              // One bad report should not sink the whole response.
-              c.evaluations = [];
-              c.reportError = safeMessage(err);
-            }
-          })
-        );
-      } else {
-        for (const c of courses) c.evaluations = [];
-      }
-
-      // 6: assemble the JSON, exposing only the documented shape.
-      const out = courses.map((c) => ({
-        code: c.code,
-        name: c.name,
-        currentMark: c.currentMark,
-        midterm: c.midterm ?? null,
-        evaluations: c.evaluations,
-        ...(c.reportError ? { reportError: c.reportError } : {}),
-      }));
-
+      // Normal path: scrape live, cache the result in KV (best-effort), return.
+      const out = await scrapeMarks(env, creds);
+      storeMarks(env, ctx, out);
       return json(out, 200);
     } catch (err) {
       // Login problems -> 401, everything else (network, parsing) -> 502.
@@ -299,7 +283,161 @@ export default {
       return json({ error: safeMessage(err) }, status);
     }
   },
+
+  /**
+   * Cron Trigger (see [triggers] crons in wrangler.toml). Runs on a schedule,
+   * logs into TeachAssist with the Worker secrets, scrapes the marks, and caches
+   * them in KV so the dashboard loads instantly and stays current even when
+   * nobody opens it. No request/response — failures are logged, not thrown.
+   *
+   * @param {ScheduledController} event
+   * @param {{ TA_USERNAME?: string, TA_PASSWORD?: string, MARKS?: KVNamespace }} env
+   * @param {{ waitUntil: (p: Promise<any>) => void }} ctx
+   */
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runDailySync(env));
+  },
 };
+
+// ============================================================================
+// SCRAPE + CACHE
+// ----------------------------------------------------------------------------
+// The full login -> list -> per-report pipeline, factored out so BOTH the live
+// request handler and the daily Cron Trigger run exactly the same scrape. The
+// result is the documented course shape: { code, name, currentMark, midterm,
+// evaluations }.
+// ============================================================================
+
+/**
+ * Log in (with request creds or the Worker secrets), fetch the marks list and
+ * each course's report, and return the assembled course array.
+ *
+ * @param {{ TA_USERNAME?: string, TA_PASSWORD?: string }} env
+ * @param {{ username: string, password: string }|null} creds
+ */
+async function scrapeMarks(env, creds) {
+  // 1 + 2: log in; capture the session cookie + student_id.
+  const session = await login(env, creds);
+
+  // 3: fetch the marks-list page with that cookie (student_id from login).
+  const listUrl = `${COURSE_LIST_URL}?student_id=${encodeURIComponent(session.studentId)}`;
+  const listHtml = await fetchWithSession(listUrl, session.cookie, LOGIN_URL);
+  assertLoggedIn(listHtml);
+
+  // 4: parse course code, name and current mark.
+  const courses = await parseCourseList(listHtml);
+  // Fill in the student_id from the login redirect when a link omits it.
+  for (const c of courses) c.studentId = c.studentId || session.studentId;
+  if (DEBUG) console.log(`Parsed ${courses.length} courses`);
+
+  // 5: optionally fetch + parse each course's evaluation rows.
+  if (FETCH_REPORTS) {
+    await Promise.all(
+      courses.map(async (c) => {
+        if (!c.subjectId || !c.studentId) {
+          c.evaluations = [];
+          return;
+        }
+        try {
+          const reportUrl =
+            `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(c.subjectId)}` +
+            `&student_id=${encodeURIComponent(c.studentId)}`;
+          const reportHtml = await fetchWithSession(reportUrl, session.cookie, COURSE_LIST_URL);
+          c.evaluations = await parseEvaluations(reportHtml);
+          // The report carries the calculated "Course" mark even when the list
+          // page only says "please see teacher". Use it as currentMark.
+          const cm = parseReportCourseMark(reportHtml);
+          if (cm != null && c.currentMark == null) c.currentMark = cm;
+        } catch (err) {
+          // One bad report should not sink the whole response.
+          c.evaluations = [];
+          c.reportError = safeMessage(err);
+        }
+      })
+    );
+  } else {
+    for (const c of courses) c.evaluations = [];
+  }
+
+  // 6: project to the documented shape only.
+  return courses.map((c) => ({
+    code: c.code,
+    name: c.name,
+    currentMark: c.currentMark,
+    midterm: c.midterm ?? null,
+    evaluations: c.evaluations,
+    ...(c.reportError ? { reportError: c.reportError } : {}),
+  }));
+}
+
+/**
+ * Best-effort cache of a fresh scrape to KV: a `latest` snapshot the dashboard
+ * reads on load, plus a compact per-day `snapshot:YYYY-MM-DD` history row. Never
+ * throws — a cache miss must not break the live response. Pass `ctx` to defer
+ * the writes past the response (waitUntil); pass null to await them (Cron).
+ *
+ * @param {{ MARKS?: KVNamespace }} env
+ * @param {{ waitUntil?: (p: Promise<any>) => void }|null} ctx
+ * @param {Array} out  the course array from scrapeMarks()
+ */
+function storeMarks(env, ctx, out) {
+  if (!env || !env.MARKS || !Array.isArray(out)) return;
+  const scrapedAt = new Date().toISOString();
+  const day = scrapedAt.slice(0, 10);
+  const writes = Promise.all([
+    env.MARKS.put("latest", JSON.stringify({ scrapedAt, courses: out })),
+    env.MARKS.put(
+      `snapshot:${day}`,
+      JSON.stringify({ date: scrapedAt, overall: overallOf(out), marks: marksOf(out) }),
+      { expirationTtl: 60 * 60 * 24 * 400 } // keep ~13 months of daily history
+    ),
+  ]).catch((e) => {
+    if (DEBUG) console.log("KV write failed:", safeMessage(e));
+  });
+  if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(writes);
+  return writes;
+}
+
+/**
+ * Cron entrypoint: scrape with the Worker secrets and cache the result. Logs
+ * outcomes (never credentials) and swallows errors so a flaky night doesn't
+ * surface as an unhandled rejection.
+ */
+async function runDailySync(env) {
+  if (!env || !env.MARKS) {
+    if (DEBUG) console.log("Daily sync skipped: no KV (MARKS) binding.");
+    return;
+  }
+  if (!env.TA_USERNAME || !env.TA_PASSWORD) {
+    console.log("Daily sync skipped: TA_USERNAME / TA_PASSWORD secrets are not set.");
+    return;
+  }
+  try {
+    const out = await scrapeMarks(env, null); // null creds -> use the secrets
+    await storeMarks(env, null, out);
+    console.log(`Daily sync OK: cached ${out.length} courses.`);
+  } catch (err) {
+    console.log("Daily sync failed:", safeMessage(err));
+  }
+}
+
+/** The mark to record for a course: live current mark, else midterm, else null. */
+function displayMarkOf(c) {
+  if (c && typeof c.currentMark === "number") return c.currentMark;
+  if (c && typeof c.midterm === "number") return c.midterm;
+  return null;
+}
+
+/** Simple average of every course's display mark, rounded to 0.1 (or null). */
+function overallOf(courses) {
+  const m = (courses || []).map(displayMarkOf).filter((x) => x != null);
+  return m.length ? Math.round((m.reduce((a, b) => a + b, 0) / m.length) * 10) / 10 : null;
+}
+
+/** { code: mark } map for the compact daily snapshot. */
+function marksOf(courses) {
+  return Object.fromEntries((courses || []).map((c) => [c.code, displayMarkOf(c)]));
+}
 
 // ============================================================================
 // LOGIN + SESSION
@@ -806,4 +944,7 @@ export {
   parseEvaluations,
   extractCourseCode,
   extractCurrentMark,
+  storeMarks,
+  overallOf,
+  marksOf,
 };
