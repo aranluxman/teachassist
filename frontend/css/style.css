@@ -349,52 +349,8 @@ a.row {
   font-weight: 650;
   white-space: nowrap;
 }
-.install-btn {
-  min-height: 40px;
-  border: 1px solid rgba(37, 99, 235, 0.14);
-  border-radius: 999px;
-  background: var(--card-soft);
-  color: var(--accent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 9px 13px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 750;
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  transition: transform var(--t), background var(--t), color var(--t), opacity var(--t);
-}
-.install-btn svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.install-btn:active {
-  transform: scale(0.97);
-  background: var(--accent-tint);
-}
-.install-btn.is-installed {
-  color: var(--accent-2);
-  opacity: 0.82;
-}
-.install-btn:disabled {
-  cursor: default;
-}
 @media (max-width: 360px) {
   .app-status {
-    display: none;
-  }
-  .install-btn {
-    padding-inline: 11px;
-  }
-  .install-label {
     display: none;
   }
 }
@@ -1609,3 +1565,35 @@ details#advanced > summary::before { content: "⚙\00a0 "; }
 .eval-row .eval-main { flex: 1; min-width: 0; }
 .eval-row .eval-name { font-weight: 700; font-size: 15px; }
 .eval-row .eval-sub { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+
+/* ============================ Color themes =============================== */
+/* Light themes change the accent + top wash; "dark" is its own theme. */
+[data-theme="ocean"]  { --accent:#0891b2; --accent-press:#0e7490; --accent-tint:#cdeef6; --accent-tint-2:#e6f8fc; --bg-tint-top:#d8eef3; }
+[data-theme="sunset"] { --accent:#f97316; --accent-press:#ea580c; --accent-tint:#ffe3cd; --accent-tint-2:#fff1e6; --bg-tint-top:#fbe8d8; }
+[data-theme="rose"]   { --accent:#e11d48; --accent-press:#be123c; --accent-tint:#ffd6de; --accent-tint-2:#ffe8ed; --bg-tint-top:#fbe0e7; }
+[data-theme="forest"] { --accent:#16a34a; --accent-press:#15803d; --accent-tint:#d2f1dd; --accent-tint-2:#e8f9ee; --bg-tint-top:#e1f0e7; }
+
+/* Theme picker swatches (Settings) */
+.theme-swatches { display:flex; gap:14px; flex-wrap:wrap; padding:6px 2px 2px; }
+.swatch {
+  width:42px; height:42px; border-radius:50%;
+  border:2px solid transparent; cursor:pointer; position:relative;
+  box-shadow: var(--shadow-sm); transition: transform var(--t);
+}
+.swatch:active { transform: scale(0.92); }
+.swatch.active { border-color: var(--accent); }
+.swatch.active::after {
+  content:"✓"; position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; color:#fff; font-weight:800; font-size:16px;
+  text-shadow:0 1px 2px rgba(0,0,0,.35);
+}
+
+/* ===================== Tighter type (fit nicely) ======================== */
+.screen-header h1 { font-size: 26px; }
+.course-card .cc-code { font-size: 15.5px; }
+.course-card .cc-name { font-size: 13px; }
+.course-card .cc-mark { font-size: 21px; }
+.overall-gauge .gauge-cap { font-size: 12.5px; }
+.detail-title { font-size: 16px; }
+.eval-row .eval-name { font-size: 14.5px; }
+.midterm-pill { font-size: 13.5px; }
