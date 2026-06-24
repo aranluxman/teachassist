@@ -19,10 +19,26 @@ import {
 const THEME_KEY = "theme";
 const APP_VERSION = "2.0.0";
 
+// Selectable color themes (the swatch colour is the theme's accent).
+export const THEMES = [
+  { id: "indigo", name: "Indigo", color: "#4f46e5" },
+  { id: "ocean", name: "Ocean", color: "#0891b2" },
+  { id: "sunset", name: "Sunset", color: "#f97316" },
+  { id: "rose", name: "Rose", color: "#e11d48" },
+  { id: "forest", name: "Forest", color: "#16a34a" },
+  { id: "dark", name: "Dark", color: "#1c1c1e" },
+];
+
+function currentTheme() {
+  const t = localStorage.getItem(THEME_KEY);
+  // Migrate the old light/dark values.
+  if (t === "light" || !t) return "indigo";
+  return THEMES.some((x) => x.id === t) ? t : "indigo";
+}
+
 /** Apply the saved theme on app boot (called from app.html). */
 export function applyStoredTheme() {
-  const dark = localStorage.getItem(THEME_KEY) === "dark";
-  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", currentTheme());
 }
 
 /** Render the Settings screen. */
@@ -71,26 +87,34 @@ export async function renderSettings(container) {
   });
   container.appendChild(dataRows);
 
-  // Appearance
-  container.appendChild(el(`<div class="section-label">Appearance</div>`));
+  // Appearance — theme picker
+  container.appendChild(el(`<div class="section-label">Theme</div>`));
+  const active = currentTheme();
   const appearance = el(`
-    <div class="rows">
-      <div class="row" style="cursor:default">
-        <div class="row-main">
-          <div class="row-title">Dark theme</div>
-          <div class="row-sub">Switch between light and dark mode</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="theme-toggle" aria-label="Toggle dark theme" ${isDark ? "checked" : ""} />
-        </label>
+    <div class="card">
+      <div class="theme-swatches">
+        ${THEMES.map(
+          (t) =>
+            `<button class="swatch ${t.id === active ? "active" : ""}" data-theme-id="${t.id}" title="${escapeHtml(t.name)}" aria-label="${escapeHtml(t.name)} theme" style="background:${t.color}"></button>`
+        ).join("")}
       </div>
+      <div class="muted small" id="theme-name" style="margin-top:10px">${escapeHtml(
+        THEMES.find((t) => t.id === active)?.name || "Indigo"
+      )}</div>
     </div>
   `);
-  appearance.querySelector("#theme-toggle").addEventListener("change", (e) => {
-    const dark = e.target.checked;
-    localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
-    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-  });
+  appearance.querySelectorAll(".swatch").forEach((sw) =>
+    sw.addEventListener("click", () => {
+      const id = sw.dataset.themeId;
+      localStorage.setItem(THEME_KEY, id);
+      document.documentElement.setAttribute("data-theme", id);
+      appearance.querySelectorAll(".swatch").forEach((s) =>
+        s.classList.toggle("active", s.dataset.themeId === id)
+      );
+      appearance.querySelector("#theme-name").textContent =
+        THEMES.find((t) => t.id === id)?.name || "";
+    })
+  );
   container.appendChild(appearance);
 
   // Worker connection
