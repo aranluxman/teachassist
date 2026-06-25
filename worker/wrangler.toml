@@ -22,6 +22,19 @@ workers_dev = true
 [observability]
 enabled = true
 
+# Daily Cron Trigger: re-scrape TeachAssist once a day and cache the result in
+# KV (see the `scheduled` handler in src/index.js). 11:00 UTC ≈ 6–7 AM Eastern,
+# so fresh marks are ready first thing in the morning.
+[triggers]
+crons = ["0 11 * * *"]
+
+# KV namespace that stores the cached marks: a `latest` snapshot the dashboard
+# reads instantly (GET /api/cached) plus per-day history rows. Created in this
+# account as "teachassist-marks-cache".
+[[kv_namespaces]]
+binding = "MARKS"
+id = "c60820c31edf4a659f1d563a30d59408"
+
 # If you later attach a custom domain, add a [[routes]] block here, e.g.:
 # routes = [
 #   { pattern = "marks.example.com/api/*", custom_domain = true }

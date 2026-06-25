@@ -13,7 +13,28 @@ import {
   displayMark,
   markKind,
   getUpdates,
+  lastSyncedAt,
 } from "./ta-client.js";
+
+/** Human "Updated 3h ago" string from an ISO timestamp (for the top bar). */
+function relativeUpdated(iso) {
+  if (!iso) return "Updated just now";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!isFinite(ms) || ms < 0) return "Updated just now";
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "Updated just now";
+  if (min < 60) return `Updated ${min} min ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `Updated ${hr}h ago`;
+  const d = Math.floor(hr / 24);
+  return d === 1 ? "Updated yesterday" : `Updated ${d} days ago`;
+}
+
+/** Reflect the cached scrape time in the app top bar. */
+function refreshTopbarStatus() {
+  const status = document.querySelector(".app-status");
+  if (status) status.textContent = relativeUpdated(lastSyncedAt());
+}
 
 // ───────────────────────────── UI helpers ──────────────────────────────────
 
@@ -158,6 +179,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
 
   const overall = overallAverage(courses);
   const updates = getUpdates();
+  refreshTopbarStatus();
 
   container.innerHTML = "";
 
