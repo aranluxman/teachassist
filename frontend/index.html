@@ -6,9 +6,9 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1"
     />
-    <meta name="theme-color" content="#f2f2f7" />
-    <meta name="description" content="Sign in with your YRDSB TeachAssist student number to see your marks." />
-    <title>TeachAssist - Sign in</title>
+    <meta name="theme-color" content="#e3e9f4" />
+    <meta name="description" content="Sign in with your YRDSB TeachAssist student number to see your marks, evaluations, and achievement-category breakdowns." />
+    <title>TeachAssist — Sign in</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icons/app-icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icons/app-icon.svg" />
@@ -63,6 +63,29 @@
           <div class="error-text" id="auth-error"></div>
           <button type="submit" class="btn" id="auth-submit">Sign In</button>
         </form>
+
+        <div class="auth-divider">or</div>
+        <button type="button" class="btn secondary" id="demo-btn">
+          Explore the demo
+        </button>
+        <p class="muted small" style="text-align:center;margin:10px 2px 0">
+          Browse a full Grade 9 timetable with every evaluation — no login needed.
+        </p>
+      </div>
+
+      <div class="auth-features">
+        <div class="feature-item">
+          <span class="feature-dot" aria-hidden="true">📊</span>
+          <span><b>Every evaluation</b> — assignments, tests and culminating tasks</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-dot" aria-hidden="true">🧭</span>
+          <span><b>Achievement breakdown</b> — Knowledge, Thinking, Communication, Application</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-dot" aria-hidden="true">🎨</span>
+          <span><b>9 colour themes</b> — including two dark modes, all high-contrast</span>
+        </div>
       </div>
 
       <p class="muted small" style="text-align:center;margin-top:18px">
@@ -79,6 +102,7 @@
         setWorkerUrl,
         apiKey,
         setApiKey,
+        enterDemo,
       } from "./js/ta-client.js";
 
       // Already signed in? Go straight to the app.
@@ -93,6 +117,11 @@
       // Prefill Advanced from saved values.
       urlEl.value = workerUrl();
       keyEl.value = apiKey();
+
+      document.getElementById("demo-btn").addEventListener("click", () => {
+        enterDemo();
+        window.location.replace("app.html");
+      });
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();

@@ -13,6 +13,17 @@ const RESOURCES = [
     items: [
       { label: "myBlueprint — Pathway Planner", sub: "Course selection & post-secondary planning", url: "https://www.myblueprint.ca" },
       { label: "Graduation requirements (OSSD)", sub: "Credits, literacy, community hours", url: "https://www.ontario.ca/page/high-school-graduation-requirements" },
+      { label: "Community involvement hours", sub: "The 40-hour requirement and what counts", url: "https://www2.yrdsb.ca/schools-programs/community-involvement-hours" },
+      { label: "OUInfo — Ontario universities", sub: "Programs, prerequisites, admission averages", url: "https://www.ontariouniversitiesinfo.ca" },
+      { label: "ontariocolleges.ca", sub: "Explore and apply to Ontario college programs", url: "https://www.ontariocolleges.ca" },
+    ],
+  },
+  {
+    group: "Academics",
+    items: [
+      { label: "OSSLT information", sub: "The literacy test: format and practice", url: "https://www.eqao.com/the-assessments/osslt/" },
+      { label: "TVO Learn — course support", sub: "Free Ontario-curriculum lessons and review", url: "https://www.tvolearn.com" },
+      { label: "Summer school & night school", sub: "YRDSB continuing education options", url: "https://www2.yrdsb.ca/schools-programs/continuing-education" },
     ],
   },
   {
@@ -20,6 +31,8 @@ const RESOURCES = [
     items: [
       { label: "YRDSB Guidance & Student Services", sub: "Counselling and student support", url: "https://www2.yrdsb.ca/student-support/guidance-student-services" },
       { label: "YRDSB Mental Health resources", sub: "Wellbeing and crisis supports", url: "https://www2.yrdsb.ca/student-support/mental-health-wellbeing" },
+      { label: "Kids Help Phone", sub: "24/7 support — call 1-800-668-6868 or text 686868", url: "https://kidshelpphone.ca" },
+      { label: "One Stop Talk", sub: "Free virtual counselling for Ontario youth", url: "https://onestoptalk.ca" },
     ],
   },
 ];

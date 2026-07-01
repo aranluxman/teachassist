@@ -1,12 +1,12 @@
 {
-  "name": "Grade Dashboard",
-  "short_name": "Grades",
-  "description": "A mobile-first dashboard for tracking courses, grades, term dates, and student links.",
+  "name": "TeachAssist Dashboard",
+  "short_name": "TeachAssist",
+  "description": "Your YRDSB TeachAssist marks: every course, evaluation, and achievement-category breakdown in a fast mobile dashboard.",
   "start_url": "app.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f2f2f7",
-  "theme_color": "#2563eb",
+  "background_color": "#f4f6fb",
+  "theme_color": "#4338ca",
   "icons": [
     {
       "src": "icons/app-icon.svg",

@@ -1,16 +1,52 @@
 // ============================================================================
-// Course detail (live) — reference style: semicircular gauge carousel +
-// Evaluations / Breakdown tabs.
+// Course detail — semicircular gauge carousel + Evaluations / Breakdown tabs.
+// ----------------------------------------------------------------------------
+// Evaluations are rendered TeachAssist-style: each assessment shows its
+// Ontario achievement category (Knowledge/Understanding, Thinking,
+// Communication, Application, Final/Culminating) as a colour-coded pill, plus
+// its weight, date and teacher feedback when available. The Breakdown tab
+// aggregates a weighted average per category with strand-coloured bars.
 // ============================================================================
 
 import { el, escapeHtml, fmtPercent, semiGauge } from "./courses.js";
 import { displayMark, markKind } from "./ta-client.js";
-import { COURSE_COLORS } from "./config.js";
 
 let charts = [];
 let activeSeg = "evals";
 
-/** Open the detail screen for a (live) course object. */
+/** Map a category label to its strand key: k / t / c / a / f (or ""). */
+export function strandKey(category) {
+  const s = String(category || "").toLowerCase();
+  if (/knowledge|understanding/.test(s)) return "k";
+  if (/think/.test(s)) return "t";
+  if (/communicat/.test(s)) return "c";
+  if (/applicat/.test(s)) return "a";
+  if (/final|culminat|exam|other/.test(s)) return "f";
+  return "";
+}
+
+/** Short display label for a category ("Knowledge/Understanding" -> "K/U"). */
+function strandShort(category) {
+  return (
+    { k: "K/U", t: "Thinking", c: "Comm", a: "App", f: "Final" }[strandKey(category)] ||
+    category ||
+    ""
+  );
+}
+
+function fmtDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d)) return "";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function catPill(category) {
+  const key = strandKey(category);
+  return `<span class="cat-pill ${key ? `cat-${key}` : ""}" title="${escapeHtml(category || "")}">${escapeHtml(strandShort(category))}</span>`;
+}
+
+/** Open the detail screen for a (live or demo) course object. */
 export async function openCourseDetail(container, course) {
   destroyCharts();
   activeSeg = "evals";
@@ -70,6 +106,9 @@ export async function openCourseDetail(container, course) {
     <div class="panel"><div class="card gauge-card">
       <div class="info-list" style="width:100%">
         <div class="info-row"><span>Code</span><span>${escapeHtml(course.code || "—")}</span></div>
+        ${course.teacher ? `<div class="info-row"><span>Teacher</span><span>${escapeHtml(course.teacher)}</span></div>` : ""}
+        ${course.block ? `<div class="info-row"><span>Block</span><span>${escapeHtml(course.block)}</span></div>` : ""}
+        ${course.room ? `<div class="info-row"><span>Room</span><span>${escapeHtml(course.room)}</span></div>` : ""}
         <div class="info-row"><span>Current mark</span><span>${course.currentMark != null ? fmtPercent(Number(course.currentMark)) : "—"}</span></div>
         <div class="info-row"><span>Midterm</span><span>${course.midterm != null ? fmtPercent(Number(course.midterm)) : "—"}</span></div>
         <div class="info-row"><span>Evaluations</span><span>${evals.length}</span></div>
@@ -113,7 +152,7 @@ export async function openCourseDetail(container, course) {
   if (hasChart) drawProgress(container, evals);
 }
 
-// ── Evaluations list (colored icon + name + percent + chevron) ──
+// ── Evaluations list (strand-tinted icon + name + pill/weight/date + %) ──
 function buildEvals(evals, kind) {
   const frag = document.createElement("div");
   if (!evals.length) {
@@ -126,19 +165,24 @@ function buildEvals(evals, kind) {
     );
     return frag;
   }
-  evals.forEach((e, i) => {
-    const color = COURSE_COLORS[i % COURSE_COLORS.length];
+  evals.forEach((e) => {
+    const key = strandKey(e.category) || "f";
     const letter = (e.name || e.category || "?").trim().charAt(0).toUpperCase();
+    const meta = [];
+    if (e.category) meta.push(catPill(e.category));
+    if (e.weight != null) meta.push(`<span>Weight ${escapeHtml(String(e.weight))}</span>`);
+    const date = fmtDate(e.date);
+    if (date) meta.push(`<span>${escapeHtml(date)}</span>`);
     frag.appendChild(
       el(`
       <div class="card eval-row">
-        <div class="icon-circle" style="width:38px;height:38px;min-width:38px;font-size:15px;background:${color}">${escapeHtml(letter)}</div>
+        <div class="icon-circle" style="width:38px;height:38px;min-width:38px;font-size:15px;background:var(--strand-${key}-tint);color:var(--strand-${key});text-shadow:none">${escapeHtml(letter)}</div>
         <div class="eval-main">
           <div class="eval-name">${escapeHtml(e.name || e.category || "Assessment")}</div>
-          ${e.category && e.category !== e.name ? `<div class="eval-sub">${escapeHtml(e.category)}</div>` : ""}
+          ${meta.length ? `<div class="eval-sub">${meta.join("")}</div>` : ""}
+          ${e.feedback ? `<div class="eval-feedback">“${escapeHtml(e.feedback)}”</div>` : ""}
         </div>
         <div class="row-value">${fmtPercent(e.percent)}</div>
-        <span class="chevron"></span>
       </div>
     `)
     );
@@ -146,7 +190,38 @@ function buildEvals(evals, kind) {
   return frag;
 }
 
-// ── Breakdown (weight-focused) ──
+/** Weighted average per achievement category, in TeachAssist strand order. */
+export function strandBreakdown(evals) {
+  const order = ["k", "t", "c", "a", "f"];
+  const names = {
+    k: "Knowledge/Understanding",
+    t: "Thinking",
+    c: "Communication",
+    a: "Application",
+    f: "Final/Culminating",
+  };
+  const acc = {};
+  for (const e of evals) {
+    if (typeof e.percent !== "number") continue;
+    const key = strandKey(e.category) || "f";
+    const w = typeof e.weight === "number" && e.weight > 0 ? e.weight : 1;
+    acc[key] ||= { sum: 0, weight: 0, count: 0 };
+    acc[key].sum += e.percent * w;
+    acc[key].weight += w;
+    acc[key].count += 1;
+  }
+  return order
+    .filter((key) => acc[key])
+    .map((key) => ({
+      key,
+      name: names[key],
+      average: acc[key].sum / acc[key].weight,
+      weight: acc[key].weight,
+      count: acc[key].count,
+    }));
+}
+
+// ── Breakdown (weighted per-category bars) ──
 function buildBreakdown(evals) {
   const frag = document.createElement("div");
   if (!evals.length) {
@@ -157,16 +232,37 @@ function buildBreakdown(evals) {
   if (allZero) {
     frag.appendChild(
       el(`<div class="card" style="margin-bottom:12px;background:var(--accent-tint);box-shadow:none">
-        <div class="muted small" style="color:var(--text)">Your teacher hasn't posted assignment marks yet, so percentages are 0%. The weightings below are from TeachAssist.</div>
+        <div class="small" style="color:var(--text)">Your teacher hasn't posted assignment marks yet, so percentages are 0%. The weightings below are from TeachAssist.</div>
       </div>`)
     );
   }
+
+  const strands = strandBreakdown(evals);
+  const card = el(`<div class="card" style="padding:6px var(--gap)"></div>`);
+  strands.forEach((s) => {
+    card.appendChild(
+      el(`
+      <div class="strand-row">
+        <div class="strand-head">
+          <span class="strand-name">${escapeHtml(s.name)}</span>
+          <span class="strand-value tnum">${fmtPercent(s.average)}</span>
+        </div>
+        <div class="strand-meta">${s.count} assessment${s.count === 1 ? "" : "s"} · weight ${Math.round(s.weight * 10) / 10}</div>
+        <div class="bar-track"><i class="bar-fill cat-${s.key}" style="width:${Math.max(0, Math.min(100, s.average))}%"></i></div>
+      </div>
+    `)
+    );
+  });
+  frag.appendChild(card);
+
+  // Every individual entry with its weight, for the fine print.
+  frag.appendChild(el(`<div class="section-label">All entries</div>`));
   const rows = el(`<div class="rows"></div>`);
   evals.forEach((e) =>
     rows.appendChild(
       el(`<div class="row" style="cursor:default">
         <div class="row-main"><div class="row-title">${escapeHtml(e.name || e.category || "")}</div>
-        <div class="row-sub">Weight ${escapeHtml(String(e.weight ?? 0))}</div></div>
+        <div class="row-sub">${e.category ? `${escapeHtml(e.category)} · ` : ""}Weight ${escapeHtml(String(e.weight ?? 0))}</div></div>
         <div class="row-value">${fmtPercent(e.percent)}</div>
       </div>`)
     )
@@ -190,8 +286,9 @@ function destroyCharts() {
 function drawProgress(container, evals) {
   const canvas = container.querySelector("#d-chart");
   if (!canvas || !window.Chart) return;
-  const accent =
-    getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4f46e5";
+  const styles = getComputedStyle(document.documentElement);
+  const accent = styles.getPropertyValue("--accent").trim() || "#4338ca";
+  const tick = styles.getPropertyValue("--text-faint").trim() || "#64748b";
   const running = [];
   let sum = 0;
   evals.forEach((e, i) => {
@@ -226,8 +323,8 @@ function drawProgress(container, evals) {
         maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { displayColors: false } },
         scales: {
-          y: { min: lo, max: 100, ticks: { callback: (v) => v + "%", maxTicksLimit: 5, color: "#9a9aa2" }, grid: { color: "rgba(127,127,127,0.15)", drawTicks: false }, border: { display: false } },
-          x: { grid: { display: false }, ticks: { color: "#9a9aa2" }, border: { display: false } },
+          y: { min: lo, max: 100, ticks: { callback: (v) => v + "%", maxTicksLimit: 5, color: tick }, grid: { color: "rgba(127,127,127,0.15)", drawTicks: false }, border: { display: false } },
+          x: { grid: { display: false }, ticks: { color: tick }, border: { display: false } },
         },
       },
     })
