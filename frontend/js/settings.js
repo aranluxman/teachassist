@@ -1,8 +1,8 @@
 // ============================================================================
 // Settings
 // ----------------------------------------------------------------------------
-// Shows the signed-in student number, a dark-theme toggle, a refresh action,
-// the Worker connection settings, and Sign Out.
+// Shows the signed-in student number (or demo state), the theme picker,
+// a refresh action, the Worker connection settings, and Sign Out.
 // ============================================================================
 
 import { el, escapeHtml } from "./courses.js";
@@ -14,19 +14,24 @@ import {
   setWorkerUrl,
   apiKey,
   setApiKey,
+  isDemo,
 } from "./ta-client.js";
 
 const THEME_KEY = "theme";
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "3.0.0";
 
-// Selectable color themes (the swatch colour is the theme's accent).
+// Selectable colour themes. Every accent keeps AA contrast when used as text
+// (dark-on-light for the light themes, light-on-dark for the dark themes).
 export const THEMES = [
-  { id: "indigo", name: "Indigo", color: "#4f46e5" },
-  { id: "ocean", name: "Ocean", color: "#0891b2" },
-  { id: "sunset", name: "Sunset", color: "#f97316" },
-  { id: "rose", name: "Rose", color: "#e11d48" },
-  { id: "forest", name: "Forest", color: "#16a34a" },
-  { id: "dark", name: "Dark", color: "#1c1c1e" },
+  { id: "indigo", name: "Indigo", color: "#4338ca" },
+  { id: "ocean", name: "Ocean", color: "#0e7490" },
+  { id: "sunset", name: "Sunset", color: "#c2410c" },
+  { id: "rose", name: "Rose", color: "#be123c" },
+  { id: "forest", name: "Forest", color: "#15803d" },
+  { id: "grape", name: "Grape", color: "#6d28d9" },
+  { id: "slate", name: "Slate", color: "#334155" },
+  { id: "dark", name: "Dark", color: "#1a1c22" },
+  { id: "midnight", name: "Midnight", color: "#14203a" },
 ];
 
 function currentTheme() {
@@ -36,14 +41,25 @@ function currentTheme() {
   return THEMES.some((x) => x.id === t) ? t : "indigo";
 }
 
+function applyTheme(id) {
+  document.documentElement.setAttribute("data-theme", id);
+  // Keep the browser/OS chrome colour in step with the theme's top wash.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    const wash = getComputedStyle(document.documentElement)
+      .getPropertyValue("--bg-tint-top")
+      .trim();
+    if (wash) meta.setAttribute("content", wash);
+  }
+}
+
 /** Apply the saved theme on app boot (called from app.html). */
 export function applyStoredTheme() {
-  document.documentElement.setAttribute("data-theme", currentTheme());
+  applyTheme(currentTheme());
 }
 
 /** Render the Settings screen. */
 export async function renderSettings(container) {
-  const isDark = localStorage.getItem(THEME_KEY) === "dark";
   container.innerHTML = "";
   container.appendChild(el(`<div class="screen-header"><h1>Settings</h1></div>`));
 
@@ -54,8 +70,12 @@ export async function renderSettings(container) {
     <div class="rows">
       <div class="row" style="cursor:default">
         <div class="row-main">
-          <div class="row-title">Signed in as</div>
-          <div class="row-sub">Student #${escapeHtml(studentNumber() || "—")}</div>
+          <div class="row-title">${isDemo() ? "Demo mode" : "Signed in as"}</div>
+          <div class="row-sub">${
+            isDemo()
+              ? "Browsing the bundled TeachAssist snapshot — sign out to use your real login."
+              : `Student #${escapeHtml(studentNumber() || "—")}`
+          }</div>
         </div>
       </div>
     </div>
@@ -69,7 +89,9 @@ export async function renderSettings(container) {
       <button class="row" id="refresh">
         <div class="row-main">
           <div class="row-title">Refresh from TeachAssist</div>
-          <div class="row-sub" id="refresh-sub">Re-scrape your latest marks</div>
+          <div class="row-sub" id="refresh-sub">${
+            isDemo() ? "Demo data is bundled — nothing to re-scrape." : "Re-scrape your latest marks"
+          }</div>
         </div>
         <span class="chevron"></span>
       </button>
@@ -77,6 +99,10 @@ export async function renderSettings(container) {
   `);
   dataRows.querySelector("#refresh").addEventListener("click", async (e) => {
     const sub = e.currentTarget.querySelector("#refresh-sub");
+    if (isDemo()) {
+      sub.textContent = "Demo data is bundled — nothing to re-scrape.";
+      return;
+    }
     sub.textContent = "Refreshing…";
     try {
       const courses = await getCourses({ refresh: true });
@@ -107,7 +133,7 @@ export async function renderSettings(container) {
     sw.addEventListener("click", () => {
       const id = sw.dataset.themeId;
       localStorage.setItem(THEME_KEY, id);
-      document.documentElement.setAttribute("data-theme", id);
+      applyTheme(id);
       appearance.querySelectorAll(".swatch").forEach((s) =>
         s.classList.toggle("active", s.dataset.themeId === id)
       );

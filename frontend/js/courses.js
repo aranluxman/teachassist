@@ -14,6 +14,7 @@ import {
   markKind,
   getUpdates,
   lastSyncedAt,
+  isDemo,
 } from "./ta-client.js";
 
 /** Human "Updated 3h ago" string from an ISO timestamp (for the top bar). */
@@ -30,10 +31,16 @@ function relativeUpdated(iso) {
   return d === 1 ? "Updated yesterday" : `Updated ${d} days ago`;
 }
 
-/** Reflect the cached scrape time in the app top bar. */
+/** Reflect the cached scrape time (or demo mode) in the app top bar. */
 function refreshTopbarStatus() {
   const status = document.querySelector(".app-status");
-  if (status) status.textContent = relativeUpdated(lastSyncedAt());
+  if (status) {
+    status.textContent = isDemo() ? "Bundled snapshot" : relativeUpdated(lastSyncedAt());
+  }
+  const topbar = document.querySelector(".app-topbar");
+  if (topbar && isDemo() && !topbar.querySelector(".demo-pill")) {
+    topbar.appendChild(el(`<span class="demo-pill">Demo</span>`));
+  }
 }
 
 // ───────────────────────────── UI helpers ──────────────────────────────────
@@ -123,7 +130,7 @@ export function semiGauge(percent) {
   const accent =
     (typeof document !== "undefined" &&
       getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()) ||
-    "#4f46e5";
+    "#4338ca";
   return `
     <svg viewBox="0 0 200 116" width="100%" style="max-width:230px" role="img" aria-label="${percent == null ? "no average" : fmtPercent(percent)}">
       <path d="${arc}" fill="none" style="stroke:var(--track)" stroke-width="${sw}" stroke-linecap="round"/>
@@ -223,12 +230,15 @@ export async function renderCourses(container, { refresh = false } = {}) {
     const letter = (c.code || "?").trim().charAt(0).toUpperCase();
     const big = displayMark(c);
     const tag = markKind(c);
+    const meta = [c.teacher, c.block, c.room].filter(Boolean).join(" · ");
     const card = el(`
       <div class="card course-card">
         <div class="icon-circle" style="background:${color}">${escapeHtml(letter)}</div>
         <div class="cc-main">
           <div class="cc-code">${escapeHtml(c.code || "")}</div>
           <div class="cc-name">${escapeHtml(c.name || "")}</div>
+          ${meta ? `<div class="cc-meta">${escapeHtml(meta)}</div>` : ""}
+          ${big != null ? `<div class="cc-bar"><i style="width:${Math.max(0, Math.min(100, big))}%"></i></div>` : ""}
         </div>
         <div class="cc-right">
           <div class="cc-markwrap">
@@ -243,6 +253,15 @@ export async function renderCourses(container, { refresh = false } = {}) {
     list.appendChild(card);
   });
   container.appendChild(list);
+
+  // Recent updates — day-over-day mark changes from the local snapshots.
+  const changes = updates.filter((u) => !u.overall);
+  if (changes.length) {
+    container.appendChild(el(`<div class="section-label">Recent updates</div>`));
+    const feed = document.createElement("div");
+    changes.forEach((u) => feed.appendChild(updateCard(u)));
+    container.appendChild(feed);
+  }
 }
 
 /** One "Recent updates" row: label, what changed, from → to, delta pill. */

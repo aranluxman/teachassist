@@ -11,6 +11,7 @@
 // ============================================================================
 
 import { WORKER_URL } from "./config.js";
+import { DEMO_COURSES, DEMO_SCRAPED_AT } from "./demo-data.js";
 
 const LS = {
   url: "ta_worker_url",
@@ -18,6 +19,7 @@ const LS = {
   num: "ta_student_number",
   pass: "ta_password",
   snaps: "ta_snapshots",
+  demo: "ta_demo_mode",
 };
 
 let cache = null; // last fetched courses (this page load)
@@ -48,7 +50,20 @@ function password() {
   return localStorage.getItem(LS.pass) || "";
 }
 export function isLoggedIn() {
-  return !!(studentNumber() && password());
+  return isDemo() || !!(studentNumber() && password());
+}
+
+// ---- demo mode ---------------------------------------------------------------
+/** True when browsing the bundled TeachAssist snapshot instead of live marks. */
+export function isDemo() {
+  return localStorage.getItem(LS.demo) === "1";
+}
+/** Enter demo mode: browse the bundled snapshot without signing in. */
+export function enterDemo() {
+  localStorage.setItem(LS.demo, "1");
+  cache = DEMO_COURSES;
+  cachedAt = DEMO_SCRAPED_AT;
+  saveSnapshot(DEMO_COURSES);
 }
 
 // ---- marks helpers ---------------------------------------------------------
@@ -141,6 +156,11 @@ async function getCachedMarks() {
  * also repopulates the shared cache server-side).
  */
 export async function getCourses({ refresh = false } = {}) {
+  if (isDemo()) {
+    cache = DEMO_COURSES;
+    cachedAt = DEMO_SCRAPED_AT;
+    return cache;
+  }
   if (cache && !refresh) return cache;
 
   if (!refresh) {
@@ -170,6 +190,7 @@ export function requireLogin() {
 export function signOut() {
   localStorage.removeItem(LS.num);
   localStorage.removeItem(LS.pass);
+  localStorage.removeItem(LS.demo);
   cache = null;
   window.location.replace("index.html");
 }
