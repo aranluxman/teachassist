@@ -88,3 +88,8 @@ Run `npm test` at the repository root for frontend, grade math, AI validation, a
 ### Release
 
 Publish `frontend/` through the existing Cloudflare Pages configuration. Deploy the Worker separately from `worker/` using its existing deployment workflow; `[ai] binding = "AI"` is included in `wrangler.toml`. Workers AI usage is billed/limited under the Cloudflare account. Until that Worker is deployed, local calculations remain available and natural-language questions cannot use the new endpoint.
+
+
+### Phone layout
+
+`css/mobile.css` loads after the shared design system. Below 768px, the dashboard uses a compact average and dream summary, full-width course cards with wrapping names, 44px or larger controls, and bottom navigation padded for the phone home indicator. Inputs use 16px text to avoid iOS focus zoom. Course overview panels have Grade / Trend / Info buttons as well as swipe navigation. Forms, evaluation rows, and sheets adapt to narrow screens; sheets use the dynamic viewport height for the onscreen keyboard.

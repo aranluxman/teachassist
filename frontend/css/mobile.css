@@ -1,0 +1,455 @@
+/* Phone layout: keep marks and courses close to the top, with thumb-sized controls. */
+@media (max-width: 767px) {
+  :root {
+    --topbar-h: 64px;
+    --tabbar-h: 68px;
+    --tabbar-gap: 0px;
+  }
+  html {
+    scroll-padding-bottom: calc(90px + env(safe-area-inset-bottom));
+  }
+  body {
+    min-height: 100svh;
+  }
+  .shell {
+    min-height: 100svh;
+    width: 100%;
+  }
+  .app-topbar {
+    min-height: 64px;
+    padding: 12px max(16px, env(safe-area-inset-right)) 12px
+      max(16px, env(safe-area-inset-left));
+  }
+  .app-mark {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+  }
+  .app-name {
+    font-size: 17px;
+  }
+  .app-status {
+    font-size: 12px;
+  }
+  .screen {
+    min-height: calc(100svh - 64px);
+    padding: 16px max(16px, env(safe-area-inset-right))
+      calc(96px + env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+  .screen-header {
+    gap: 12px;
+    margin: 0 0 18px;
+  }
+  .screen-header > div {
+    min-width: 0;
+  }
+  .screen-header h1 {
+    font-size: clamp(1.65rem, 7vw, 2rem);
+    line-height: 1.15;
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .dashboard-subtitle {
+    font-size: 14px;
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+  .card {
+    border-radius: 18px;
+    padding: 18px;
+  }
+  #screen-courses .overall-gauge {
+    float: none;
+    width: 100%;
+    min-height: 0;
+    margin: 0 0 12px;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  #screen-courses .overall-gauge svg {
+    width: 120px;
+    max-width: 42%;
+    flex-shrink: 0;
+  }
+  #screen-courses .gauge-cap {
+    flex: 1;
+    font-size: 14px;
+    text-align: left;
+    max-width: 165px;
+  }
+  #screen-courses .dream-preview {
+    width: 100%;
+    min-height: 0;
+    margin: 0 0 16px;
+    padding: 16px 18px;
+  }
+  .dream-preview .eyebrow,
+  .dream-preview p,
+  .dream-orbit {
+    display: none;
+  }
+  .dream-preview > div:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    width: 100%;
+    min-width: 0;
+  }
+  .dream-preview h2 {
+    font-size: 17px;
+    flex: 1 1 140px;
+    overflow-wrap: anywhere;
+  }
+  .dream-preview .btn {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+  .dashboard-actions {
+    margin: 18px 0 12px;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+  .dashboard-actions h2 {
+    font-size: 21px;
+  }
+  .dashboard-actions .btn {
+    font-size: 14px;
+    padding: 10px 0;
+  }
+  .course-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .course-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+    padding: 18px;
+    min-height: 0;
+    margin: 0;
+  }
+  .course-card > .icon-circle {
+    display: none;
+  }
+  .course-card .cc-main {
+    grid-column: 1;
+  }
+  .course-card .cc-right {
+    grid-column: 2;
+    gap: 0;
+    align-self: center;
+  }
+  .course-card .cc-right .chevron {
+    display: none;
+  }
+  .course-card .cc-code {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--text-secondary);
+  }
+  .course-card .cc-name {
+    font-size: 16px;
+    font-weight: 650;
+    line-height: 1.35;
+    white-space: normal;
+    overflow: visible;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+  .course-card .cc-meta {
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .course-card .cc-mark {
+    font-size: 23px;
+  }
+  .course-card .cc-markwrap {
+    min-width: 64px;
+  }
+  .course-card .cc-tag {
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  .cc-bar {
+    margin-top: 10px;
+  }
+  .tabbar {
+    bottom: 0;
+    left: 0;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    height: calc(68px + env(safe-area-inset-bottom));
+    padding: 0 max(4px, env(safe-area-inset-right)) env(safe-area-inset-bottom)
+      max(4px, env(safe-area-inset-left));
+    border-radius: 18px 18px 0 0;
+    border-bottom: 0;
+    box-shadow: 0 -4px 24px #18243a12;
+  }
+  .tabbar button {
+    min-width: 0;
+    min-height: 60px;
+    padding: 8px 2px;
+    font-size: 11px;
+    gap: 5px;
+  }
+  .tabbar button svg {
+    width: 24px;
+    height: 24px;
+  }
+  .tabbar button::before {
+    top: 7px;
+    width: 44px;
+    height: 30px;
+  }
+  .btn,
+  .back-btn,
+  .prompt-chips button,
+  .swatch,
+  summary {
+    min-height: 44px;
+  }
+  .screen-header #refresh {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 24px;
+  }
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .field {
+    min-width: 0;
+    margin-top: 14px;
+  }
+  .field label,
+  .chat-form label {
+    font-size: 14px;
+  }
+  .field input,
+  .field select,
+  .goal-row input,
+  .chat-form textarea {
+    font-size: 16px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .goal-row input {
+    min-height: 48px;
+    border: 1px solid var(--separator);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    padding: 8px;
+  }
+  .goal-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 82px;
+    gap: 12px;
+  }
+  .goal-row > label {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+  .goal-gap {
+    margin: 0;
+  }
+  .goal-row h3,
+  .row-title,
+  .row-sub {
+    overflow-wrap: anywhere;
+  }
+  .dream-form .btn,
+  .chat-footer .btn,
+  .quick-calc .btn {
+    width: 100%;
+  }
+  .feature-symbol {
+    display: none;
+  }
+  .assistant-intro h2 {
+    font-size: 23px;
+  }
+  .prompt-chips {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .prompt-chips button {
+    font-size: 14px;
+    text-align: left;
+    line-height: 1.4;
+  }
+  .chat-form textarea {
+    min-height: 112px;
+  }
+  .chat-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .chat-footer .small,
+  .small {
+    font-size: 13px;
+  }
+  .chat-message {
+    padding: 16px;
+  }
+  .from-user {
+    margin-left: 18px;
+  }
+  .preference-row {
+    padding: 16px 0;
+    gap: 16px;
+    min-height: 68px;
+  }
+  .preference-row > span {
+    min-width: 0;
+  }
+  .preference-row b {
+    font-size: 16px;
+  }
+  .preference-row small {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .theme-swatches {
+    gap: 14px;
+  }
+  .swatch {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+  }
+  .detail-nav {
+    top: 64px;
+    padding: 8px 0;
+    gap: 12px;
+  }
+  .detail-titlewrap {
+    text-align: left;
+  }
+  .detail-title {
+    font-size: 15px;
+  }
+  .detail-subtitle {
+    white-space: normal;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .detail-actions:empty {
+    display: none;
+  }
+  .gauge-card {
+    min-height: 200px;
+  }
+  .info-row > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .eval-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 16px;
+    align-items: start;
+  }
+  .eval-row > .icon-circle {
+    display: none;
+  }
+  .eval-row .eval-name {
+    font-size: 16px;
+    overflow-wrap: anywhere;
+  }
+  .eval-row .eval-feedback {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .eval-row .eval-sub {
+    font-size: 13px;
+  }
+  .cat-pill {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .strand-head {
+    align-items: flex-start;
+  }
+  .strand-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .strand-value {
+    flex-shrink: 0;
+  }
+  .sheet {
+    max-height: 90dvh;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+    scroll-padding-bottom: 24px;
+  }
+  .sheet-header {
+    padding: 0 44px;
+  }
+  .auth-wrap {
+    max-width: 480px;
+    min-height: 100svh;
+    padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+  }
+  .auth-card {
+    padding: 20px;
+  }
+  [data-compact="true"] .course-card {
+    min-height: 0;
+    padding: 14px;
+  }
+  [data-large-text="true"] .course-card .cc-name,
+  [data-large-text="true"] .eval-name {
+    font-size: 18px;
+  }
+}
+/* Explicit controls also work with keyboards and without swipe gestures. */
+.carousel-controls {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+.carousel-controls button {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 1px solid var(--separator);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.carousel-controls button[aria-pressed="true"] {
+  background: var(--accent-tint);
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 650;
+}
+@media (hover: none) {
+  .course-card:hover {
+    transform: none;
+    box-shadow: var(--shadow);
+  }
+}

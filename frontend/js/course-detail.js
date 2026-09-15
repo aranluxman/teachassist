@@ -118,16 +118,19 @@ export async function openCourseDetail(container, course) {
   );
   container.appendChild(carousel);
 
-  // dots
-  const nPanels = carousel.querySelectorAll(".panel").length;
-  const dots = el(
-    `<div class="dots">${Array.from({ length: nPanels }, (_, i) => `<span class="dot ${i === 0 ? "active" : ""}"></span>`).join("")}</div>`
-  );
-  container.appendChild(dots);
+  // Named, touch-sized controls supplement horizontal swiping.
+  const labels = hasChart ? ["Grade", "Trend", "Info"] : ["Grade", "Info"];
+  const controls = el(`<div class="carousel-controls" role="group" aria-label="Course overview">${labels.map((label, i) => `<button type="button" aria-pressed="${i === 0}" aria-controls="d-carousel">${label}</button>`).join("")}</div>`);
+  container.appendChild(controls);
+  const buttons = [...controls.querySelectorAll("button")];
+  buttons.forEach((button, i) => button.addEventListener("click", () => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "false";
+    carousel.scrollTo({left: i * carousel.clientWidth, behavior: reduce ? "instant" : "smooth"});
+  }));
   carousel.addEventListener("scroll", () => {
-    const i = Math.round(carousel.scrollLeft / carousel.clientWidth);
-    dots.querySelectorAll(".dot").forEach((d, idx) => d.classList.toggle("active", idx === i));
-  });
+    const current = Math.round(carousel.scrollLeft / carousel.clientWidth);
+    buttons.forEach((button, i) => button.setAttribute("aria-pressed", String(i === current)));
+  }, {passive: true});
 
   // ── Segmented: Evaluations / Breakdown ──
   const seg = el(`
