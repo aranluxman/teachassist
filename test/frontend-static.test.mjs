@@ -15,7 +15,6 @@ const courseDetailJs = read("frontend/js/course-detail.js");
 const guidanceJs = read("frontend/js/guidance.js");
 const linksJs = read("frontend/js/links.js");
 const settingsJs = read("frontend/js/settings.js");
-const scienceAnalyticsJs = read("frontend/js/science-analytics.js");
 const taClientJs = read("frontend/js/ta-client.js");
 const manifest = JSON.parse(read("frontend/manifest.webmanifest"));
 
@@ -32,13 +31,12 @@ test("app exposes PWA metadata and mobile app chrome", () => {
   assert.match(manifest.description, /TeachAssist/);
 });
 
-test("app shell includes courses, guidance, science, dreams, assistant, and settings tabs", () => {
-  for (const tab of ["courses", "guidance", "science", "dreams", "assistant", "settings"]) {
+test("app shell includes courses, guidance, dreams, assistant, and settings tabs", () => {
+  for (const tab of ["courses", "guidance", "dreams", "assistant", "settings"]) {
     assert.match(appHtml, new RegExp(`data-tab="${tab}"`));
   }
-  assert.match(appHtml, /id="screen-science"/);
+  assert.doesNotMatch(appHtml, /screen-science|data-tab="science"|renderScienceAnalytics|toScience/);
   assert.match(appHtml, /renderGuidance/);
-  assert.match(appHtml, /renderScienceAnalytics/);
   assert.match(appHtml, /applyStoredTheme/);
 });
 
@@ -160,16 +158,6 @@ test("student utility tabs remain production-ready", () => {
   assert.match(linksJs, /openSheet/);
   assert.match(settingsJs, /Refresh from TeachAssist/);
   assert.match(settingsJs, /confirm\("Sign out/);
-});
-
-test("science course page matches the TeachAssist-style detail view", () => {
-  assert.match(scienceAnalyticsJs, /SCIENCE_COURSE/);
-  assert.match(scienceAnalyticsJs, /export async function renderScienceAnalytics/);
-  assert.match(scienceAnalyticsJs, /Term Work/);
-  assert.match(scienceAnalyticsJs, /Culminating Work/);
-  assert.match(scienceAnalyticsJs, /overall-expectations-table/);
-  assert.match(css, /\.science-course-hero/);
-  assert.match(css, /\.expectations-table/);
 });
 
 // ---------------------------------------------------------------------------

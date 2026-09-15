@@ -31,7 +31,6 @@
       </main>
       <main id="screen-detail" class="screen hidden"></main>
       <main id="screen-guidance" class="screen hidden"></main>
-      <main id="screen-science" class="screen hidden"></main>
       <main id="screen-dreams" class="screen hidden"></main>
       <main id="screen-assistant" class="screen hidden"></main>
       <main id="screen-settings" class="screen hidden"></main>
@@ -54,14 +53,6 @@
         </button>
         <button data-tab="dreams"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z"/></svg>Dreams</button>
         <button data-tab="assistant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg>Assistant</button>
-        <button data-tab="science">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10 2v6L5 18a3 3 0 0 0 2.7 4h8.6A3 3 0 0 0 19 18L14 8V2" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M8 14h8" stroke-linecap="round" />
-            <path d="M9 2h6" stroke-linecap="round" />
-          </svg>
-          Science
-        </button>
         <button data-tab="settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3" />
@@ -80,7 +71,6 @@
       import { renderCourses } from "./js/courses.js";
       import { openCourseDetail } from "./js/course-detail.js";
       import { renderGuidance } from "./js/guidance.js";
-      import { renderScienceAnalytics } from "./js/science-analytics.js";
       import { renderDreams } from "./js/dreams.js";
       import { renderAssistant } from "./js/assistant.js";
       import { renderSettings, applyStoredTheme } from "./js/settings.js";
@@ -89,7 +79,6 @@
         courses: document.getElementById("screen-courses"),
         detail: document.getElementById("screen-detail"),
         guidance: document.getElementById("screen-guidance"),
-        science: document.getElementById("screen-science"),
         dreams: document.getElementById("screen-dreams"),
         assistant: document.getElementById("screen-assistant"),
         settings: document.getElementById("screen-settings"),
@@ -101,7 +90,7 @@
         tabbar.querySelectorAll("button").forEach((b) =>
           (b.classList.toggle("active", b.dataset.tab === name), b.setAttribute("aria-current", b.dataset.tab === name ? "page" : "false"))
         );
-        const tabbed = ["courses", "guidance", "science", "dreams", "assistant", "settings"].includes(name);
+        const tabbed = ["courses", "guidance", "dreams", "assistant", "settings"].includes(name);
         tabbar.classList.toggle("hidden", !tabbed);
         window.scrollTo(0, 0);
         const heading = screens[name].querySelector("h1");
@@ -111,7 +100,6 @@
       window.AppNav = {
         toCourses: async () => { showScreen("courses"); await renderCourses(screens.courses); },
         toGuidance: async () => { showScreen("guidance"); await renderGuidance(screens.guidance); },
-        toScience: async () => { showScreen("science"); await renderScienceAnalytics(screens.science); },
         toDreams: async () => { showScreen("dreams"); await renderDreams(screens.dreams); },
         toAssistant: async () => { showScreen("assistant"); renderAssistant(screens.assistant); },
         toSettings: async () => { showScreen("settings"); await renderSettings(screens.settings); },
@@ -124,7 +112,6 @@
         ({
           courses: window.AppNav.toCourses,
           guidance: window.AppNav.toGuidance,
-          science: window.AppNav.toScience,
           dreams: window.AppNav.toDreams,
           assistant: window.AppNav.toAssistant,
           settings: window.AppNav.toSettings,
