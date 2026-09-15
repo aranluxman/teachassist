@@ -1,3 +1,4 @@
+import {interpretQuestion} from "./assistant.js";
 /**
  * Personal TeachAssist marks fetcher — Cloudflare Worker
  * ----------------------------------------------------------------------------
@@ -125,6 +126,15 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
+    if (url.pathname === "/api/assistant") {
+      if (request.method !== "POST") return json({error:"Use POST."},405);
+      const provided = request.headers.get(API_KEY_HEADER);
+      if (!env.API_KEY || !provided || !timingSafeEqual(provided, env.API_KEY)) return json({error:"Connect your Worker API key in Settings to use AI."},401);
+      const origin = request.headers.get("Origin");
+      if (origin && origin !== DASHBOARD_ORIGIN) return json({error:"Origin not allowed."},403);
+      const result = await interpretQuestion(request, env);
+      return json(result.body,result.status,{"Cache-Control":"no-store"});
+    }
     // Friendly root + path-normalization helpers.
     if (request.method === "GET" && url.pathname === "/") {
       return json({

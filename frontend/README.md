@@ -70,3 +70,22 @@ as text on cards, and the Ontario achievement-strand colours (yellow, green,
 periwinkle, orange, grey — the same families TeachAssist uses on its report
 pages) each ship in a text-safe shade plus a tint for pills and bars, in both
 light and dark themes.
+
+
+## Dashboard refresh (v4)
+
+- Responsive course dashboard, book-and-spark SVG logo, gentle transitions, and 15 themes.
+- Dreams: career, destination, motivation, average target, and individual course targets.
+- Personalization: name, compact layout, larger text, reduced animation, opaque navigation, and visual grade concealment on the dashboard. Preferences stay in this browser and are scoped by student number (demo uses a separate profile).
+- The Links tab is replaced by Dreams and Assistant; existing Guidance and Science views remain.
+- Assistant arithmetic and explicit grade commands work locally. Examples: `sqrt(144) + 2^3`, `Current 85, target 90, remaining 30`, and `Current 88, score 95, remaining 20`.
+- Natural-language questions require deploying the updated Worker with its `AI` binding. The model extracts inputs; shared code validates and calculates results. Missing inputs produce clarification. Only the question is sent to the model, never account credentials or the course snapshot. Demo mode does not call AI.
+- This assistant handles arithmetic, target grades, projected grades, and weighted averages; it is not a general symbolic algebra tutor. Decimal arithmetic uses JavaScript numbers and displays up to 12 significant digits. Grade predictions assume supplied final-grade weights and a 100% maximum.
+
+### Validation
+
+Run `npm test` at the repository root for frontend, grade math, AI validation, and route authorization tests. Run `npm test` in `worker/` for the existing parser and cache suites.
+
+### Release
+
+Publish `frontend/` through the existing Cloudflare Pages configuration. Deploy the Worker separately from `worker/` using its existing deployment workflow; `[ai] binding = "AI"` is included in `wrangler.toml`. Workers AI usage is billed/limited under the Cloudflare account. Until that Worker is deployed, local calculations remain available and natural-language questions cannot use the new endpoint.

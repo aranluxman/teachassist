@@ -32,8 +32,8 @@ test("app exposes PWA metadata and mobile app chrome", () => {
   assert.match(manifest.description, /TeachAssist/);
 });
 
-test("app shell includes courses, guidance, science, links, and settings tabs", () => {
-  for (const tab of ["courses", "guidance", "science", "links", "settings"]) {
+test("app shell includes courses, guidance, science, dreams, assistant, and settings tabs", () => {
+  for (const tab of ["courses", "guidance", "science", "dreams", "assistant", "settings"]) {
     assert.match(appHtml, new RegExp(`data-tab="${tab}"`));
   }
   assert.match(appHtml, /id="screen-science"/);
@@ -203,10 +203,10 @@ function themeBlock(id) {
   return m ? m[1] : null;
 }
 
-const LIGHT_THEMES = ["ocean", "sunset", "rose", "forest", "grape", "slate"];
+const LIGHT_THEMES = ["pearl", "lavender", "matcha", "peach", "coffee", "arctic", "ocean", "sunset", "rose", "forest", "grape", "slate"];
 const DARK_THEMES = ["dark", "midnight"];
 
-test("all 9 themes exist in CSS and the Settings picker", () => {
+test("all 15 themes exist in CSS and the Settings picker", () => {
   for (const id of [...LIGHT_THEMES, ...DARK_THEMES]) {
     assert.ok(themeBlock(id), `theme "${id}" is defined in style.css`);
     assert.match(settingsJs, new RegExp(`id: "${id}"`), `theme "${id}" is pickable in Settings`);

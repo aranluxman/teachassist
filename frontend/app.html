@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="theme-color" content="#e3e9f4" />
     <title>TeachAssist</title>
@@ -17,10 +17,10 @@
     <div class="shell">
       <header class="app-topbar">
         <a class="app-brand" href="app.html" aria-label="TeachAssist home">
-          <span class="app-mark">TA</span>
+          <img class="app-mark" src="icons/app-icon.svg" alt="" />
           <span class="app-brand-text">
             <span class="app-name">TeachAssist</span>
-            <span class="app-status">Updated just now</span>
+            <span class="app-status">Your school day, in perspective</span>
           </span>
         </a>
       </header>
@@ -32,7 +32,8 @@
       <main id="screen-detail" class="screen hidden"></main>
       <main id="screen-guidance" class="screen hidden"></main>
       <main id="screen-science" class="screen hidden"></main>
-      <main id="screen-links" class="screen hidden"></main>
+      <main id="screen-dreams" class="screen hidden"></main>
+      <main id="screen-assistant" class="screen hidden"></main>
       <main id="screen-settings" class="screen hidden"></main>
 
       <nav class="tabbar" id="tabbar">
@@ -51,12 +52,8 @@
           </svg>
           Guidance
         </button>
-        <button data-tab="links">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12 19" />
-          </svg>
-          Links
-        </button>
+        <button data-tab="dreams"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z"/></svg>Dreams</button>
+        <button data-tab="assistant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg>Assistant</button>
         <button data-tab="science">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M10 2v6L5 18a3 3 0 0 0 2.7 4h8.6A3 3 0 0 0 19 18L14 8V2" stroke-linecap="round" stroke-linejoin="round" />
@@ -84,7 +81,8 @@
       import { openCourseDetail } from "./js/course-detail.js";
       import { renderGuidance } from "./js/guidance.js";
       import { renderScienceAnalytics } from "./js/science-analytics.js";
-      import { renderLinks } from "./js/links.js";
+      import { renderDreams } from "./js/dreams.js";
+      import { renderAssistant } from "./js/assistant.js";
       import { renderSettings, applyStoredTheme } from "./js/settings.js";
 
       const screens = {
@@ -92,7 +90,8 @@
         detail: document.getElementById("screen-detail"),
         guidance: document.getElementById("screen-guidance"),
         science: document.getElementById("screen-science"),
-        links: document.getElementById("screen-links"),
+        dreams: document.getElementById("screen-dreams"),
+        assistant: document.getElementById("screen-assistant"),
         settings: document.getElementById("screen-settings"),
       };
       const tabbar = document.getElementById("tabbar");
@@ -100,18 +99,21 @@
       function showScreen(name) {
         for (const [k, elx] of Object.entries(screens)) elx.classList.toggle("hidden", k !== name);
         tabbar.querySelectorAll("button").forEach((b) =>
-          b.classList.toggle("active", b.dataset.tab === name)
+          (b.classList.toggle("active", b.dataset.tab === name), b.setAttribute("aria-current", b.dataset.tab === name ? "page" : "false"))
         );
-        const tabbed = ["courses", "guidance", "science", "links", "settings"].includes(name);
+        const tabbed = ["courses", "guidance", "science", "dreams", "assistant", "settings"].includes(name);
         tabbar.classList.toggle("hidden", !tabbed);
         window.scrollTo(0, 0);
+        const heading = screens[name].querySelector("h1");
+        if (heading) { heading.tabIndex = -1; heading.focus({preventScroll:true}); }
       }
 
       window.AppNav = {
         toCourses: async () => { showScreen("courses"); await renderCourses(screens.courses); },
         toGuidance: async () => { showScreen("guidance"); await renderGuidance(screens.guidance); },
         toScience: async () => { showScreen("science"); await renderScienceAnalytics(screens.science); },
-        toLinks: async () => { showScreen("links"); await renderLinks(screens.links); },
+        toDreams: async () => { showScreen("dreams"); await renderDreams(screens.dreams); },
+        toAssistant: async () => { showScreen("assistant"); renderAssistant(screens.assistant); },
         toSettings: async () => { showScreen("settings"); await renderSettings(screens.settings); },
         toDetail: async (course) => { showScreen("detail"); await openCourseDetail(screens.detail, course); },
       };
@@ -123,7 +125,8 @@
           courses: window.AppNav.toCourses,
           guidance: window.AppNav.toGuidance,
           science: window.AppNav.toScience,
-          links: window.AppNav.toLinks,
+          dreams: window.AppNav.toDreams,
+          assistant: window.AppNav.toAssistant,
           settings: window.AppNav.toSettings,
         })[btn.dataset.tab]();
       });

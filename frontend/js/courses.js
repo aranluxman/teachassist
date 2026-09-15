@@ -1,3 +1,4 @@
+import { preferences } from "./personalization.js";
 // ============================================================================
 // Courses screen + shared UI helpers
 // ----------------------------------------------------------------------------
@@ -35,7 +36,9 @@ function relativeUpdated(iso) {
 function refreshTopbarStatus() {
   const status = document.querySelector(".app-status");
   if (status) {
-    status.textContent = isDemo() ? "Bundled snapshot" : relativeUpdated(lastSyncedAt());
+    status.textContent = isDemo()
+      ? "Bundled snapshot"
+      : relativeUpdated(lastSyncedAt());
   }
   const topbar = document.querySelector(".app-topbar");
   if (topbar && isDemo() && !topbar.querySelector(".demo-pill")) {
@@ -56,7 +59,10 @@ export function el(html) {
 export function escapeHtml(s) {
   return String(s ?? "").replace(
     /[&<>"']/g,
-    (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m])
+    (m) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        m
+      ],
   );
 }
 
@@ -74,7 +80,7 @@ export function openSheet(title, bodyNode) {
   closeSheet();
   const root = document.getElementById("modal-root");
   const backdrop = el(
-    `<div class="sheet-backdrop"><div class="sheet" role="dialog" aria-modal="true"><div class="sheet-grabber"></div></div></div>`
+    `<div class="sheet-backdrop"><div class="sheet" role="dialog" aria-modal="true"><div class="sheet-grabber"></div></div></div>`,
   );
   const sheet = backdrop.querySelector(".sheet");
   if (title) {
@@ -129,7 +135,9 @@ export function semiGauge(percent) {
   const arc = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
   const accent =
     (typeof document !== "undefined" &&
-      getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()) ||
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--accent")
+        .trim()) ||
     "#4338ca";
   return `
     <svg viewBox="0 0 200 116" width="100%" style="max-width:230px" role="img" aria-label="${percent == null ? "no average" : fmtPercent(percent)}">
@@ -170,16 +178,22 @@ export async function renderCourses(container, { refresh = false } = {}) {
     courses = await getCourses({ refresh });
   } catch (err) {
     container.innerHTML = "";
-    container.appendChild(el(`<div class="screen-header"><h1>Courses</h1></div>`));
+    container.appendChild(
+      el(`<div class="screen-header"><h1>Courses</h1></div>`),
+    );
     container.appendChild(
       el(`
       <div class="empty centered">
         <div class="empty-title">Couldn't load your marks</div>
         ${escapeHtml(err.message || "Please try again.")}
-      </div>`)
+      </div>`),
     );
-    const retry = el(`<button class="btn" style="margin-top:8px">Try again</button>`);
-    retry.addEventListener("click", () => renderCourses(container, { refresh: true }));
+    const retry = el(
+      `<button class="btn" style="margin-top:8px">Try again</button>`,
+    );
+    retry.addEventListener("click", () =>
+      renderCourses(container, { refresh: true }),
+    );
     container.appendChild(retry);
     return;
   }
@@ -193,13 +207,15 @@ export async function renderCourses(container, { refresh = false } = {}) {
   // Header with a refresh button.
   const header = el(`
     <div class="screen-header">
-      <h1>Courses</h1>
+      <div><div class="eyebrow">YOUR DAY, IN PERSPECTIVE</div><h1>${preferences().name ? `Hey, ${escapeHtml(preferences().name)}.` : "Room to grow."}</h1><p class="muted dashboard-subtitle">Small steps today. Bigger possibilities tomorrow.</p></div>
       <button class="btn ghost" id="refresh" style="width:auto;padding:6px 10px" aria-label="Refresh">↻</button>
     </div>
   `);
-  header.querySelector("#refresh").addEventListener("click", () =>
-    renderCourses(container, { refresh: true })
-  );
+  header
+    .querySelector("#refresh")
+    .addEventListener("click", () =>
+      renderCourses(container, { refresh: true }),
+    );
   container.appendChild(header);
 
   // Overall average — semicircular gauge with a change pill (reference look).
@@ -216,15 +232,35 @@ export async function renderCourses(container, { refresh = false } = {}) {
       ${deltaPill}
       <div class="gauge-cap">Overall Average · ${courses.length} course${courses.length === 1 ? "" : "s"}</div>
     </div>
-  `)
+  `),
   );
 
+  const p = preferences();
+  const dream = el(
+    `<div class="card dream-preview"><div><div class="eyebrow">THE BIG PICTURE</div><h2>${escapeHtml(p.career || "What’s your next chapter?")}</h2><p class="muted">${escapeHtml(p.school || "Give your grades a little direction. Set a dream, make a plan.")} </p><button class="btn secondary" style="width:auto">${p.career ? "View my dreams" : "Set a dream"} ↗</button></div><div class="dream-orbit" aria-hidden="true">✧</div></div>`,
+  );
+  dream
+    .querySelector("button")
+    .addEventListener("click", () => window.AppNav.toDreams());
+  container.append(dream);
+  const actions = el(
+    `<div class="dashboard-actions"><h2>Your courses <span class="muted small">${courses.length} total</span></h2><button class="btn ghost" style="width:auto">✦ Ask the assistant</button></div>`,
+  );
+  actions
+    .querySelector("button")
+    .addEventListener("click", () => window.AppNav.toAssistant());
+  container.append(actions);
   // Course cards.
   if (!courses.length) {
-    container.appendChild(el(`<div class="empty centered"><div class="empty-title">No courses found</div>Your TeachAssist account has no courses listed.</div>`));
+    container.appendChild(
+      el(
+        `<div class="empty centered"><div class="empty-title">No courses found</div>Your TeachAssist account has no courses listed.</div>`,
+      ),
+    );
     return;
   }
   const list = document.createElement("div");
+  list.className = "course-grid";
   courses.forEach((c, i) => {
     const color = COURSE_COLORS[i % COURSE_COLORS.length];
     const letter = (c.code || "?").trim().charAt(0).toUpperCase();
@@ -232,7 +268,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
     const tag = markKind(c);
     const meta = [c.teacher, c.block, c.room].filter(Boolean).join(" · ");
     const card = el(`
-      <div class="card course-card">
+      <div class="card course-card" role="button" tabindex="0" aria-label="Open ${escapeHtml(c.name || c.code)}">
         <div class="icon-circle" style="background:${color}">${escapeHtml(letter)}</div>
         <div class="cc-main">
           <div class="cc-code">${escapeHtml(c.code || "")}</div>
@@ -250,6 +286,12 @@ export async function renderCourses(container, { refresh = false } = {}) {
       </div>
     `);
     card.addEventListener("click", () => window.AppNav.toDetail(c));
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        window.AppNav.toDetail(c);
+      }
+    });
     list.appendChild(card);
   });
   container.appendChild(list);
@@ -257,7 +299,9 @@ export async function renderCourses(container, { refresh = false } = {}) {
   // Recent updates — day-over-day mark changes from the local snapshots.
   const changes = updates.filter((u) => !u.overall);
   if (changes.length) {
-    container.appendChild(el(`<div class="section-label">Recent updates</div>`));
+    container.appendChild(
+      el(`<div class="section-label">Recent updates</div>`),
+    );
     const feed = document.createElement("div");
     changes.forEach((u) => feed.appendChild(updateCard(u)));
     container.appendChild(feed);
