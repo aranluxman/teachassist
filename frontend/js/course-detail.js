@@ -8,7 +8,7 @@
 // aggregates a weighted average per category with strand-coloured bars.
 // ============================================================================
 
-import { el, escapeHtml, fmtPercent, semiGauge } from "./courses.js";
+import { courseLabel, courseSubtitle, el, escapeHtml, fmtPercent, semiGauge } from "./courses.js";
 import { displayMark, markKind } from "./ta-client.js";
 
 let charts = [];
@@ -63,8 +63,8 @@ export async function openCourseDetail(container, course) {
     <div class="detail-nav">
       <button class="back-btn">Courses</button>
       <div class="detail-titlewrap">
-        <div class="detail-title">${escapeHtml(course.code || "")}</div>
-        <div class="detail-subtitle">${escapeHtml(course.name || "")}</div>
+        <div class="detail-title">${escapeHtml(courseLabel(course))}</div>
+        ${courseSubtitle(course) ? `<div class="detail-subtitle">${escapeHtml(courseSubtitle(course))}</div>` : ""}
       </div>
       <div class="detail-actions"></div>
     </div>
@@ -105,7 +105,7 @@ export async function openCourseDetail(container, course) {
     el(`
     <div class="panel"><div class="card gauge-card">
       <div class="info-list" style="width:100%">
-        <div class="info-row"><span>Code</span><span>${escapeHtml(course.code || "—")}</span></div>
+        <div class="info-row"><span>Code</span><span>${escapeHtml(courseLabel(course) || "—")}</span></div>
         ${course.teacher ? `<div class="info-row"><span>Teacher</span><span>${escapeHtml(course.teacher)}</span></div>` : ""}
         ${course.block ? `<div class="info-row"><span>Block</span><span>${escapeHtml(course.block)}</span></div>` : ""}
         ${course.room ? `<div class="info-row"><span>Room</span><span>${escapeHtml(course.room)}</span></div>` : ""}

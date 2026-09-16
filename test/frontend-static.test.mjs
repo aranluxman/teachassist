@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import { DEMO_COURSES } from "../frontend/js/demo-data.js";
 import { strandKey, strandBreakdown } from "../frontend/js/course-detail.js";
+import { courseLabel, courseSubtitle } from "../frontend/js/courses.js";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -146,6 +147,28 @@ test("courses and detail screens render live marks analytics", () => {
   assert.match(courseDetailJs, /new window\.Chart/);
   assert.match(courseDetailJs, /cat-pill/);
   assert.match(courseDetailJs, /strandBreakdown/);
+});
+
+test("course cards show only the class code", () => {
+  // "SNC2D1-8" is the timetable code; the card shows the class itself.
+  assert.equal(courseLabel({ code: "SNC2D1-8" }), "SNC2D1");
+  assert.equal(courseLabel({ code: "FIF2DF-3" }), "FIF2DF");
+  assert.equal(courseLabel({ code: "SCH3U7" }), "SCH3U7");
+  assert.equal(courseLabel({ code: "", name: "MPM1D-04 : Block: P3" }), "MPM1D");
+  assert.equal(courseLabel({}), "");
+  // A scraped timetable line is noise, a real course name is not.
+  assert.equal(
+    courseSubtitle({ code: "SNC2D1-8", name: "SNC2D1-8 : Science Block: P1 - rm. 302 2026-09-08" }),
+    "",
+  );
+  assert.equal(
+    courseSubtitle({ code: "ENL1W-01", name: "English, Grade 9 (De-streamed)" }),
+    "English, Grade 9 (De-streamed)",
+  );
+  // No teacher / block / room row is rendered on the dashboard cards.
+  assert.doesNotMatch(coursesJs, /cc-name|cc-meta/);
+  assert.doesNotMatch(coursesJs, /c\.block|c\.room/);
+  assert.match(coursesJs, /class="cc-code">\$\{escapeHtml\(label\)\}/);
 });
 
 // ---------------------------------------------------------------------------
