@@ -72,6 +72,32 @@ export function fmtPercent(v) {
   return (Math.round(v * 10) / 10).toFixed(1) + "%";
 }
 
+/**
+ * Clean class label for the UI: just the course code, no section suffix.
+ * TeachAssist reports codes like "SNC2D1-8" or "FIF2DF-3"; the dashboard only
+ * ever shows the course part ("SNC2D1"). Falls back to the first word of the
+ * course name when a scrape hands us no code at all.
+ */
+export function courseLabel(course) {
+  const raw = String(course?.code || "").trim();
+  const source = raw || String(course?.name || "").trim().split(/[\s:]+/)[0] || "";
+  return source.split("-")[0].trim().toUpperCase();
+}
+
+/**
+ * The course name, but only when it is a real name. A live scrape packs the
+ * timetable line into `name` ("SNC2D1-8 : Science Block: P1 - rm. 302 2026-09-08
+ * ~ ..."), which is noise — return "" for those so callers can drop the row.
+ */
+export function courseSubtitle(course) {
+  const name = String(course?.name || "").trim();
+  if (!name) return "";
+  if (/block\s*:|\brm\.?\s|\broom\b|\d{4}-\d{2}-\d{2}/i.test(name)) return "";
+  const label = courseLabel(course);
+  if (label && name.toUpperCase().startsWith(label)) return "";
+  return name;
+}
+
 let activeSheet = null;
 let activeSheetCleanup = null;
 
@@ -263,17 +289,15 @@ export async function renderCourses(container, { refresh = false } = {}) {
   list.className = "course-grid";
   courses.forEach((c, i) => {
     const color = COURSE_COLORS[i % COURSE_COLORS.length];
-    const letter = (c.code || "?").trim().charAt(0).toUpperCase();
+    const letter = (courseLabel(c) || "?").charAt(0).toUpperCase();
     const big = displayMark(c);
     const tag = markKind(c);
-    const meta = [c.teacher, c.block, c.room].filter(Boolean).join(" · ");
+    const label = courseLabel(c);
     const card = el(`
-      <div class="card course-card" role="button" tabindex="0" aria-label="Open ${escapeHtml(c.name || c.code)}">
+      <div class="card course-card" role="button" tabindex="0" aria-label="Open ${escapeHtml(label)}">
         <div class="icon-circle" style="background:${color}">${escapeHtml(letter)}</div>
         <div class="cc-main">
-          <div class="cc-code">${escapeHtml(c.code || "")}</div>
-          <div class="cc-name">${escapeHtml(c.name || "")}</div>
-          ${meta ? `<div class="cc-meta">${escapeHtml(meta)}</div>` : ""}
+          <div class="cc-code">${escapeHtml(label)}</div>
           ${big != null ? `<div class="cc-bar"><i style="width:${Math.max(0, Math.min(100, big))}%"></i></div>` : ""}
         </div>
         <div class="cc-right">
@@ -320,7 +344,7 @@ function updateCard(u) {
     <div class="card update-card">
       <div class="icon-circle" style="background:${color}">${glyph}</div>
       <div class="cc-main">
-        <div class="cc-code">${escapeHtml(u.label)}</div>
+        <div class="cc-code">${escapeHtml(u.overall ? u.label : courseLabel({ code: u.label }))}</div>
         <div class="muted small">${u.overall ? "Overall average changed" : "Mark changed"}</div>
         <div class="update-trend">${fmtPercent(u.from)} <span class="muted">→</span> <b>${fmtPercent(u.to)}</b></div>
       </div>

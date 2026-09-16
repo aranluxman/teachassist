@@ -612,20 +612,11 @@ a.row {
 }
 .course-card .cc-code {
   font-weight: 800;
-  font-size: 15.5px;
+  font-size: 16.5px;
   letter-spacing: -0.2px;
-}
-.course-card .cc-name {
-  color: var(--text-secondary);
-  font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.course-card .cc-meta {
-  color: var(--text-secondary);
-  font-size: 12px;
-  margin-top: 3px;
 }
 .course-card .cc-mark {
   font-size: 21px;
@@ -1889,7 +1880,7 @@ h3 {
 .course-card {
   margin: 0;
   padding: 22px;
-  min-height: 135px;
+  min-height: 112px;
   transition:
     transform 220ms ease,
     box-shadow 220ms ease,
@@ -1904,22 +1895,13 @@ h3 {
   transform: scale(0.985);
 }
 .cc-code {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-.cc-name {
-  font-size: 16px;
+  font-size: 17px;
   color: var(--text);
-  font-weight: 650;
-  margin-top: 3px;
+  font-weight: 700;
 }
 .cc-mark {
   font-size: 23px;
   font-variant-numeric: tabular-nums;
-}
-.cc-meta {
-  font-size: 10px;
 }
 .cc-bar i {
   background: var(--accent);
@@ -2164,8 +2146,7 @@ summary {
   font-size: 19px;
 }
 [data-large-text="true"] .small,
-[data-large-text="true"] .muted,
-[data-large-text="true"] .cc-meta {
+[data-large-text="true"] .muted {
   font-size: 1rem;
 }
 [data-hide-marks="true"] .cc-mark,

@@ -154,23 +154,11 @@
     display: none;
   }
   .course-card .cc-code {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 17px;
+    font-weight: 700;
     letter-spacing: 0;
-    color: var(--text-secondary);
-  }
-  .course-card .cc-name {
-    font-size: 16px;
-    font-weight: 650;
     line-height: 1.35;
-    white-space: normal;
-    overflow: visible;
     color: var(--text);
-    overflow-wrap: anywhere;
-  }
-  .course-card .cc-meta {
-    font-size: 12px;
-    line-height: 1.5;
     overflow-wrap: anywhere;
   }
   .course-card .cc-mark {
@@ -417,7 +405,7 @@
     min-height: 0;
     padding: 14px;
   }
-  [data-large-text="true"] .course-card .cc-name,
+  [data-large-text="true"] .course-card .cc-code,
   [data-large-text="true"] .eval-name {
     font-size: 18px;
   }
