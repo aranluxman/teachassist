@@ -398,12 +398,12 @@ html[data-tab-hidden="true"] .m-loop::after {
 .m-on #screen-courses #refresh.m-done {
   animation: m-pop var(--m-slow) var(--m-ease) both;
 }
-/* Fixed box so the ↻ → ✓ swap cannot change the header's width. */
+/* Centre the glyph so the ↻ → ✓ swap cannot shift it. No min-width here:
+   mobile.css gives this button a 44px tap target and this rule outranks it. */
 #screen-courses #refresh {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
 }
 
 /* Dream card — sparkles orbit the ✧ mark. */
