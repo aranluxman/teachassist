@@ -21,6 +21,7 @@ import {
   setApiKey,
   isDemo,
 } from "./ta-client.js";
+import { savedFeedback, stagger } from "./motion.js";
 
 const THEME_KEY = "theme";
 const APP_VERSION = "4.0.0";
@@ -52,7 +53,17 @@ function currentTheme() {
   return THEMES.some((x) => x.id === t) ? t : "indigo";
 }
 
-function applyTheme(id) {
+function applyTheme(id, { crossfade = false } = {}) {
+  // `m-theming` puts a short transition on the themed surfaces so switching
+  // theme fades rather than flashes. It is removed again straight after.
+  if (crossfade) {
+    document.documentElement.classList.add("m-theming");
+    clearTimeout(applyTheme.timer);
+    applyTheme.timer = setTimeout(
+      () => document.documentElement.classList.remove("m-theming"),
+      400,
+    );
+  }
   document.documentElement.setAttribute("data-theme", id);
   // Keep the browser/OS chrome colour in step with the theme's top wash.
   const meta = document.querySelector('meta[name="theme-color"]');
@@ -87,6 +98,7 @@ export async function renderSettings(container) {
     savePreferences({ name: personal.querySelector("input").value.trim() });
     personal.querySelector("[role=status]").textContent =
       "Saved on this device.";
+    savedFeedback(personal.querySelector("button"), "Saved ✓");
   });
   container.append(personal);
   const options = el(
@@ -187,7 +199,7 @@ export async function renderSettings(container) {
     sw.addEventListener("click", () => {
       const id = sw.dataset.themeId;
       localStorage.setItem(THEME_KEY, id);
-      applyTheme(id);
+      applyTheme(id, { crossfade: true });
       appearance
         .querySelectorAll(".swatch")
         .forEach(
@@ -218,10 +230,11 @@ export async function renderSettings(container) {
       <button class="btn secondary" id="w-save">Save connection</button>
     </div>
   `);
-  conn.querySelector("#w-save").addEventListener("click", () => {
+  conn.querySelector("#w-save").addEventListener("click", (e) => {
     setWorkerUrl(conn.querySelector("#w-url").value);
     setApiKey(conn.querySelector("#w-key").value);
     conn.querySelector("#w-status").textContent = "Saved on this device.";
+    savedFeedback(e.currentTarget, "Saved ✓");
   });
   container.appendChild(conn);
 
@@ -240,4 +253,6 @@ export async function renderSettings(container) {
       `<div class="muted small" style="text-align:center;margin-top:18px">TeachAssist Dashboard · v${APP_VERSION}</div>`,
     ),
   );
+
+  stagger(container.children);
 }

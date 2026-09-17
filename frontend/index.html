@@ -14,6 +14,7 @@
     <link rel="apple-touch-icon" href="icons/app-icon.svg" />
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/mobile.css" />
+    <link rel="stylesheet" href="css/motion.css" />
   </head>
   <body>
     <div class="auth-wrap">
@@ -75,15 +76,15 @@
       </div>
 
       <div class="auth-features">
-        <div class="feature-item">
+        <div class="feature-item" style="--m-i:0">
           <span class="feature-dot" aria-hidden="true">📊</span>
           <span><b>Every evaluation</b> — assignments, tests and culminating tasks</span>
         </div>
-        <div class="feature-item">
+        <div class="feature-item" style="--m-i:1">
           <span class="feature-dot" aria-hidden="true">🧭</span>
           <span><b>Achievement breakdown</b> — Knowledge, Thinking, Communication, Application</span>
         </div>
-        <div class="feature-item">
+        <div class="feature-item" style="--m-i:2">
           <span class="feature-dot" aria-hidden="true">🎨</span>
           <span><b>15 colour themes</b> — including two dark modes, all high-contrast</span>
         </div>
@@ -105,6 +106,17 @@
         setApiKey,
         enterDemo,
       } from "./js/ta-client.js";
+      import {
+        initMotion,
+        initDisclosure,
+        shake,
+        replay,
+      } from "./js/motion.js";
+      import { applyPreferences } from "./js/personalization.js";
+
+      // Motion follows the same Settings toggle the app uses.
+      applyPreferences();
+      initMotion();
 
       // Already signed in? Go straight to the app.
       if (isLoggedIn()) window.location.replace("app.html");
@@ -118,6 +130,9 @@
       // Prefill Advanced from saved values.
       urlEl.value = workerUrl();
       keyEl.value = apiKey();
+
+      const advanced = document.getElementById("advanced");
+      initDisclosure(advanced);
 
       document.getElementById("demo-btn").addEventListener("click", () => {
         enterDemo();
@@ -139,9 +154,11 @@
           window.location.replace("app.html");
         } catch (err) {
           errorEl.textContent = err?.message || "Sign in failed.";
+          replay(errorEl, "m-error-in");
+          shake(form);
           // Open Advanced if it looks like a setup problem.
           if (/worker|api key|unauthorized|reach/i.test(err?.message || "")) {
-            document.getElementById("advanced").open = true;
+            advanced.open = true;
           }
         } finally {
           submit.disabled = false;

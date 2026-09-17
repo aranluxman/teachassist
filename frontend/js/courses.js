@@ -9,6 +9,17 @@ import { preferences } from "./personalization.js";
 
 import { COURSE_COLORS } from "./config.js";
 import {
+  animateGauge,
+  countUp,
+  finishRefreshSpin,
+  marksHidden,
+  mountTicker,
+  orbitSparkles,
+  previousValue,
+  rememberValue,
+  startRefreshSpin,
+} from "./motion.js";
+import {
   getCourses,
   overallAverage,
   displayMark,
@@ -17,6 +28,15 @@ import {
   lastSyncedAt,
   isDemo,
 } from "./ta-client.js";
+
+// The short lines that rotate under the dashboard subtitle. They all live in
+// one CSS grid cell, so swapping them can never move the layout.
+const ENCOURAGEMENT = [
+  "Small steps today.",
+  "Every mark tells a story.",
+  "Progress over perfection.",
+  "Bigger possibilities tomorrow.",
+];
 
 /** Human "Updated 3h ago" string from an ISO timestamp (for the top bar). */
 function relativeUpdated(iso) {
@@ -165,15 +185,18 @@ export function semiGauge(percent) {
         .getPropertyValue("--accent")
         .trim()) ||
     "#4338ca";
+  // The `gauge-arc` / `gauge-num` hooks and the data-* attributes are read by
+  // js/motion.js to draw the arc and count the number up. The rendered result
+  // with motion off is byte-for-byte the same picture as before.
   return `
-    <svg viewBox="0 0 200 116" width="100%" style="max-width:230px" role="img" aria-label="${percent == null ? "no average" : fmtPercent(percent)}">
+    <svg viewBox="0 0 200 116" width="100%" style="max-width:230px" role="img" data-value="${percent == null ? "" : clamped}" aria-label="${percent == null ? "no average" : fmtPercent(percent)}">
       <path d="${arc}" fill="none" style="stroke:var(--track)" stroke-width="${sw}" stroke-linecap="round"/>
       ${
         clamped > 0
-          ? `<path d="${arc}" fill="none" stroke="${accent}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${fill} ${len + 4}"/>`
+          ? `<path class="gauge-arc" d="${arc}" fill="none" stroke="${accent}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${fill} ${len + 4}" data-len="${len}" data-fill="${fill}"/>`
           : ""
       }
-      <text x="100" y="93" text-anchor="middle" font-size="33" font-weight="800" letter-spacing="-0.5" style="fill:var(--text)" font-family="-apple-system, sans-serif">${
+      <text class="gauge-num" x="100" y="93" text-anchor="middle" font-size="33" font-weight="800" letter-spacing="-0.5" style="fill:var(--text);font-variant-numeric:tabular-nums" font-family="-apple-system, sans-serif" aria-hidden="true">${
         percent == null ? "—" : fmtPercent(percent)
       }</text>
     </svg>`;
@@ -233,16 +256,20 @@ export async function renderCourses(container, { refresh = false } = {}) {
   // Header with a refresh button.
   const header = el(`
     <div class="screen-header">
-      <div><div class="eyebrow">YOUR DAY, IN PERSPECTIVE</div><h1>${preferences().name ? `Hey, ${escapeHtml(preferences().name)}.` : "Room to grow."}</h1><p class="muted dashboard-subtitle">Small steps today. Bigger possibilities tomorrow.</p></div>
+      <div><div class="eyebrow">YOUR DAY, IN PERSPECTIVE</div><h1>${preferences().name ? `Hey, ${escapeHtml(preferences().name)}.` : "Room to grow."}</h1><p class="muted dashboard-subtitle">Small steps today. Bigger possibilities tomorrow.</p><p class="muted small dashboard-ticker" aria-live="off"></p></div>
       <button class="btn ghost" id="refresh" style="width:auto;padding:6px 10px" aria-label="Refresh">↻</button>
     </div>
   `);
-  header
-    .querySelector("#refresh")
-    .addEventListener("click", () =>
-      renderCourses(container, { refresh: true }),
-    );
+  const refreshBtn = header.querySelector("#refresh");
+  refreshBtn.addEventListener("click", async () => {
+    startRefreshSpin(refreshBtn);
+    await renderCourses(container, { refresh: true });
+    // renderCourses rebuilds the header, so confirm on the button that is now
+    // on screen.
+    finishRefreshSpin(container.querySelector("#refresh"));
+  });
   container.appendChild(header);
+  mountTicker(header.querySelector(".dashboard-ticker"), ENCOURAGEMENT);
 
   // Overall average — semicircular gauge with a change pill (reference look).
   const ov = updates.find((u) => u.overall);
@@ -251,15 +278,19 @@ export async function renderCourses(container, { refresh = false } = {}) {
     delta != null && Math.abs(delta) >= 0.05
       ? `<div class="delta-pill ${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "↑" : "↓"} ${Math.abs(Math.round(delta * 10) / 10).toFixed(1)}%</div>`
       : "";
-  container.appendChild(
-    el(`
+  const gaugeCard = el(`
     <div class="card overall-gauge">
       ${semiGauge(overall)}
       ${deltaPill}
       <div class="gauge-cap">Overall Average · ${courses.length} course${courses.length === 1 ? "" : "s"}</div>
     </div>
-  `),
-  );
+  `);
+  container.appendChild(gaugeCard);
+  if (overall != null) {
+    // On a refresh the arc and the number travel from the last shown value.
+    animateGauge(gaugeCard, overall, { from: previousValue("overall", 0) });
+    rememberValue("overall", overall);
+  }
 
   const p = preferences();
   const dream = el(
@@ -269,8 +300,9 @@ export async function renderCourses(container, { refresh = false } = {}) {
     .querySelector("button")
     .addEventListener("click", () => window.AppNav.toDreams());
   container.append(dream);
+  orbitSparkles(dream.querySelector(".dream-orbit"), 4);
   const actions = el(
-    `<div class="dashboard-actions"><h2>Your courses <span class="muted small">${courses.length} total</span></h2><button class="btn ghost" style="width:auto">✦ Ask the assistant</button></div>`,
+    `<div class="dashboard-actions"><h2>Your courses <span class="muted small">${courses.length} total</span></h2><button class="btn ghost" style="width:auto"><span class="m-ask-star m-loop" aria-hidden="true">✦</span> Ask the assistant</button></div>`,
   );
   actions
     .querySelector("button")
@@ -316,6 +348,26 @@ export async function renderCourses(container, { refresh = false } = {}) {
         window.AppNav.toDetail(c);
       }
     });
+
+    // Motion hooks: the card, its bar and its shine all share one stagger
+    // index, so a card's parts arrive together.
+    card.style.setProperty("--m-i", String(i));
+    const bar = card.querySelector(".cc-bar");
+    if (bar) {
+      bar.style.setProperty("--m-i", String(i));
+      // A mark of 90 % or better earns a single shine sweep across its bar.
+      if (big != null && big >= 90 && !marksHidden()) bar.classList.add("m-high");
+    }
+    const markEl = card.querySelector(".cc-mark");
+    if (markEl && big != null) {
+      const key = `course:${c.code || label}`;
+      countUp(markEl, big, {
+        from: previousValue(key, 0),
+        duration: 900,
+        format: fmtPercent,
+      });
+      rememberValue(key, big);
+    }
     list.appendChild(card);
   });
   container.appendChild(list);

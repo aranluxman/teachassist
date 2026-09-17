@@ -1,11 +1,24 @@
 import { el } from "./courses.js";
 import { workerUrl, apiKey, isDemo } from "./ta-client.js";
 import { calculatePlan, localPlan } from "./grade-math.js";
+import {
+  countUp,
+  motionEnabled,
+  replay,
+  shake,
+  stagger,
+  typingIndicator,
+} from "./motion.js";
 export function renderAssistant(container) {
   container.innerHTML = `<div class="screen-header"><div><div class="eyebrow">LESS GUESSWORK. MORE CLARITY.</div><h1>A little help.<br><span class="accent-text">A clearer path.</span></h1></div><span class="feature-symbol">✦</span></div><div class="card assistant-intro"><span class="badge">MATH & GRADE ASSISTANT</span><h2>Let’s work out your next move.</h2><p class="muted">Find the grade you need, project a final mark, calculate a weighted average, or solve arithmetic. Answers show the numbers and assumptions.</p><div class="prompt-chips"><button type="button">Current 85, target 90, remaining 30</button><button type="button">Current 88, score 95, remaining 20</button><button type="button">sqrt(144) + 2^3</button></div></div><div class="chat-log" role="log" aria-label="Calculation conversation" aria-live="polite"></div><form class="card chat-form"><label for="question">What would you like to calculate?</label><textarea id="question" rows="3" maxlength="1500" required placeholder="I have 85% and my exam is worth 30%. What do I need to finish with 90%?"></textarea><div class="chat-footer"><span class="small muted">${isDemo() ? "Demo: use the examples or calculator below." : "AI reads only your question; your account and marks are not attached."}</span><button class="btn" type="submit">Calculate ↗</button></div></form><details class="card"><summary>Quick calculator · works without AI</summary><form class="quick-calc"><div class="form-grid"><div class="field"><label for="calc-current">Current grade (%)</label><input id="calc-current" name="current" type="number" min="0" max="100" step="any" value="85" required></div><div class="field"><label for="calc-target">Target grade (%)</label><input id="calc-target" name="target" type="number" min="0" max="100" step="any" value="90" required></div><div class="field"><label for="calc-remaining">Remaining weight (%)</label><input id="calc-remaining" name="remaining" type="number" min="0.01" max="100" step="any" value="30" required></div></div><button class="btn secondary">Find required grade</button><p class="calc-result" role="status"></p></form></details>`;
   const input = container.querySelector("textarea"),
     form = container.querySelector(".chat-form"),
     log = container.querySelector(".chat-log");
+  stagger([
+    container.querySelector(".screen-header"),
+    container.querySelector(".assistant-intro"),
+  ]);
+  stagger(container.querySelectorAll(".prompt-chips button"));
   container.querySelectorAll(".prompt-chips button").forEach((b) =>
     b.addEventListener("click", () => {
       input.value = b.textContent;
@@ -29,6 +42,12 @@ export function renderAssistant(container) {
     button.textContent = "Calculating…";
     add("YOU", q, "from-user");
     input.value = "";
+    // A three-dot bubble holds the assistant's place while it works.
+    const pending = el(
+      `<article class="card chat-message"><div class="eyebrow">THINKING</div><p></p></article>`,
+    );
+    pending.querySelector("p").appendChild(typingIndicator());
+    log.append(pending);
     try {
       let plan = localPlan(q);
       if (!plan) {
@@ -78,6 +97,7 @@ export function renderAssistant(container) {
         "",
       );
     } finally {
+      pending.remove();
       button.disabled = false;
       button.textContent = "Calculate ↗";
     }
@@ -85,15 +105,41 @@ export function renderAssistant(container) {
   container.querySelector(".quick-calc").addEventListener("submit", (e) => {
     e.preventDefault();
     const d = new FormData(e.target);
+    const out = e.target.querySelector(".calc-result");
+    out.classList.remove("m-impossible", "m-shake");
     try {
-      e.target.querySelector(".calc-result").textContent = calculatePlan({
+      const result = calculatePlan({
         kind: "required",
         current: Number(d.get("current")),
         target: Number(d.get("target")),
         remaining: Number(d.get("remaining")),
-      }).text;
+      });
+      out.textContent = result.text;
+      replay(out, "m-reveal");
+      // A grade above 100 % cannot be earned — say so, gently.
+      const impossible = typeof result.value === "number" && result.value > 100;
+      if (impossible) {
+        out.classList.add("m-impossible");
+        shake(out);
+      } else if (motionEnabled() && typeof result.value === "number") {
+        // Count the headline number up, then restore the calculator's own
+        // wording verbatim so the final text is exactly what it always was.
+        const rest = result.text.slice(result.text.indexOf("\n"));
+        countUp(out, result.value, {
+          from: 0,
+          duration: 700,
+          isMark: false,
+          format: (v) => `You need ${v.toFixed(1)}% on the remaining work.${rest}`,
+        });
+        setTimeout(() => {
+          if (out.isConnected) out.textContent = result.text;
+        }, 780);
+      }
     } catch (err) {
-      e.target.querySelector(".calc-result").textContent = err.message;
+      out.textContent = err.message;
+      out.classList.add("m-impossible");
+      replay(out, "m-reveal");
+      shake(out);
     }
   });
 }

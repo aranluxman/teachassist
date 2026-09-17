@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" href="icons/app-icon.svg" />
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/mobile.css" />
+    <link rel="stylesheet" href="css/motion.css" />
   </head>
   <body>
     <div class="shell">
@@ -75,6 +76,12 @@
       import { renderDreams } from "./js/dreams.js";
       import { renderAssistant } from "./js/assistant.js";
       import { renderSettings, applyStoredTheme } from "./js/settings.js";
+      import {
+        initMotion,
+        enterScreen,
+        screenDirection,
+        mountTabIndicator,
+      } from "./js/motion.js";
 
       const screens = {
         courses: document.getElementById("screen-courses"),
@@ -85,15 +92,22 @@
         settings: document.getElementById("screen-settings"),
       };
       const tabbar = document.getElementById("tabbar");
+      const moveTabIndicator = mountTabIndicator(tabbar);
+      let currentScreen = null;
 
       function showScreen(name) {
+        // The new screen enters from the direction of travel through the tabs.
+        const direction = screenDirection(currentScreen, name);
+        currentScreen = name;
         for (const [k, elx] of Object.entries(screens)) elx.classList.toggle("hidden", k !== name);
         tabbar.querySelectorAll("button").forEach((b) =>
           (b.classList.toggle("active", b.dataset.tab === name), b.setAttribute("aria-current", b.dataset.tab === name ? "page" : "false"))
         );
         const tabbed = ["courses", "guidance", "dreams", "assistant", "settings"].includes(name);
         tabbar.classList.toggle("hidden", !tabbed);
+        if (tabbed) moveTabIndicator(tabbar.querySelector("button.active"));
         window.scrollTo(0, 0);
+        enterScreen(screens[name], direction);
         const heading = screens[name].querySelector("h1");
         if (heading) { heading.tabIndex = -1; heading.focus({preventScroll:true}); }
       }
@@ -119,10 +133,19 @@
         })[btn.dataset.tab]();
       });
 
+      // Keep the sliding tab pill aligned when the viewport changes size.
+      window.addEventListener("resize", () =>
+        moveTabIndicator(tabbar.querySelector("button.active")),
+      );
+
       (async () => {
         if (!requireLogin()) return;
         applyStoredTheme();
+        initMotion();
         await window.AppNav.toCourses();
+        requestAnimationFrame(() =>
+          moveTabIndicator(tabbar.querySelector("button.active")),
+        );
       })();
     </script>
   </body>
