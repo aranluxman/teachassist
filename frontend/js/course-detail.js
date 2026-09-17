@@ -10,6 +10,15 @@
 
 import { courseLabel, courseSubtitle, el, escapeHtml, fmtPercent, semiGauge } from "./courses.js";
 import { displayMark, markKind } from "./ta-client.js";
+import {
+  animateGauge,
+  chartAnimation,
+  countUp,
+  motionEnabled,
+  mountThumb,
+  previousValue,
+  rememberValue,
+} from "./motion.js";
 
 let charts = [];
 let activeSeg = "evals";
@@ -117,6 +126,13 @@ export async function openCourseDetail(container, course) {
   `)
   );
   container.appendChild(carousel);
+  if (mark != null) {
+    const key = `course:${course.code || courseLabel(course)}`;
+    animateGauge(carousel.querySelector(".gauge-card"), mark, {
+      from: previousValue(key, 0),
+    });
+    rememberValue(key, mark);
+  }
 
   // Named, touch-sized controls supplement horizontal swiping.
   const labels = hasChart ? ["Grade", "Trend", "Info"] : ["Grade", "Info"];
@@ -124,13 +140,16 @@ export async function openCourseDetail(container, course) {
   container.appendChild(controls);
   const buttons = [...controls.querySelectorAll("button")];
   buttons.forEach((button, i) => button.addEventListener("click", () => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "false";
+    const reduce = !motionEnabled();
     carousel.scrollTo({left: i * carousel.clientWidth, behavior: reduce ? "instant" : "smooth"});
   }));
-  carousel.addEventListener("scroll", () => {
+  const syncControls = () => {
     const current = Math.round(carousel.scrollLeft / carousel.clientWidth);
     buttons.forEach((button, i) => button.setAttribute("aria-pressed", String(i === current)));
-  }, {passive: true});
+  };
+  carousel.addEventListener("scroll", syncControls, {passive: true});
+  window.addEventListener("resize", syncControls);
+  requestAnimationFrame(syncControls);
 
   // ── Segmented: Evaluations / Breakdown ──
   const seg = el(`
@@ -143,14 +162,18 @@ export async function openCourseDetail(container, course) {
   container.appendChild(seg);
   container.appendChild(content);
 
+  const moveSegThumb = mountThumb(seg, {inset: 3, radius: "9px"});
   const show = (s) => {
     activeSeg = s;
     seg.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.seg === s));
+    moveSegThumb(seg.querySelector("button.active"));
     content.innerHTML = "";
     content.appendChild(s === "evals" ? buildEvals(evals, kind) : buildBreakdown(evals));
   };
+  window.addEventListener("resize", () => moveSegThumb(seg.querySelector("button.active")));
   seg.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => show(b.dataset.seg)));
   show(activeSeg);
+  requestAnimationFrame(() => moveSegThumb(seg.querySelector("button.active")));
 
   if (hasChart) drawProgress(container, evals);
 }
@@ -168,7 +191,7 @@ function buildEvals(evals, kind) {
     );
     return frag;
   }
-  evals.forEach((e) => {
+  evals.forEach((e, i) => {
     const key = strandKey(e.category) || "f";
     const letter = (e.name || e.category || "?").trim().charAt(0).toUpperCase();
     const meta = [];
@@ -189,6 +212,9 @@ function buildEvals(evals, kind) {
       </div>
     `)
     );
+    // The row, its category pill and its feedback quote share one index, so
+    // each evaluation arrives as a single unit 0.04s after the last.
+    frag.lastElementChild.style.setProperty("--m-i", String(i));
   });
   return frag;
 }
@@ -242,7 +268,7 @@ function buildBreakdown(evals) {
 
   const strands = strandBreakdown(evals);
   const card = el(`<div class="card" style="padding:6px var(--gap)"></div>`);
-  strands.forEach((s) => {
+  strands.forEach((s, i) => {
     card.appendChild(
       el(`
       <div class="strand-row">
@@ -255,6 +281,15 @@ function buildBreakdown(evals) {
       </div>
     `)
     );
+    // Each strand's bar grows and its percentage counts up, one after another.
+    const row = card.lastElementChild;
+    row.style.setProperty("--m-i", String(i));
+    row.querySelector(".bar-fill").style.setProperty("--m-i", String(i));
+    countUp(row.querySelector(".strand-value"), s.average, {
+      from: 0,
+      duration: 900,
+      format: fmtPercent,
+    });
   });
   frag.appendChild(card);
 
@@ -324,6 +359,9 @@ function drawProgress(container, evals) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        // The line draws left-to-right and the points pop in; `false` when
+        // motion is off, which is Chart.js's own "render the final chart".
+        animation: chartAnimation(running.length),
         plugins: { legend: { display: false }, tooltip: { displayColors: false } },
         scales: {
           y: { min: lo, max: 100, ticks: { callback: (v) => v + "%", maxTicksLimit: 5, color: tick }, grid: { color: "rgba(127,127,127,0.15)", drawTicks: false }, border: { display: false } },

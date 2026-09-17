@@ -42,8 +42,13 @@ export async function renderGuidance(container) {
   container.innerHTML = "";
   container.appendChild(el(`<div class="screen-header"><h1>Guidance</h1></div>`));
 
+  // One running index across the whole screen, so the labels and their link
+  // rows arrive in a single 0.04s cascade instead of restarting per group.
+  let order = 0;
   for (const section of RESOURCES) {
-    container.appendChild(el(`<div class="section-label">${escapeHtml(section.group)}</div>`));
+    const label = el(`<div class="section-label">${escapeHtml(section.group)}</div>`);
+    label.style.setProperty("--m-i", String(order++));
+    container.appendChild(label);
     const rows = el(`<div class="rows"></div>`);
     for (const item of section.items) {
       const row = el(`
@@ -52,9 +57,10 @@ export async function renderGuidance(container) {
             <div class="row-title">${escapeHtml(item.label)}</div>
             <div class="row-sub">${escapeHtml(item.sub)}</div>
           </div>
-          <span class="chevron"></span>
+          <span class="chevron m-arrow"></span>
         </button>
       `);
+      row.style.setProperty("--m-i", String(order++));
       row.addEventListener("click", () => window.open(item.url, "_blank", "noopener"));
       rows.appendChild(row);
     }
