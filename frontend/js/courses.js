@@ -8,6 +8,7 @@ import { preferences } from "./personalization.js";
 // ============================================================================
 
 import { COURSE_COLORS } from "./config.js";
+import { splitByTerm } from "./term.js";
 import {
   animateGauge,
   countUp,
@@ -247,6 +248,13 @@ export async function renderCourses(container, { refresh = false } = {}) {
     return;
   }
 
+  // TeachAssist lists the whole year; show only this semester's courses unless
+  // the student has turned that off in Settings.
+  const allCourses = courses;
+  if (preferences().currentTermOnly) courses = splitByTerm(allCourses).current;
+  const hiddenCount = allCourses.length - courses.length;
+  const shownCodes = new Set(courses.map((c) => c.code));
+
   const overall = overallAverage(courses);
   const updates = getUpdates();
   refreshTopbarStatus();
@@ -302,7 +310,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
   container.append(dream);
   orbitSparkles(dream.querySelector(".dream-orbit"), 4);
   const actions = el(
-    `<div class="dashboard-actions"><h2>Your courses <span class="muted small">${courses.length} total</span></h2><button class="btn ghost" style="width:auto"><span class="m-ask-star m-loop" aria-hidden="true">✦</span> Ask the assistant</button></div>`,
+    `<div class="dashboard-actions"><h2>Your courses <span class="muted small">${hiddenCount ? `${courses.length} this semester` : `${courses.length} total`}</span></h2><button class="btn ghost" style="width:auto"><span class="m-ask-star m-loop" aria-hidden="true">✦</span> Ask the assistant</button></div>`,
   );
   actions
     .querySelector("button")
@@ -373,7 +381,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
   container.appendChild(list);
 
   // Recent updates — day-over-day mark changes from the local snapshots.
-  const changes = updates.filter((u) => !u.overall);
+  const changes = updates.filter((u) => !u.overall && shownCodes.has(u.label));
   if (changes.length) {
     container.appendChild(
       el(`<div class="section-label">Recent updates</div>`),

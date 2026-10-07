@@ -112,6 +112,11 @@ export async function renderSettings(container) {
       ["compact", "Compact layout", "Fit more courses on screen"],
       ["largeText", "Larger text", "A little more room to read"],
       ["hideMarks", "Hide grades", "Conceal marks on the course dashboard"],
+      [
+        "currentTermOnly",
+        "Current semester only",
+        "Hide courses from other semesters",
+      ],
     ]
       .map(
         ([id, title, desc]) =>

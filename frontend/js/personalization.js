@@ -10,6 +10,8 @@ const defaults = {
   compact: false,
   hideMarks: false,
   largeText: false,
+  // Show only the courses running this semester (dates come from TeachAssist).
+  currentTermOnly: true,
   goals: {},
 };
 function key() {
