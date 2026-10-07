@@ -1,6 +1,7 @@
 import { el, escapeHtml, fmtPercent } from "./courses.js";
 import { getCourses, displayMark } from "./ta-client.js";
 import { preferences, savePreferences } from "./personalization.js";
+import { splitByTerm } from "./term.js";
 import {
   countUp,
   marksHidden,
@@ -63,7 +64,8 @@ export async function renderDreams(container) {
   );
   container.append(section);
   try {
-    const courses = await getCourses();
+    let courses = await getCourses();
+    if (p.currentTermOnly) courses = splitByTerm(courses).current;
     if (!courses.length)
       section.querySelector(".goal-list").textContent =
         "Your courses will appear here once available.";
