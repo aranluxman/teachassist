@@ -128,6 +128,8 @@ async function postMarks(username, pass) {
   if (body?.code?.startsWith("TA_") && typeof body.error === "string") {
     const error = new Error(body.error);
     error.code = body.code;
+    // Secret-free sign-in steps (no passwords, student numbers or cookie values).
+    if (Array.isArray(body.trace)) error.trace = body.trace.filter((line) => typeof line === "string").slice(0, 20);
     throw error;
   }
   if (res.status === 401) throw new Error(body?.error || "TeachAssist could not complete sign-in. Please try again.");

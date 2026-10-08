@@ -25,6 +25,8 @@ test('login preserves bootstrap/hidden fields, follows redirects, and collects c
     const url = new URL(target); calls.push({url:url.href,method:options.method});
     if (url.href === loginUrl && options.method === 'GET') return new Response(form, {headers:{'set-cookie':'PHPSESSID=bootstrap; Path=/'}});
     if (url.href === loginUrl && options.method === 'POST') {
+      // Without the pre-login cookie TeachAssist shows its form again.
+      if (!options.headers.cookie) return new Response(form);
       assert.match(options.headers.cookie,/PHPSESSID=bootstrap/);
       const fields = new URLSearchParams(options.body);
       assert.equal(fields.get('csrf'),'a&b');
@@ -124,4 +126,94 @@ test('authenticated redirects refresh cookies; a returned login form is a sessio
     assert.match(options.headers.cookie,/session_token=after/);return new Response('<h1>Marks</h1>');
   },async()=>{assert.match(await client.fetchWithSession(courseListUrl+'?student_id=567',session,loginUrl),/Marks/);assert.match(session.cookie,/after/);});
   await mocked(async()=>new Response(form),async()=>{await assert.rejects(client.fetchWithSession(courseListUrl+'?student_id=567',session,loginUrl),err=>err.code==='TA_SESSION_REJECTED'&&err.status===502);});
+});
+
+test('the original route: cookies from the login POST open the marks list directly', async()=>{
+  const calls=[];
+  await mocked(async(url,options)=>{
+    calls.push(`${options.method} ${new URL(url).pathname}`);
+    if(options.method==='POST')return redirect('/live/index.php?next=1',['session_token=abc; Path=/','student_id=567; Path=/']);
+    assert.equal(String(url),courseListUrl+'?student_id=567');
+    assert.match(options.headers.cookie,/session_token=abc/);assert.match(options.headers.cookie,/student_id=567/);
+    return new Response('<table><tr><td>ENG4U</td></tr></table>');
+  },async()=>{
+    const session=await client.login({},creds);
+    assert.equal(session.studentId,'567');assert.match(session.listHtml,/ENG4U/);
+    assert.deepEqual(calls,['POST /yrdsb/index.php','GET /live/students/listReports.php']);
+  });
+});
+test('an error_message redirect is a password rejection (401), not a session failure', async()=>{
+  await mocked(async(url,options)=>{
+    if(options.method==='GET')return new Response(form);
+    return redirect('/yrdsb/index.php?error_message=3');
+  },async()=>{
+    const response=await worker.fetch(new Request('https://test/api/marks',{method:'POST',body:JSON.stringify(creds)}),{});
+    assert.equal(response.status,401);
+    const body=await response.json();
+    assert.equal(body.code,'TA_LOGIN_REJECTED');
+    assert.ok(Array.isArray(body.trace)&&body.trace.length>0);
+    assert.ok(body.trace.some(line=>line.includes('error_message')));
+    const text=JSON.stringify(body);
+    assert.doesNotMatch(text,/test-password|111|=3/);
+  });
+});
+test('being sent back to the login form with no error signal is reported as a rejection after one form retry', async()=>{
+  let posts=0;
+  await mocked(async(url,options)=>{
+    if(options.method==='POST')posts++;
+    return new Response(form);
+  },async()=>{
+    await assert.rejects(client.login({},creds),err=>err.code==='TA_LOGIN_REJECTED'&&err.status===401);
+    assert.equal(posts,2);
+  });
+});
+test('near-past Expires keeps a cookie; the 1970 delete date removes it', () => {
+  const jar = {};
+  mergeCookies(jar,{headers:{getSetCookie:()=>['session_token=abc; expires=Thu, 08-Oct-2020 10:00:00 GMT; path=/','student_id=567; expires=Thu, 01-Jan-1970 00:00:01 GMT']}});
+  assert.deepEqual({...jar},{session_token:'abc'});
+});
+test('a stray password input on a marks page is not mistaken for the login page', () => {
+  assert.doesNotThrow(()=>client.assertLoggedIn('<h1>Courses</h1><form><input type="password" name="new_password"><input type="submit"></form>'));
+  assert.throws(()=>client.assertLoggedIn(form),err=>err.code==='TA_SESSION_REJECTED');
+});
+test('renamed login fields are read from the real form', async()=>{
+  const renamed='<form action="/yrdsb/login.php" method="post"><input type="text" name="user"><input type="password" name="pass"><input type="hidden" name="token" value="t1"></form>';
+  await mocked(async(url,options)=>{
+    const path=new URL(url).pathname;
+    if(options.method==='GET'&&path==='/yrdsb/index.php')return new Response(renamed);
+    if(options.method==='POST'&&path==='/yrdsb/index.php')return new Response(renamed);
+    if(options.method==='POST'){
+      assert.equal(path,'/yrdsb/login.php');
+      const fields=new URLSearchParams(options.body);
+      assert.equal(fields.get('user'),'111');assert.equal(fields.get('pass'),'test-password');assert.equal(fields.get('token'),'t1');
+      return redirect(courseListUrl+'?student_id=567',['session_token=abc; Path=/']);
+    }
+    return new Response('<h1>Courses</h1>');
+  },async()=>{assert.equal((await client.login({},creds)).studentId,'567');});
+});
+test('an unreachable TeachAssist fails once, quickly, with a clear message', async()=>{
+  let calls=0;
+  await mocked(async()=>{calls++;throw new TypeError('network');},async()=>{
+    await assert.rejects(client.login({},creds),err=>err.code==='TA_CONNECTION_FAILED'&&/isn't answering/.test(err.message)&&err.trace.length>0);
+    assert.equal(calls,1);
+  });
+});
+test('a timeout on the form retry still reports the first, real rejection', async()=>{
+  await mocked(async(url,options)=>{
+    if(options.method==='GET')throw new TypeError('network');
+    return redirect('/live/index.php?error_message=3');
+  },async()=>{
+    await assert.rejects(client.login({},creds),err=>err.code==='TA_LOGIN_REJECTED'&&err.trace.some(l=>/connection failed/.test(l)));
+  });
+});
+test('the real marks page, with its change-password form, is a signed-in page', async()=>{
+  const marks='<form><input type="hidden" name="school_id" value="1"><input type="hidden" name="student_id" value="567"><input type="text" name="inputDate"><input type="password" name="old_password"><input type="password" name="new_password"><input type="password" name="new_password_again"><input type="submit" name="submit"></form><table><tr><td>ENG1D1-01</td><td><a href="viewReport.php?subject_id=9&student_id=567">current mark = 91%</a></td></tr></table>';
+  assert.doesNotThrow(()=>client.assertLoggedIn(marks));
+  await mocked(async(url,options)=>{
+    if(options.method==='POST')return redirect(courseListUrl+'?student_id=567',['session_token=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT','session_token=abc; Path=/','student_id=567; Path=/']);
+    return new Response(marks);
+  },async()=>{
+    const session=await client.login({},creds);
+    assert.equal(session.studentId,'567');assert.match(session.listHtml,/ENG1D1/);assert.match(session.cookie,/session_token=abc/);
+  });
 });

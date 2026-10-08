@@ -295,7 +295,10 @@ export default {
       return json(out, 200, session ? { "X-TeachAssist-Session": session } : {});
     } catch (err) {
       if (err instanceof TeachAssistError) {
-        return json({ error: err.message, code: err.code }, err.status);
+        // The trace lists only steps, statuses, paths, parameter/cookie names
+        // and form field names, so a student can share it safely.
+        if (DEBUG && err.trace) console.log(`Sign-in ${err.code}:\n${err.trace.join("\n")}`);
+        return json({ error: err.message, code: err.code, ...(err.trace ? { trace: err.trace } : {}) }, err.status);
       }
       return json({ error: "TeachAssist could not load your marks. Please try again.", code: "TA_REQUEST_FAILED" }, 502);
     }

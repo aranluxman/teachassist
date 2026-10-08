@@ -13,9 +13,18 @@ var TeachAssistError = class extends Error {
 var failure = (code, message, retryable = false) => new TeachAssistError(code, message, { retryable });
 var rejection = () => new TeachAssistError(
   "TA_LOGIN_REJECTED",
-  "TeachAssist declined this sign-in. If these details work on the official site, please try again here.",
+  "TeachAssist didn't accept that student number and password. Check them and try again; they're the same ones you use on ta.yrdsb.ca.",
   { status: 401 }
 );
+var UNREACHABLE = "TeachAssist isn't answering the sign-in server right now. The official site may still work. Please try again in a few minutes.";
+var TRANSPORT_CODES = /* @__PURE__ */ new Set([
+  "TA_CONNECTION_FAILED",
+  "TA_TIMEOUT",
+  "TA_RATE_LIMITED",
+  "TA_UPSTREAM_BLOCKED",
+  "TA_UPSTREAM_UNAVAILABLE",
+  "TA_REDIRECT_INVALID"
+]);
 function cookieLines(response) {
   const headers = response.headers;
   const lines = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [headers.get("set-cookie") || ""];
@@ -29,8 +38,8 @@ function mergeCookies(jar, response) {
     const name = pair.slice(0, at).trim(), value = pair.slice(at + 1).trim();
     const maxAge = attributes2.find((a) => /^\s*max-age\s*=/i.test(a))?.split("=")[1];
     const expiryAttribute = attributes2.find((a) => /^\s*expires\s*=/i.test(a));
-    const expires = expiryAttribute?.slice(expiryAttribute.indexOf("=") + 1);
-    const cleared = !value || value.toLowerCase() === "deleted" || (maxAge !== void 0 ? Number(maxAge) <= 0 : expires && Date.parse(expires) <= Date.now());
+    const expires = expiryAttribute ? Date.parse(expiryAttribute.slice(expiryAttribute.indexOf("=") + 1)) : NaN;
+    const cleared = !value || value.toLowerCase() === "deleted" || maxAge !== void 0 && Number(maxAge) <= 0 || Number.isFinite(expires) && new Date(expires).getUTCFullYear() < 2e3;
     if (cleared) delete jar[name];
     else jar[name] = value;
   }
@@ -51,14 +60,19 @@ function attributes(tag) {
     values[match[1].toLowerCase()] = decode(match[2] ?? match[3] ?? match[4]);
   return values;
 }
-function hasPasswordField(html) {
-  return [...html.matchAll(/<input\b[^>]*>/gi)].some(([tag]) => {
-    const attr = attributes(tag);
-    return attr.type?.toLowerCase() === "password";
-  });
+var inputsIn = (html) => [...html.matchAll(/<input\b[^>]*>/gi)].map(([tag]) => attributes(tag));
+var typeOf = (input) => (input.type || "text").toLowerCase();
+var isPassword = (input) => typeOf(input) === "password";
+var isUserField = (input) => !["password", "hidden", "submit", "button", "checkbox", "radio", "image", "reset"].includes(typeOf(input)) && !!input.name;
+var isSignInPassword = (input) => isPassword(input) && !/old|new|confirm|again|repeat|change/i.test(input.name || "");
+var isSignInUser = (input) => isUserField(input) && /user|login|email|student/i.test(input.name);
+function looksLikeLogin(html) {
+  const inputs = inputsIn(html);
+  return inputs.some(isSignInPassword) && inputs.some(isSignInUser);
 }
+var REJECT_TEXT = /(?:invalid|incorrect|wrong)\s+(?:student\s+(?:number|id)|user\s*name|username|password|credentials|login)|(?:user\s*name|username|password)\s+(?:is\s+|was\s+)?(?:invalid|incorrect|wrong)|access denied|login failed/i;
 function assertLoggedIn(html) {
-  if (hasPasswordField(html)) throw failure(
+  if (looksLikeLogin(html)) throw failure(
     "TA_SESSION_REJECTED",
     "TeachAssist returned to its login page before your marks loaded. Please try signing in again.",
     true
@@ -68,7 +82,25 @@ function assertLoggedIn(html) {
     "TeachAssist is asking this server for a browser verification. You can still use the official TeachAssist site."
   );
 }
+function isErrorRedirect(url) {
+  return [...url.searchParams].some(([key2, value]) => /error/i.test(key2) || /error/i.test(value));
+}
+var numericId = (value) => typeof value === "string" && /^\d+$/.test(value) ? value : null;
+function describe(url) {
+  if (!url) return "";
+  const keys = [...new Set(url.searchParams.keys())];
+  return url.pathname + (keys.length ? `?${keys.join("&")}` : "");
+}
+function note(trace, line) {
+  if (trace && trace.length < 20) trace.push(line);
+}
+function notePage(trace, url, html) {
+  const inputs = inputsIn(html).map((i) => `${typeOf(i)}:${(i.name || "?").slice(0, 30)}`).slice(0, 12);
+  const kind = looksLikeLogin(html) ? "login form" : "page";
+  note(trace, `${describe(url)} \u2192 ${kind}${inputs.length ? ` [${inputs.join(", ")}]` : ""}${REJECT_TEXT.test(html) ? " \xB7 rejection text" : ""}`);
+}
 function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, userAgent }) {
+  const listPath = new URL(courseListUrl).pathname;
   function safeUrl(value, base) {
     let url;
     try {
@@ -81,20 +113,33 @@ function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, use
     url.hash = "";
     return url;
   }
-  async function request(url, options, deadline = Date.now() + 12e3) {
+  async function request(url, options, deadline = Date.now() + 1e4, trace) {
     const remaining = deadline - Date.now();
-    if (remaining <= 0) throw failure("TA_TIMEOUT", "TeachAssist took too long to respond. Please try again.");
+    if (remaining <= 0) throw failure("TA_TIMEOUT", UNREACHABLE);
     let response;
     try {
       response = await fetch(url, {
         ...options,
         redirect: "manual",
-        signal: AbortSignal.timeout(Math.min(12e3, remaining)),
+        signal: AbortSignal.timeout(Math.min(1e4, remaining)),
         headers: { "user-agent": userAgent, accept: "text/html,application/xhtml+xml", ...options.headers }
       });
-    } catch {
-      throw failure("TA_CONNECTION_FAILED", "The server could not connect to TeachAssist. Please try again shortly.", true);
+    } catch (err) {
+      const timedOut = err?.name === "TimeoutError" || err?.name === "AbortError";
+      note(trace, `${options.method} ${describe(new URL(url))} \u2192 ${timedOut ? "timeout" : "connection failed"}`);
+      throw failure(timedOut ? "TA_TIMEOUT" : "TA_CONNECTION_FAILED", UNREACHABLE);
     }
+    const location = response.headers.get("location");
+    let next = "";
+    if (location) {
+      try {
+        next = ` \u2192 ${new URL(location, url).origin === origin ? describe(new URL(location, url)) : "off-site"}`;
+      } catch {
+        next = " \u2192 invalid";
+      }
+    }
+    const set = cookieLines(response).map((c) => c.split("=")[0].trim()).filter(Boolean);
+    note(trace, `${options.method} ${describe(new URL(url))} ${response.status}${next}${set.length ? ` \xB7 sets ${set.join(",")}` : ""}`);
     if (response.status === 429) throw new TeachAssistError(
       "TA_RATE_LIMITED",
       "TeachAssist is limiting sign-in attempts. Please wait a few minutes before trying again.",
@@ -106,13 +151,12 @@ function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, use
     );
     if (response.status >= 400) throw failure(
       "TA_UPSTREAM_UNAVAILABLE",
-      "TeachAssist is temporarily unavailable to this server. Please try again shortly.",
-      response.status >= 500
+      "TeachAssist is temporarily unavailable to this server. Please try again shortly."
     );
     return response;
   }
   function idFrom(url, jar, html = "") {
-    const input = [...html.matchAll(/<input\b[^>]*>/gi)].map(([tag]) => attributes(tag)).find((a) => a.name === "student_id");
+    const input = inputsIn(html).find((a) => a.name === "student_id");
     const candidates = [url.searchParams.get("student_id"), jar.student_id, input?.value];
     for (const [tag] of html.matchAll(/<a\b[^>]*>/gi)) {
       const href = attributes(tag).href;
@@ -123,18 +167,16 @@ function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, use
       } catch {
       }
     }
-    return candidates.find((value) => typeof value === "string" && /^\d+$/.test(value)) || null;
+    return candidates.find(numericId) || null;
   }
-  function isErrorRedirect(url) {
-    return [...url.searchParams.keys()].some((key2) => key2.toLowerCase() === "error");
-  }
-  async function follow(response, url, jar, { deadline, afterLogin = false, method = "GET", body } = {}) {
+  async function follow(response, url, jar, { deadline, trace, afterLogin = false, method = "GET", body } = {}) {
     let studentId = null;
     for (let redirects = 0; ; redirects++) {
       mergeCookies(jar, response);
       studentId = idFrom(url, jar) || studentId;
       if (response.status < 300 || response.status >= 400) {
         const html = await response.text();
+        notePage(trace, url, html);
         return { url, html, studentId: idFrom(url, jar, html) || studentId };
       }
       if (redirects >= 5 || !response.headers.get("location"))
@@ -151,27 +193,33 @@ function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, use
         cookie: cookieHeader(jar),
         referer,
         ...method === "POST" ? { "content-type": "application/x-www-form-urlencoded", origin } : {}
-      } }, deadline);
+      } }, deadline, trace);
     }
   }
   function formFor(html, base) {
     const forms = [...html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form\s*>/gi)].map((m) => m[0]);
-    const form = forms.find(hasPasswordField);
+    const form = forms.find((f) => inputsIn(f).some(isPassword)) || (looksLikeLogin(html) ? html : "");
     const hidden = /* @__PURE__ */ Object.create(null);
-    let action = new URL(loginUrl);
-    if (form) {
-      action = safeUrl(attributes(form.slice(0, form.indexOf(">") + 1)).action || base.href, base);
-      for (const [tag] of form.matchAll(/<input\b[^>]*>/gi)) {
-        const input = attributes(tag);
-        if (input.type?.toLowerCase() === "hidden" && input.name && ![fields.username, fields.password, "submit"].includes(input.name)) hidden[input.name] = input.value || "";
-      }
+    const result = { action: new URL(loginUrl), hidden, names: { username: fields.username, password: fields.password } };
+    if (!form) return result;
+    const formTag = form.match(/<form\b[^>]*>/i)?.[0];
+    if (formTag) result.action = safeUrl(attributes(formTag).action || base.href, base);
+    const inputs = inputsIn(form);
+    const password = inputs.find(isPassword);
+    const users = inputs.filter(isUserField);
+    const user = users.find((i) => i.name === fields.username) || users.find((i) => /user|login|student|name/i.test(i.name)) || users[0];
+    if (password?.name) result.names.password = password.name;
+    if (user?.name) result.names.username = user.name;
+    for (const input of inputs) {
+      if (typeOf(input) === "hidden" && input.name && ![result.names.username, result.names.password].includes(input.name))
+        hidden[input.name] = input.value || "";
     }
-    return { action, hidden };
+    return result;
   }
-  function formBody(env, creds, hidden = {}) {
+  function formBody(env, creds, hidden = {}, names = fields) {
     const body = new URLSearchParams({ ...fields.extra, ...hidden });
-    body.set(fields.username, creds?.username ?? env.TA_USERNAME ?? "");
-    body.set(fields.password, creds?.password ?? env.TA_PASSWORD ?? "");
+    body.set(names.username, creds?.username ?? env.TA_USERNAME ?? "");
+    body.set(names.password, creds?.password ?? env.TA_PASSWORD ?? "");
     return body.toString();
   }
   async function loginResponse2(env, creds) {
@@ -182,10 +230,38 @@ function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, use
     }, body: formBody(env, creds) });
   }
   async function login2(env, creds) {
-    const deadline = Date.now() + 3e4;
-    async function complete(response, action, jar, body) {
-      const landed = await follow(response, action, jar, { deadline, afterLogin: true, method: "POST", body });
-      if (hasPasswordField(landed.html) && /(?:invalid|incorrect|wrong)\s+(?:student\s+(?:number|id)|username|password|credentials)|(?:username|password)\s+(?:is\s+)?(?:invalid|incorrect)/i.test(landed.html)) throw rejection();
+    const deadline = Date.now() + 2e4;
+    const trace = [];
+    async function submit(action, body, jar, headers) {
+      const response = await request(action.href, { method: "POST", body, headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        origin,
+        ...headers
+      } }, deadline, trace);
+      mergeCookies(jar, response);
+      const location = response.headers.get("location");
+      const next = location ? safeUrl(location, action) : null;
+      if (next && isErrorRedirect(next)) throw rejection();
+      const directId = numericId(jar.student_id) || numericId(next?.searchParams.get("student_id"));
+      if (directId && Object.keys(jar).length) {
+        const saved = Object.assign(/* @__PURE__ */ Object.create(null), jar);
+        const listUrl = new URL(`${courseListUrl}?student_id=${encodeURIComponent(directId)}`);
+        const listed = await follow(await request(listUrl.href, { method: "GET", headers: {
+          cookie: cookieHeader(jar),
+          referer: action.href
+        } }, deadline, trace), listUrl, jar, { deadline, trace });
+        if (!looksLikeLogin(listed.html)) {
+          assertLoggedIn(listed.html);
+          const session2 = { jar, cookie: cookieHeader(jar), studentId: directId, trace };
+          if (listed.url.pathname === listPath) session2.listHtml = listed.html;
+          return session2;
+        }
+        note(trace, "direct marks list returned the login form; following TeachAssist redirects");
+        for (const key2 of Object.keys(jar)) delete jar[key2];
+        Object.assign(jar, saved);
+      }
+      const landed = await follow(response, action, jar, { deadline, trace, afterLogin: true, method: "POST", body });
+      if (looksLikeLogin(landed.html)) throw rejection();
       assertLoggedIn(landed.html);
       if (!Object.keys(jar).length) throw failure(
         "TA_SESSION_MISSING",
@@ -197,56 +273,63 @@ function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, use
         "TeachAssist did not return your student record after sign-in. Please try again.",
         true
       );
-      const session = { jar, cookie: cookieHeader(jar), studentId: landed.studentId };
-      if (landed.url.pathname === new URL(courseListUrl).pathname && landed.url.searchParams.get("student_id") === landed.studentId)
+      const session = { jar, cookie: cookieHeader(jar), studentId: landed.studentId, trace };
+      if (landed.url.pathname === listPath && landed.url.searchParams.get("student_id") === landed.studentId)
         session.listHtml = landed.html;
       return session;
     }
+    let firstError;
     try {
-      const jar = /* @__PURE__ */ Object.create(null);
-      const body = formBody(env, creds);
-      const response = await request(loginUrl, { method: "POST", body, headers: {
-        "content-type": "application/x-www-form-urlencoded",
-        origin,
-        referer: loginUrl
-      } }, deadline);
-      return await complete(response, new URL(loginUrl), jar, body);
-    } catch (err) {
-      if (!(err instanceof TeachAssistError) || ["TA_REDIRECT_INVALID", "TA_RATE_LIMITED"].includes(err.code)) throw err;
-    }
-    for (let attempt = 1; ; attempt++) {
       try {
-        const jar = /* @__PURE__ */ Object.create(null);
-        const first = await request(loginUrl, { method: "GET", headers: {} }, deadline);
-        const initial = await follow(first, new URL(loginUrl), jar, { deadline });
-        const form = formFor(initial.html, initial.url);
-        const body = formBody(env, creds, form.hidden);
-        const submitted = await request(form.action.href, { method: "POST", body, headers: {
-          "content-type": "application/x-www-form-urlencoded",
-          origin,
-          referer: initial.url.href,
-          cookie: cookieHeader(jar)
-        } }, deadline);
-        return await complete(submitted, form.action, jar, body);
+        note(trace, "attempt 1: direct sign-in");
+        return await submit(new URL(loginUrl), formBody(env, creds), /* @__PURE__ */ Object.create(null), { referer: loginUrl });
       } catch (err) {
-        if (!(err instanceof TeachAssistError) || !err.retryable || attempt >= 2 || Date.now() + 300 >= deadline) throw err;
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        if (!(err instanceof TeachAssistError) || TRANSPORT_CODES.has(err.code) || Date.now() + 1e3 >= deadline) throw err;
+        firstError = err;
       }
+      try {
+        note(trace, "attempt 2: sign-in through the login form");
+        const jar = /* @__PURE__ */ Object.create(null);
+        const page = await follow(
+          await request(loginUrl, { method: "GET", headers: {} }, deadline, trace),
+          new URL(loginUrl),
+          jar,
+          { deadline, trace }
+        );
+        const form = formFor(page.html, page.url);
+        return await submit(
+          form.action,
+          formBody(env, creds, form.hidden, form.names),
+          jar,
+          { referer: page.url.href, cookie: cookieHeader(jar) }
+        );
+      } catch (err) {
+        throw err instanceof TeachAssistError && TRANSPORT_CODES.has(err.code) ? firstError : err;
+      }
+    } catch (err) {
+      if (err instanceof TeachAssistError) err.trace = trace;
+      throw err;
     }
   }
   async function fetchWithSession2(targetUrl, session, referer) {
-    const url = safeUrl(targetUrl, origin);
-    const deadline = Date.now() + 12e3;
-    const response = await request(url.href, { method: "GET", headers: { cookie: cookieHeader(session.jar), referer } }, deadline);
-    const landed = await follow(response, url, session.jar, { deadline });
-    session.cookie = cookieHeader(session.jar);
-    if (landed.url.pathname.startsWith("/yrdsb/")) throw failure(
-      "TA_SESSION_REJECTED",
-      "TeachAssist redirected back to sign-in before your marks loaded. Please try again.",
-      true
-    );
-    assertLoggedIn(landed.html);
-    return landed.html;
+    const trace = session.trace;
+    try {
+      const url = safeUrl(targetUrl, origin);
+      const deadline = Date.now() + 12e3;
+      const response = await request(url.href, { method: "GET", headers: { cookie: cookieHeader(session.jar), referer } }, deadline, trace);
+      const landed = await follow(response, url, session.jar, { deadline, trace });
+      session.cookie = cookieHeader(session.jar);
+      if (landed.url.pathname.startsWith("/yrdsb/")) throw failure(
+        "TA_SESSION_REJECTED",
+        "TeachAssist redirected back to sign-in before your marks loaded. Please try again.",
+        true
+      );
+      assertLoggedIn(landed.html);
+      return landed.html;
+    } catch (err) {
+      if (err instanceof TeachAssistError && trace) err.trace = trace;
+      throw err;
+    }
   }
   return { login: login2, loginResponse: loginResponse2, fetchWithSession: fetchWithSession2, assertLoggedIn };
 }
@@ -687,7 +770,9 @@ var index_default = {
       return json(out, 200, session ? { "X-TeachAssist-Session": session } : {});
     } catch (err) {
       if (err instanceof TeachAssistError) {
-        return json({ error: err.message, code: err.code }, err.status);
+        if (DEBUG && err.trace) console.log(`Sign-in ${err.code}:
+${err.trace.join("\n")}`);
+        return json({ error: err.message, code: err.code, ...err.trace ? { trace: err.trace } : {} }, err.status);
       }
       return json({ error: "TeachAssist could not load your marks. Please try again.", code: "TA_REQUEST_FAILED" }, 502);
     }
