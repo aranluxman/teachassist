@@ -53,6 +53,10 @@
 
           <div class="error-text" id="auth-error" role="alert"></div>
           <div class="small muted" id="auth-error-code"></div>
+          <details class="small muted hidden" id="auth-error-details">
+            <summary>Technical details (safe to share)</summary>
+            <pre id="auth-error-trace" style="white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0 0"></pre>
+          </details>
           <button type="submit" class="btn" id="auth-submit">Sign In</button>
           <button type="button" class="btn ghost hidden" id="reset-service">Reset sign-in connection</button>
         </form>
@@ -127,6 +131,7 @@
         e.preventDefault();
         errorEl.textContent = "";
         document.getElementById("auth-error-code").textContent = "";
+        document.getElementById("auth-error-details").classList.add("hidden");
 
         const num = document.getElementById("student").value.trim();
         const pass = document.getElementById("password").value;
@@ -138,6 +143,10 @@
         } catch (err) {
           errorEl.textContent = err?.message || "Sign in failed.";
           document.getElementById("auth-error-code").textContent = /^TA_[A-Z_]+$/.test(err?.code || "") ? `Support code: ${err.code}` : "";
+          if (err?.trace?.length) {
+            document.getElementById("auth-error-trace").textContent = err.trace.join("\n");
+            document.getElementById("auth-error-details").classList.remove("hidden");
+          }
           resetService.classList.remove("hidden");
           replay(errorEl, "m-error-in");
           shake(form);
