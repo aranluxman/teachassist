@@ -276,28 +276,34 @@ function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, use
         session.listHtml = landed.html;
       return session;
     }
+    let firstError;
     try {
       try {
         note(trace, "attempt 1: direct sign-in");
         return await submit(new URL(loginUrl), formBody(env, creds), /* @__PURE__ */ Object.create(null), { referer: loginUrl });
       } catch (err) {
         if (!(err instanceof TeachAssistError) || TRANSPORT_CODES.has(err.code) || Date.now() + 1e3 >= deadline) throw err;
+        firstError = err;
       }
-      note(trace, "attempt 2: sign-in through the login form");
-      const jar = /* @__PURE__ */ Object.create(null);
-      const page = await follow(
-        await request(loginUrl, { method: "GET", headers: {} }, deadline, trace),
-        new URL(loginUrl),
-        jar,
-        { deadline, trace }
-      );
-      const form = formFor(page.html, page.url);
-      return await submit(
-        form.action,
-        formBody(env, creds, form.hidden, form.names),
-        jar,
-        { referer: page.url.href, cookie: cookieHeader(jar) }
-      );
+      try {
+        note(trace, "attempt 2: sign-in through the login form");
+        const jar = /* @__PURE__ */ Object.create(null);
+        const page = await follow(
+          await request(loginUrl, { method: "GET", headers: {} }, deadline, trace),
+          new URL(loginUrl),
+          jar,
+          { deadline, trace }
+        );
+        const form = formFor(page.html, page.url);
+        return await submit(
+          form.action,
+          formBody(env, creds, form.hidden, form.names),
+          jar,
+          { referer: page.url.href, cookie: cookieHeader(jar) }
+        );
+      } catch (err) {
+        throw err instanceof TeachAssistError && TRANSPORT_CODES.has(err.code) ? firstError : err;
+      }
     } catch (err) {
       if (err instanceof TeachAssistError) err.trace = trace;
       throw err;

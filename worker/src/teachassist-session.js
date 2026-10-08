@@ -245,6 +245,7 @@ export function createTeachAssistSession({ origin, loginUrl, courseListUrl, fiel
         session.listHtml = landed.html;
       return session;
     }
+    let firstError;
     try {
       try {
         // The original working route: a direct form POST, no login-page GET.
@@ -252,16 +253,22 @@ export function createTeachAssistSession({ origin, loginUrl, courseListUrl, fiel
         return await submit(new URL(loginUrl), formBody(env, creds), Object.create(null), { referer: loginUrl });
       } catch (err) {
         if (!(err instanceof TeachAssistError) || TRANSPORT_CODES.has(err.code) || Date.now() + 1000 >= deadline) throw err;
+        firstError = err;
       }
-      // A fresh, isolated browser session carries pre-login cookies, hidden
-      // fields and the form's real input names into the credential POST.
-      note(trace, 'attempt 2: sign-in through the login form');
-      const jar = Object.create(null);
-      const page = await follow(await request(loginUrl, { method: 'GET', headers: {} }, deadline, trace),
-        new URL(loginUrl), jar, { deadline, trace });
-      const form = formFor(page.html, page.url);
-      return await submit(form.action, formBody(env, creds, form.hidden, form.names), jar,
-        { referer: page.url.href, cookie: cookieHeader(jar) });
+      try {
+        // A fresh, isolated browser session carries pre-login cookies, hidden
+        // fields and the form's real input names into the credential POST.
+        note(trace, 'attempt 2: sign-in through the login form');
+        const jar = Object.create(null);
+        const page = await follow(await request(loginUrl, { method: 'GET', headers: {} }, deadline, trace),
+          new URL(loginUrl), jar, { deadline, trace });
+        const form = formFor(page.html, page.url);
+        return await submit(form.action, formBody(env, creds, form.hidden, form.names), jar,
+          { referer: page.url.href, cookie: cookieHeader(jar) });
+      } catch (err) {
+        // A network hiccup on the retry must not hide TeachAssist's real answer.
+        throw err instanceof TeachAssistError && TRANSPORT_CODES.has(err.code) ? firstError : err;
+      }
     } catch (err) {
       if (err instanceof TeachAssistError) err.trace = trace;
       throw err;

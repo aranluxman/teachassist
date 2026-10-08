@@ -198,3 +198,11 @@ test('an unreachable TeachAssist fails once, quickly, with a clear message', asy
     assert.equal(calls,1);
   });
 });
+test('a timeout on the form retry still reports the first, real rejection', async()=>{
+  await mocked(async(url,options)=>{
+    if(options.method==='GET')throw new TypeError('network');
+    return redirect('/live/index.php?error_message=3');
+  },async()=>{
+    await assert.rejects(client.login({},creds),err=>err.code==='TA_LOGIN_REJECTED'&&err.trace.some(l=>/connection failed/.test(l)));
+  });
+});
