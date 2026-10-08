@@ -12,7 +12,7 @@
 
 import { readHistory, recordSnapshot } from "./history.js";
 import { validServerUrl } from "./student-store.js";
-import { WORKER_URL } from "./config.js";
+import { WORKER_URL, LEGACY_WORKER_URL } from "./config.js";
 import { DEMO_COURSES, DEMO_SCRAPED_AT } from "./demo-data.js";
 
 const LS = {
@@ -33,11 +33,23 @@ export function lastSyncedAt() {
 
 // ---- per-device settings ---------------------------------------------------
 export function workerUrl() {
-  return (localStorage.getItem(LS.url) || WORKER_URL || "").trim().replace(/\/+$/, "");
+  let saved = (localStorage.getItem(LS.url) || "").trim().replace(/\/+$/, "");
+  // Upgrade an old saved default once, so existing phones use the bundled
+  // backend as well. Explicit custom servers remain untouched.
+  if (localStorage.getItem("ta_service_version") !== "pages-v1") {
+    if (saved === LEGACY_WORKER_URL) {
+      localStorage.removeItem(LS.url);
+      saved = "";
+    }
+    localStorage.removeItem("ta_api_key");
+    localStorage.setItem("ta_service_version", "pages-v1");
+  }
+  return saved || WORKER_URL;
 }
 export function setWorkerUrl(u) {
   const value = validServerUrl(u || WORKER_URL);
   localStorage.setItem(LS.url, value);
+  localStorage.setItem("ta_service_version", "pages-v1");
   cache = null;
   cachedAt = null;
 }
@@ -110,12 +122,26 @@ async function postMarks(username, pass) {
   } catch {
     /* non-JSON */
   }
+  if (res.status === 401 && body?.error === "Unauthorized") {
+    throw new Error("This sign-in server is out of date. Use Reset sign-in connection below, then try again.");
+  }
   if (res.status === 401) throw new Error("Sign-in failed. Check your student number and password.");
+  if (res.status === 404 || res.status === 405 || (res.ok && !Array.isArray(body))) {
+    throw new Error("The website’s sign-in service is not available yet. Please ask the site owner to redeploy the latest website version.");
+  }
   if (!res.ok) throw new Error((body && body.error) || `Worker returned HTTP ${res.status}`);
   if (!Array.isArray(body)) throw new Error("Unexpected response from the Worker.");
   const token = res.headers.get("X-TeachAssist-Session");
   if (token) sessionStorage.setItem(`ta-session:${url}:${username}`, token);
   return body;
+}
+
+export function resetSignInService() {
+  localStorage.removeItem(LS.url);
+  localStorage.removeItem("ta_api_key");
+  localStorage.setItem("ta_service_version", "pages-v1");
+  cache = null;
+  cachedAt = null;
 }
 
 /** Sign in: validates the credentials by fetching marks, then stores them. */

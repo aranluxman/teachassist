@@ -8,7 +8,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "test": "node test/run.mjs && node test/cache.mjs && node test/student-login.mjs"
+    "test": "node test/run.mjs && node test/cache.mjs && node test/student-login.mjs && node test/pages.mjs && npm run check:pages",
+    "build:pages": "node scripts/build-pages.mjs",
+    "check:pages": "node scripts/build-pages.mjs --check"
   },
   "devDependencies": {
     "esbuild": "^0.27.3",

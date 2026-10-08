@@ -1,9 +1,10 @@
 # TeachAssist Dashboard (frontend)
 
 A clean, mobile-first dashboard for **YRDSB TeachAssist** marks, built as
-**plain static files** — no framework, no build step. Marks come from the
-companion Cloudflare Worker (see [`../worker`](../worker)), which signs into
-`ta.yrdsb.ca` and returns them as JSON.
+**static frontend files with a bundled Pages sign-in service** — no framework
+or deployment build command needed. The checked-in `_worker.js` signs into
+`ta.yrdsb.ca` on the server and returns each student’s own marks as JSON. Its
+source and rebuild command live in [`../worker`](../worker).
 
 ## Two ways to use it
 
@@ -32,13 +33,17 @@ companion Cloudflare Worker (see [`../worker`](../worker)), which signs into
 
 ## Run locally
 
-ES modules require HTTP (not `file://`). Serve the folder with any static server:
+ES modules require HTTP (not `file://`). For demo/UI work, serve the folder with any static server:
 
 ```bash
 # from this frontend/ directory
 python3 -m http.server 8080
 # then open http://localhost:8080/
 ```
+
+For local student sign-in, run `npx wrangler pages dev ../frontend` from `worker/`
+instead of the static server. Live sign-in needs network access to TeachAssist;
+regression tests simulate that upstream.
 
 ## Deploy on Cloudflare Pages
 
@@ -87,7 +92,7 @@ Run `npm test` at the repository root for frontend, grade math, AI validation, a
 
 ### Release
 
-Publish `frontend/` through the existing Cloudflare Pages configuration. Deploy the Worker separately from `worker/` using its existing deployment workflow; `[ai] binding = "AI"` is included in `wrangler.toml`. Workers AI usage is billed/limited under the Cloudflare account. Until that Worker is deployed, local calculations remain available and natural-language questions cannot use the new endpoint.
+Publish `frontend/` through the existing Cloudflare Pages configuration. The Pages backend now deploys with these files; see “Publishing the sign-in fix” below for optional AI bindings and rebuilding the bundle. Workers AI usage is billed/limited under the Cloudflare account.
 
 
 ### Phone layout
@@ -98,7 +103,7 @@ Publish `frontend/` through the existing Cloudflare Pages configuration. Deploy 
 ## Student sign-in and tools (v4.1)
 
 The home page asks only for a student number and password. Users do not need a
-Worker URL or API key. The default service is configured in `js/config.js`.
+Worker URL or API key. The default service is this website’s own origin, configured in `js/config.js`.
 Credentials remain in browser localStorage until sign-out (including for reload
 and foreground refresh); students using a shared device should sign out.
 
@@ -140,14 +145,30 @@ routes retain their existing administrative gate.
   Diagnostic reports are previewed before downloading/sharing and exclude student
   numbers, grades, credentials, profile data, and server URLs.
 
-### Release order for a shareable phone link
+### Publishing the sign-in fix
 
-1. Deploy `worker/` first using the existing Cloudflare account and `API_KEY`
-   secret. No student needs to know this secret. Keep `DASHBOARD_ORIGIN` matched
-   to the frontend's public origin (`https://teachassist.pages.dev` by default).
-2. Deploy `frontend/` to the existing Cloudflare Pages project.
-3. Verify sign-in with two real YRDSB accounts, sign-out, and invalid-password
-   handling on the published site before distributing the link.
+Deploy `frontend/` through the existing Cloudflare Pages Git integration. Pages
+recognizes its bundled `_worker.js` automatically; `_routes.json` sends `/api/*`
+requests to it and serves the rest as static assets. Frontend and sign-in backend
+now deploy together. No separate Worker deployment, API key, KV binding, or owner
+school credentials are needed for students to sign in.
 
-Tests use simulated TeachAssist responses; real school credentials are not
-included. Run `npm test` at the repository root and in `worker/`.
+The default API is the website's own origin, including on preview domains. Old
+saved references to the standalone `teachassist-marks.aran-luxman.workers.dev`
+service migrate once to that default. Other custom servers are preserved. A
+failed sign-in offers **Reset sign-in connection** without exposing configuration
+fields. Legacy API keys are removed from browser storage during migration.
+
+The Pages backend exposes only student marks, the assistant, and a public
+`GET /api/status` health check. Owner/cache/debug APIs are not accessible there.
+AI questions require an `AI` binding and a server-only `API_KEY` on the Pages
+project. Without those optional bindings, ordinary sign-in and local calculators
+still work, and AI requests explain that setup is missing. The standalone Worker
+remains available for the optional owner cron and custom installations.
+
+After changing backend source, run `npm --prefix worker run build:pages` and
+commit `frontend/_worker.js`. `npm --prefix worker test` checks the bundle matches
+its source and exercises both production and preview sign-in with two simulated
+students and no secrets. Root tests and browser checks cover connection migration,
+invalid-password recovery, and account isolation. Real school login must still
+be checked on the published site; no real school credentials are in these tests.
