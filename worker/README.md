@@ -28,6 +28,14 @@ file. `npm test` checks that bundle and exercises the Pages service without any
 secrets. Optional Pages AI questions require an `AI` binding and a server-side
 `API_KEY`; ordinary sign-in and local calculators need neither.
 
+Student login first uses the original direct TeachAssist form POST. If that
+cannot complete a session, the server loads the login page, carries its cookies
+and hidden fields into a second POST, and follows same-origin redirects. It
+returns named error codes for missing/expired sessions, upstream blocks, and
+other connection failures. Only an explicit TeachAssist rejection returns a
+login-rejected response; the UI displays the safe support code without showing
+credentials or cookies.
+
 The standalone Worker deployment remains optional for the owner cron, existing
 private integrations, or an explicitly chosen custom server. Its setup and debugging
 instructions below apply only to administrators. The browser no longer contacts

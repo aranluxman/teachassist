@@ -1,3 +1,4 @@
+import { createTeachAssistSession, TeachAssistError, extractCookies } from "./teachassist-session.js";
 import { issueSession, verifySession } from "./session.js";
 import {interpretQuestion} from "./assistant.js";
 /**
@@ -98,8 +99,10 @@ const DEBUG = true;
 // ║  END OF CONFIG — you normally don't need to edit below this line           ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
-/** Error type for "could not log in / session rejected" situations. */
-class AuthError extends Error {}
+const { login, loginResponse, fetchWithSession, assertLoggedIn } = createTeachAssistSession({
+  origin: TA_ORIGIN, loginUrl: LOGIN_URL, courseListUrl: COURSE_LIST_URL,
+  fields: LOGIN_FIELDS, userAgent: BROWSER_UA,
+});
 
 export default {
   /**
@@ -247,7 +250,7 @@ export default {
       if (debug === "courses" || debug === "report") {
         const session = await login(env, creds);
         const listUrl = `${COURSE_LIST_URL}?student_id=${encodeURIComponent(session.studentId)}`;
-        const listHtml = await fetchWithSession(listUrl, session.cookie, LOGIN_URL);
+        const listHtml = session.listHtml ?? await fetchWithSession(listUrl, session, LOGIN_URL);
 
         // debug=courses returns the raw page so you can verify the HTML structure.
         if (debug === "courses") return text(listHtml);
@@ -277,7 +280,7 @@ export default {
         }
         const html = await fetchWithSession(
           `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(sid)}&student_id=${encodeURIComponent(session.studentId)}`,
-          session.cookie,
+          session,
           listUrl
         );
         return text(html);
@@ -291,9 +294,10 @@ export default {
       const session = publicSignIn ? await issueSession(env.API_KEY) : "";
       return json(out, 200, session ? { "X-TeachAssist-Session": session } : {});
     } catch (err) {
-      // Login problems -> 401, everything else (network, parsing) -> 502.
-      const status = err instanceof AuthError ? 401 : 502;
-      return json({ error: safeMessage(err) }, status);
+      if (err instanceof TeachAssistError) {
+        return json({ error: err.message, code: err.code }, err.status);
+      }
+      return json({ error: "TeachAssist could not load your marks. Please try again.", code: "TA_REQUEST_FAILED" }, 502);
     }
   },
 
@@ -334,7 +338,7 @@ async function scrapeMarks(env, creds) {
 
   // 3: fetch the marks-list page with that cookie (student_id from login).
   const listUrl = `${COURSE_LIST_URL}?student_id=${encodeURIComponent(session.studentId)}`;
-  const listHtml = await fetchWithSession(listUrl, session.cookie, LOGIN_URL);
+  const listHtml = session.listHtml ?? await fetchWithSession(listUrl, session, LOGIN_URL);
   assertLoggedIn(listHtml);
 
   // 4: parse course code, name and current mark.
@@ -355,7 +359,7 @@ async function scrapeMarks(env, creds) {
           const reportUrl =
             `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(c.subjectId)}` +
             `&student_id=${encodeURIComponent(c.studentId)}`;
-          const reportHtml = await fetchWithSession(reportUrl, session.cookie, COURSE_LIST_URL);
+          const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL);
           c.evaluations = await parseEvaluations(reportHtml);
           // The report carries the calculated "Course" mark even when the list
           // page only says "please see teacher". Use it as currentMark.
@@ -450,170 +454,6 @@ function overallOf(courses) {
 /** { code: mark } map for the compact daily snapshot. */
 function marksOf(courses) {
   return Object.fromEntries((courses || []).map((c) => [c.code, displayMarkOf(c)]));
-}
-
-// ============================================================================
-// LOGIN + SESSION
-// ============================================================================
-
-/**
- * @typedef {Object} Session
- * @property {string} cookie     Cookie header to send on every request
- * @property {string|null} studentId  used to build per-course report URLs
- */
-
-/**
- * Step 1 + 2: POST the login form (form-url-encoded) and capture the session
- * cookie. TeachAssist replies 302 and sets `session_token`. We use
- * `redirect: "manual"` so the Set-Cookie header survives.
- *
- * @param {{ TA_USERNAME: string, TA_PASSWORD: string }} env
- * @returns {Promise<Session>}
- */
-async function login(env, creds) {
-  // TeachAssist's login is flaky from Cloudflare (intermittent timeouts /
-  // missing Set-Cookie), so retry a few times — but stop immediately if the
-  // credentials are genuinely rejected.
-  let lastErr = new AuthError("Login failed.");
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const res = await loginResponse(env, creds);
-      const jar = extractCookies(res);
-      const session = jar[SESSION_COOKIE_NAME];
-      const location = res.headers.get("location") || "";
-
-      if (session) {
-        const studentId =
-          jar.student_id || (location.match(/student_id=(\d+)/) || [])[1] || null;
-        if (!studentId) throw new AuthError("Logged in, but could not determine your student_id.");
-        if (DEBUG) console.log(`Login OK on attempt ${attempt}; cookies: ${Object.keys(jar).join(", ")}`);
-        return { cookie: cookieHeader(jar), studentId };
-      }
-      // No session cookie. If TeachAssist redirected with an error, the
-      // credentials are wrong — don't keep retrying.
-      if (/error/i.test(location)) {
-        throw new AuthError("Login failed: TeachAssist rejected your student number or password.");
-      }
-      lastErr = new AuthError(
-        `Login failed: no valid '${SESSION_COOKIE_NAME}' cookie returned.`
-      );
-    } catch (e) {
-      lastErr = e;
-      if (e instanceof AuthError && /rejected/i.test(e.message)) throw e;
-    }
-    if (attempt < 3) await new Promise((r) => setTimeout(r, 500));
-  }
-  throw lastErr;
-}
-
-/**
- * Perform the raw login POST. Credentials come from the request (`creds`) when
- * provided (browser sign-in), otherwise from the Worker secrets (GET fallback).
- * The password is never logged or stored.
- */
-function loginResponse(env, creds) {
-  const username = creds?.username ?? env.TA_USERNAME;
-  const password = creds?.password ?? env.TA_PASSWORD;
-  const body = new URLSearchParams();
-  body.set(LOGIN_FIELDS.username, username || "");
-  body.set(LOGIN_FIELDS.password, password || "");
-  for (const [k, v] of Object.entries(LOGIN_FIELDS.extra || {})) body.set(k, v);
-
-  return fetch(LOGIN_URL, {
-    method: "POST",
-    redirect: "manual", // we must read Set-Cookie + Location off the 302
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
-      "user-agent": BROWSER_UA,
-      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      origin: TA_ORIGIN,
-      referer: LOGIN_URL,
-    },
-    body: body.toString(),
-  });
-}
-
-/**
- * Step 3 / 5: GET a TeachAssist page using the captured session cookie.
- * Returns the response body as text. Throws AuthError if we get bounced to a
- * login redirect (which means the session was not accepted).
- *
- * @param {string} targetUrl
- * @param {string} cookie    Cookie header value from login()
- * @param {string} referer
- * @returns {Promise<string>}
- */
-async function fetchWithSession(targetUrl, cookie, referer) {
-  const res = await fetch(targetUrl, {
-    method: "GET",
-    redirect: "manual",
-    headers: {
-      cookie,
-      "user-agent": BROWSER_UA,
-      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      referer,
-    },
-  });
-
-  // A redirect on an authenticated page almost always means "please log in".
-  if (res.status >= 300 && res.status < 400) {
-    const loc = res.headers.get("location") || "(unknown)";
-    throw new AuthError(`Session not accepted (redirected to ${loc}).`);
-  }
-
-  return await res.text();
-}
-
-/**
- * Defensive check: if a page that should be behind the login still contains a
- * password field, the session was not accepted.
- */
-function assertLoggedIn(html) {
-  const looksLikeLogin =
-    /type=["']?password["']?/i.test(html) &&
-    /name=["']?password["']?/i.test(html);
-  if (looksLikeLogin) {
-    throw new AuthError(
-      "Session not accepted (received the login page). Verify credentials " +
-        "and the CONFIG constants."
-    );
-  }
-}
-
-/**
- * Parse all Set-Cookie headers from a response into a { name: value } map,
- * skipping cookies that were cleared (empty or "deleted").
- *
- * Uses Headers.getSetCookie() (multiple Set-Cookie headers as an array) when
- * available, falling back to the single combined header otherwise.
- */
-function extractCookies(res) {
-  /** @type {Record<string,string>} */
-  const jar = {};
-  const list =
-    typeof res.headers.getSetCookie === "function"
-      ? res.headers.getSetCookie()
-      : res.headers.get("set-cookie")
-      ? [res.headers.get("set-cookie")]
-      : [];
-
-  for (const raw of list) {
-    const first = raw.split(";", 1)[0]; // "name=value"
-    const eq = first.indexOf("=");
-    if (eq === -1) continue;
-    const name = first.slice(0, eq).trim();
-    const value = first.slice(eq + 1).trim();
-    if (!value || value.toLowerCase() === "deleted") continue;
-    jar[name] = value;
-  }
-  return jar;
-}
-
-/** Turn a cookie map into a `Cookie:` header value. */
-function cookieHeader(jar) {
-  return Object.entries(jar)
-    .map(([k, v]) => `${k}=${v}`)
-    .join("; ");
 }
 
 // ============================================================================

@@ -52,6 +52,7 @@
           </div>
 
           <div class="error-text" id="auth-error" role="alert"></div>
+          <div class="small muted" id="auth-error-code"></div>
           <button type="submit" class="btn" id="auth-submit">Sign In</button>
           <button type="button" class="btn ghost hidden" id="reset-service">Reset sign-in connection</button>
         </form>
@@ -125,6 +126,7 @@
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         errorEl.textContent = "";
+        document.getElementById("auth-error-code").textContent = "";
 
         const num = document.getElementById("student").value.trim();
         const pass = document.getElementById("password").value;
@@ -135,6 +137,7 @@
           window.location.replace("app.html");
         } catch (err) {
           errorEl.textContent = err?.message || "Sign in failed.";
+          document.getElementById("auth-error-code").textContent = /^TA_[A-Z_]+$/.test(err?.code || "") ? `Support code: ${err.code}` : "";
           resetService.classList.remove("hidden");
           replay(errorEl, "m-error-in");
           shake(form);

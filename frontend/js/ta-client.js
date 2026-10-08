@@ -125,7 +125,12 @@ async function postMarks(username, pass) {
   if (res.status === 401 && body?.error === "Unauthorized") {
     throw new Error("This sign-in server is out of date. Use Reset sign-in connection below, then try again.");
   }
-  if (res.status === 401) throw new Error("Sign-in failed. Check your student number and password.");
+  if (body?.code?.startsWith("TA_") && typeof body.error === "string") {
+    const error = new Error(body.error);
+    error.code = body.code;
+    throw error;
+  }
+  if (res.status === 401) throw new Error(body?.error || "TeachAssist could not complete sign-in. Please try again.");
   if (res.status === 404 || res.status === 405 || (res.ok && !Array.isArray(body))) {
     throw new Error("The website’s sign-in service is not available yet. Please ask the site owner to redeploy the latest website version.");
   }
