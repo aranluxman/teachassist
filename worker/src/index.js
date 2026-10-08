@@ -1,21 +1,10 @@
+import { issueSession, verifySession } from "./session.js";
 import {interpretQuestion} from "./assistant.js";
 /**
- * Personal TeachAssist marks fetcher — Cloudflare Worker
- * ----------------------------------------------------------------------------
- * Logs into the YRDSB TeachAssist site (ta.yrdsb.ca) using MY OWN credentials
- * (provided as encrypted Worker secrets) and returns MY marks as JSON.
- *
- * Single route:  GET /api/marks
- *
- * This is a personal, single-user tool. Credentials live ONLY as Worker
- * secrets (TA_USERNAME / TA_PASSWORD). They are never hardcoded, never logged,
- * and never returned to the browser.
- *
- * TeachAssist is an unofficial, undocumented site, so EVERY endpoint, form
- * field name, cookie name and HTML selector that might change is hoisted into
- * the clearly-labelled CONFIG block below. After inspecting your own browser's
- * DevTools → Network tab, correct any value here that doesn't match reality.
- * ============================================================================
+ * TeachAssist sign-in service. Student POSTs use only the submitted credentials
+ * and return that student's marks without storing them in the owner cache.
+ * Owner GET/debug/cache routes remain protected by API_KEY. The daily cron is
+ * an optional owner-only feature using TA_USERNAME/TA_PASSWORD secrets.
  */
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
@@ -30,8 +19,8 @@ import {interpretQuestion} from "./assistant.js";
 const DASHBOARD_ORIGIN = "https://teachassist.pages.dev";
 
 // --- Optional shared-secret gate -------------------------------------------
-// When true, every request must send the API_KEY secret in API_KEY_HEADER so
-// that only you can call the endpoint. Set the secret with:
+// When true, owner GET/debug/cache requests must send API_KEY.
+// Student POST sign-ins never require this administrative secret. Set the secret with:
 //   wrangler secret put API_KEY
 const REQUIRE_API_KEY = true;
 const API_KEY_HEADER = "x-api-key";
@@ -129,7 +118,9 @@ export default {
     if (url.pathname === "/api/assistant") {
       if (request.method !== "POST") return json({error:"Use POST."},405);
       const provided = request.headers.get(API_KEY_HEADER);
-      if (!env.API_KEY || !provided || !timingSafeEqual(provided, env.API_KEY)) return json({error:"Connect your Worker API key in Settings to use AI."},401);
+      if (!(env.API_KEY && provided && timingSafeEqual(provided, env.API_KEY)) &&
+          !await verifySession(request.headers.get("Authorization")?.replace(/^Bearer /, ""), env.API_KEY))
+        return json({error:"Your session expired. Refresh your courses, then try again."},401);
       const origin = request.headers.get("Origin");
       if (origin && origin !== DASHBOARD_ORIGIN) return json({error:"Origin not allowed."},403);
       const result = await interpretQuestion(request, env);
@@ -186,35 +177,44 @@ export default {
       return json({ error: "Not found", hint: "Use GET or POST /api/marks" }, 404);
     }
 
-    // Shared-secret gate: x-api-key header or ?key= query param.
-    if (REQUIRE_API_KEY) {
+    // Owner-only GET/debug routes keep the API-key gate. Student POSTs authenticate
+    // exclusively with the credentials in that request.
+    const publicSignIn = request.method === "POST" && !url.searchParams.has("debug");
+    const origin = request.headers.get("Origin");
+    if (origin && origin !== DASHBOARD_ORIGIN) return json({ error: "Origin not allowed." }, 403);
+    if (!publicSignIn && REQUIRE_API_KEY) {
       const provided = request.headers.get(API_KEY_HEADER) || url.searchParams.get("key");
       if (!env.API_KEY || !provided || !timingSafeEqual(provided, env.API_KEY)) {
         return json({ error: "Unauthorized" }, 401);
       }
     }
 
-    // Credentials: from the POST body (browser sign-in) or the Worker secrets
-    // (GET fallback). The password is never logged, stored, or returned.
+    // A missing or malformed POST must NEVER fall back to the owner's secrets.
     let creds = null;
     if (request.method === "POST") {
       try {
-        const b = await request.json();
-        if (b && b.username && b.password) {
-          creds = { username: String(b.username), password: String(b.password) };
+        const reader = request.body?.getReader();
+        if (!reader) throw new Error();
+        let size = 0, chunks = [];
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > 8192) { await reader.cancel(); return json({ error: "Sign-in request is too large." }, 413); }
+          chunks.push(value);
         }
+        const bytes = new Uint8Array(size);
+        let offset = 0;
+        for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+        const b = JSON.parse(new TextDecoder().decode(bytes));
+        if (typeof b?.username !== "string" || !/^\d{1,20}$/.test(b.username.trim()) ||
+            typeof b.password !== "string" || !b.password || b.password.length > 1024) throw new Error();
+        creds = { username: b.username.trim(), password: b.password };
       } catch {
-        /* ignore bad/empty body */
+        return json({ error: "Enter your student number and password." }, 400);
       }
-    }
-    if (!creds && (!env.TA_USERNAME || !env.TA_PASSWORD)) {
-      return json(
-        {
-          error:
-            "No credentials. Send {username, password} in a POST body, or set TA_USERNAME/TA_PASSWORD secrets.",
-        },
-        400
-      );
+    } else if (!env.TA_USERNAME || !env.TA_PASSWORD) {
+      return json({ error: "Owner credentials are not configured." }, 400);
     }
 
     // Optional debug switches (all behind the API-key gate above; none of them
@@ -283,10 +283,13 @@ export default {
         return text(html);
       }
 
-      // Normal path: scrape live, cache the result in KV (best-effort), return.
+      // Scrape only the selected account and return its marks.
       const out = await scrapeMarks(env, creds);
-      storeMarks(env, ctx, out);
-      return json(out, 200);
+      // Only the owner GET/cron writes the shared owner cache. Student responses
+      // are returned directly and are never stored in that cache.
+      if (request.method === "GET") storeMarks(env, ctx, out);
+      const session = publicSignIn ? await issueSession(env.API_KEY) : "";
+      return json(out, 200, session ? { "X-TeachAssist-Session": session } : {});
     } catch (err) {
       // Login problems -> 401, everything else (network, parsing) -> 502.
       const status = err instanceof AuthError ? 401 : 502;
@@ -901,7 +904,9 @@ function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": DASHBOARD_ORIGIN,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": `Content-Type, ${API_KEY_HEADER}`,
+    "Access-Control-Allow-Headers": `Content-Type, Authorization, ${API_KEY_HEADER}`,
+    "Access-Control-Expose-Headers": "X-TeachAssist-Session",
+    "Cache-Control": "no-store",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };

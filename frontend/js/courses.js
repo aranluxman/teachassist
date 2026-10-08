@@ -1,3 +1,4 @@
+import { historyCard } from "./history-view.js";
 import { preferences } from "./personalization.js";
 // ============================================================================
 // Courses screen + shared UI helpers
@@ -299,6 +300,8 @@ export async function renderCourses(container, { refresh = false } = {}) {
     animateGauge(gaugeCard, overall, { from: previousValue("overall", 0) });
     rememberValue("overall", overall);
   }
+
+  container.append(historyCard(courses.map(c => c.code)));
 
   const p = preferences();
   const dream = el(

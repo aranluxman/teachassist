@@ -1,0 +1,34 @@
+/* Student tools extend the existing theme tokens and phone layout. */
+.profile-shortcut { margin-left: auto; flex-shrink: 0; width: auto; min-height: 44px; padding: 8px 12px; }
+.tool-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; }
+.tool-heading h2, .tool-heading p { margin: 0; }
+.tool-heading .btn { width: auto; flex-shrink: 0; min-height: 44px; }
+.tool-heading > div, .tool-heading time { min-width: 0; overflow-wrap: anywhere; }
+.tool-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.tool-buttons .btn { flex: 1; min-width: 120px; }
+.grade-history svg { width: 100%; height: auto; display: block; }
+.grade-history summary, details.card > summary, .card > details > summary { cursor: pointer; padding: 12px 0; min-height: 44px; font-weight: 600; }
+.history-records { max-height: 240px; overflow-y: auto; font-size: 12px; }
+.profile-hero { text-align: center; background-size: cover; background-position: center; }
+.profile-details { border-radius: 18px; padding: 20px; background: var(--card); opacity: .97; }
+.profile-avatar { width: 96px; height: 96px; border-radius: 24px; background: var(--track); margin: 0 auto 18px; display: grid; place-items: center; overflow: hidden; font-size: 48px; color: var(--accent); }
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.quick-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.quick-action { border: 1px solid var(--border); border-radius: 16px; background: var(--bg); color: var(--text); padding: 18px 10px; font: inherit; cursor: pointer; min-height: 110px; overflow-wrap: anywhere; }
+.quick-action span { display: block; font-size: 28px; color: var(--accent); margin-bottom: 8px; }
+.quick-action:hover { border-color: var(--accent); }
+.student-id .id-number { font-size: 24px; font-weight: 700; overflow-wrap: anywhere; }
+.volunteer-list progress { width: 100%; accent-color: var(--accent); margin: 12px 0; }
+.debug-preview { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 45vh; overflow: auto; font-size: 12px; }
+.app-notice { position: fixed; z-index: 100; left: 50%; transform: translateX(-50%); bottom: calc(90px + env(safe-area-inset-bottom)); width: min(440px, calc(100vw - 32px)); background: var(--card); color: var(--text); border: 1px solid var(--border); box-shadow: 0 8px 30px #0003; padding: 16px; border-radius: 18px; display: flex; gap: 12px; }
+.app-notice p { font-size: 14px; white-space: pre-line; margin: 6px 0 0; }
+.app-notice button { background: transparent; color: inherit; border: 0; font-size: 24px; min-width: 44px; min-height: 44px; cursor: pointer; }
+.app-notice > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.preference-row input:disabled { opacity: .45; cursor: not-allowed; }
+#screen-profile > .btn { margin-top: 12px; }
+@media (max-width: 380px) { .profile-shortcut span { display: none; } .tool-heading { flex-wrap: wrap; } }
+#screen-profile .screen-header .btn { width: auto; }
+.quick-action svg { width: 28px; height: 28px; }
+.profile-avatar svg { width: 48px; height: 48px; }
+.profile-shortcut { display: flex; align-items: center; gap: 8px; }
+.profile-shortcut svg { width: 20px; height: 20px; }

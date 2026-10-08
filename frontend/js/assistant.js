@@ -1,5 +1,5 @@
 import { el } from "./courses.js";
-import { workerUrl, apiKey, isDemo } from "./ta-client.js";
+import { workerUrl, sessionToken, isDemo } from "./ta-client.js";
 import { calculatePlan, localPlan } from "./grade-math.js";
 import {
   countUp,
@@ -59,7 +59,7 @@ export function renderAssistant(container) {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            "x-api-key": apiKey(),
+            "Authorization": `Bearer ${sessionToken()}`,
           },
           body: JSON.stringify({ question: q }),
           signal: AbortSignal.timeout(30000),

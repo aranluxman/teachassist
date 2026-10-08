@@ -8,7 +8,7 @@ companion Cloudflare Worker (see [`../worker`](../worker)), which signs into
 ## Two ways to use it
 
 1. **Live** — sign in with your YRDSB student number + password. The
-   credentials are POSTed only to *your own* Worker, which scrapes TeachAssist
+   credentials are POSTed to the configured sign-in service, which scrapes TeachAssist
    and returns your courses and evaluations.
 2. **Demo** — tap **Explore the demo** on the sign-in screen. A complete,
    bundled Grade 9 TeachAssist snapshot loads instantly: 8 courses with every
@@ -27,8 +27,8 @@ companion Cloudflare Worker (see [`../worker`](../worker)), which signs into
 - **Guidance** — curated YRDSB / Ontario planning, academic, and support links.
 - **Science** — a static analytics deep-dive for the Grade 9 Science course.
 - **Links** — an editable, locally-stored list of student tools.
-- **Settings** — 9 colour themes (including two dark modes, all
-  WCAG-AA-contrast checked), Worker connection settings, refresh, sign out.
+- **Settings** — 15 colour themes, notification preferences, advanced server settings, diagnostic reports, refresh, and sign out.
+- **Profile** — editable name, school, photo and cover; customizable quick actions, volunteer log, exam calculator, and student ID reference.
 
 ## Run locally
 
@@ -93,3 +93,61 @@ Publish `frontend/` through the existing Cloudflare Pages configuration. Deploy 
 ### Phone layout
 
 `css/mobile.css` loads after the shared design system. Below 768px, the dashboard uses a compact average and dream summary, full-width course cards with wrapping names, 44px or larger controls, and bottom navigation padded for the phone home indicator. Inputs use 16px text to avoid iOS focus zoom. Course overview panels have Grade / Trend / Info buttons as well as swipe navigation. Forms, evaluation rows, and sheets adapt to narrow screens; sheets use the dynamic viewport height for the onscreen keyboard.
+
+
+## Student sign-in and tools (v4.1)
+
+The home page asks only for a student number and password. Users do not need a
+Worker URL or API key. The default service is configured in `js/config.js`.
+Credentials remain in browser localStorage until sign-out (including for reload
+and foreground refresh); students using a shared device should sign out.
+
+Every live request posts the current student's credentials. The frontend no
+longer reads the shared owner `/api/cached` endpoint. Student POSTs do not write
+to the owner cache, and malformed requests never fall back to owner credentials.
+The existing server-side `API_KEY` signs one-hour assistant capabilities; the
+browser receives that limited token, never the API key. Owner GET/cache/debug
+routes retain their existing administrative gate.
+
+- Grade history records up to 60 snapshots per account and server on this device,
+  including intraday changes. The chart follows currently displayed courses and
+  honors Hide grades. Legacy unscoped snapshots are not imported because their
+  account cannot be established.
+- Profile, quick-action visibility, volunteer entries, appointments, and
+  notification preferences are separate for each account and demo mode. They do
+  not sync across devices. Uploaded profile/cover images accept PNG/JPEG/WebP up
+  to 750 KB each. Student ID is a personal reference, not an official credential.
+- Teacher search searches teacher names supplied with courses. The current live
+  parser may not return teacher details; students can add/remove personal teacher
+  contacts on this device. These are labeled as personal contacts, not an official
+  staff directory. The bundled demo includes sample teachers.
+- Volunteer hours are a personal log; school approval is separate. The exam
+  calculator supports required exam marks and projected final grades.
+- Guidance lets students record already-booked appointments. It does not make a
+  booking with their school. Reminders trigger within 15 minutes before the saved
+  appointment while the page is active.
+- Mark checks run every five minutes while the page is visible. In-page alerts
+  work without permission. Device notifications require browser permission and
+  may require home-screen installation on phones. The service worker displays
+  notifications only: it does not cache student information or perform closed-app
+  background checks. Failed requests do not generate “no change” notifications.
+- Advanced notifications include no-change alerts (dependent on mark alerts).
+  Existing translucent-surface settings provide the website's glass option.
+  Native Liquid Glass and secret experiment codes have no website backend and
+  are not presented as functioning features.
+- Advanced settings validate custom server URLs and offer Reset default. Only
+  choose a trusted compatible server because it receives the login credentials.
+  Diagnostic reports are previewed before downloading/sharing and exclude student
+  numbers, grades, credentials, profile data, and server URLs.
+
+### Release order for a shareable phone link
+
+1. Deploy `worker/` first using the existing Cloudflare account and `API_KEY`
+   secret. No student needs to know this secret. Keep `DASHBOARD_ORIGIN` matched
+   to the frontend's public origin (`https://teachassist.pages.dev` by default).
+2. Deploy `frontend/` to the existing Cloudflare Pages project.
+3. Verify sign-in with two real YRDSB accounts, sign-out, and invalid-password
+   handling on the published site before distributing the link.
+
+Tests use simulated TeachAssist responses; real school credentials are not
+included. Run `npm test` at the repository root and in `worker/`.
