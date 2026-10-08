@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/mobile.css" />
     <link rel="stylesheet" href="css/motion.css" />
+    <link rel="stylesheet" href="css/student-tools.css" />
   </head>
   <body>
     <div class="shell">
@@ -25,12 +26,14 @@
             <span class="app-status">Your school day, in perspective</span>
           </span>
         </a>
+        <button class="btn ghost profile-shortcut" id="profile-shortcut" aria-label="My profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><span>Profile</span></button>
       </header>
 
       <!-- Each "screen" is rendered into by a JS module. Only one is visible. -->
       <main id="screen-courses" class="screen">
         <div class="center-loader"><span class="spinner"></span></div>
       </main>
+      <main id="screen-profile" class="screen hidden"></main>
       <main id="screen-detail" class="screen hidden"></main>
       <main id="screen-guidance" class="screen hidden"></main>
       <main id="screen-dreams" class="screen hidden"></main>
@@ -65,10 +68,13 @@
       </nav>
     </div>
 
+    <aside id="notice" class="app-notice hidden" role="status"><div><b></b><p></p></div><button aria-label="Dismiss notification">×</button></aside>
     <div id="modal-root"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.js"></script>
     <script type="module">
+      import { renderProfile } from "./js/profile.js";
+      import { startNotificationChecks } from "./js/notifications.js";
       import { requireLogin, getCourses } from "./js/ta-client.js";
       import { renderCourses } from "./js/courses.js";
       import { openCourseDetail } from "./js/course-detail.js";
@@ -84,6 +90,7 @@
       } from "./js/motion.js";
 
       const screens = {
+        profile: document.getElementById("screen-profile"),
         courses: document.getElementById("screen-courses"),
         detail: document.getElementById("screen-detail"),
         guidance: document.getElementById("screen-guidance"),
@@ -113,6 +120,7 @@
       }
 
       window.AppNav = {
+        toProfile: async () => { showScreen("profile"); await renderProfile(screens.profile); },
         toCourses: async () => { showScreen("courses"); await renderCourses(screens.courses); },
         toGuidance: async () => { showScreen("guidance"); await renderGuidance(screens.guidance); },
         toDreams: async () => { showScreen("dreams"); await renderDreams(screens.dreams); },
@@ -133,6 +141,14 @@
         })[btn.dataset.tab]();
       });
 
+      document.getElementById("profile-shortcut").onclick = () => window.AppNav.toProfile();
+      const notice = document.getElementById("notice");
+      notice.querySelector("button").onclick = () => notice.classList.add("hidden");
+      window.addEventListener("ta:notice", e => {
+        notice.querySelector("b").textContent = e.detail.title;
+        notice.querySelector("p").textContent = e.detail.body;
+        notice.classList.remove("hidden");
+      });
       // Keep the sliding tab pill aligned when the viewport changes size.
       window.addEventListener("resize", () =>
         moveTabIndicator(tabbar.querySelector("button.active")),
@@ -142,6 +158,10 @@
         if (!requireLogin()) return;
         applyStoredTheme();
         initMotion();
+        startNotificationChecks();
+        if ('serviceWorker' in navigator && window.isSecureContext) {
+          navigator.serviceWorker.register('./notifications-sw.js').catch(() => {});
+        }
         await window.AppNav.toCourses();
         requestAnimationFrame(() =>
           moveTabIndicator(tabbar.querySelector("button.active")),

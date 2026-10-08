@@ -35,6 +35,7 @@
               inputmode="numeric"
               autocomplete="username"
               placeholder="123456789"
+              maxlength="20" pattern="[0-9]+"
               required
             />
           </div>
@@ -50,19 +51,7 @@
             />
           </div>
 
-          <details id="advanced">
-            <summary>Advanced (Worker setup)</summary>
-            <div class="field" style="margin-top:12px">
-              <label for="worker-url">Worker URL</label>
-              <input type="url" id="worker-url" placeholder="https://teachassist-marks.you.workers.dev" />
-            </div>
-            <div class="field">
-              <label for="api-key">API key (x-api-key)</label>
-              <input type="password" id="api-key" placeholder="your API_KEY secret" autocomplete="off" />
-            </div>
-          </details>
-
-          <div class="error-text" id="auth-error"></div>
+          <div class="error-text" id="auth-error" role="alert"></div>
           <button type="submit" class="btn" id="auth-submit">Sign In</button>
         </form>
 
@@ -91,8 +80,9 @@
       </div>
 
       <p class="muted small" style="text-align:center;margin-top:18px">
-        Your login is sent only to your own Worker, which signs into TeachAssist
-        and returns your marks. It is never shared or stored elsewhere.
+        Use your existing YRDSB TeachAssist login. Your credentials are sent securely
+        to the sign-in service and saved in this browser until you sign out.
+        Sign out when using a shared phone or computer.
       </p>
     </div>
 
@@ -100,15 +90,10 @@
       import {
         login,
         isLoggedIn,
-        workerUrl,
-        setWorkerUrl,
-        apiKey,
-        setApiKey,
         enterDemo,
       } from "./js/ta-client.js";
       import {
         initMotion,
-        initDisclosure,
         shake,
         replay,
       } from "./js/motion.js";
@@ -124,16 +109,6 @@
       const form = document.getElementById("auth-form");
       const submit = document.getElementById("auth-submit");
       const errorEl = document.getElementById("auth-error");
-      const urlEl = document.getElementById("worker-url");
-      const keyEl = document.getElementById("api-key");
-
-      // Prefill Advanced from saved values.
-      urlEl.value = workerUrl();
-      keyEl.value = apiKey();
-
-      const advanced = document.getElementById("advanced");
-      initDisclosure(advanced);
-
       document.getElementById("demo-btn").addEventListener("click", () => {
         enterDemo();
         window.location.replace("app.html");
@@ -142,8 +117,6 @@
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         errorEl.textContent = "";
-        setWorkerUrl(urlEl.value);
-        setApiKey(keyEl.value);
 
         const num = document.getElementById("student").value.trim();
         const pass = document.getElementById("password").value;
@@ -156,10 +129,6 @@
           errorEl.textContent = err?.message || "Sign in failed.";
           replay(errorEl, "m-error-in");
           shake(form);
-          // Open Advanced if it looks like a setup problem.
-          if (/worker|api key|unauthorized|reach/i.test(err?.message || "")) {
-            advanced.open = true;
-          }
         } finally {
           submit.disabled = false;
           submit.textContent = "Sign In";

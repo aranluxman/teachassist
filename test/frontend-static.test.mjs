@@ -47,7 +47,7 @@ test("app shell includes courses, guidance, dreams, assistant, and settings tabs
 
 test("sign-in uses the live TeachAssist worker flow", () => {
   assert.match(indexHtml, /Student number/);
-  assert.match(indexHtml, /Worker URL/);
+  assert.doesNotMatch(indexHtml, /Worker URL|API key|worker-url|api-key/);
   assert.match(indexHtml, /login/);
   assert.match(taClientJs, /POST/);
   assert.match(taClientJs, /\/api\/marks/);

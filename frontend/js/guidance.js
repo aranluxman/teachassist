@@ -1,3 +1,4 @@
+import { appointmentCard } from "./profile.js";
 // ============================================================================
 // Guidance tab
 // ----------------------------------------------------------------------------
@@ -41,6 +42,8 @@ const RESOURCES = [
 export async function renderGuidance(container) {
   container.innerHTML = "";
   container.appendChild(el(`<div class="screen-header"><h1>Guidance</h1></div>`));
+
+  container.append(appointmentCard());
 
   // One running index across the whole screen, so the labels and their link
   // rows arrive in a single 0.04s cascade instead of restarting per group.

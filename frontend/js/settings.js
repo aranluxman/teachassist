@@ -1,3 +1,5 @@
+import { notificationSettings, debugCard } from "./notification-settings.js";
+import { WORKER_URL } from "./config.js";
 import {
   preferences,
   savePreferences,
@@ -17,14 +19,12 @@ import {
   getCourses,
   workerUrl,
   setWorkerUrl,
-  apiKey,
-  setApiKey,
   isDemo,
 } from "./ta-client.js";
 import { savedFeedback, stagger } from "./motion.js";
 
 const THEME_KEY = "theme";
-const APP_VERSION = "4.0.0";
+const APP_VERSION = "4.1.0";
 
 // Selectable colour themes. Every accent keeps AA contrast when used as text
 // (dark-on-light for the light themes, light-on-dark for the dark themes).
@@ -132,6 +132,9 @@ export async function renderSettings(container) {
       ),
     );
   container.append(options);
+  const profileButton = el(`<button class="btn secondary">My profile & quick actions</button>`);
+  profileButton.onclick = () => window.AppNav.toProfile();
+  container.append(profileButton, notificationSettings());
   // Account
   container.appendChild(el(`<div class="section-label">Account</div>`));
   container.appendChild(
@@ -219,29 +222,30 @@ export async function renderSettings(container) {
   );
   container.appendChild(appearance);
 
-  // Worker connection
-  container.appendChild(el(`<div class="section-label">Worker</div>`));
+  // Optional custom server; regular student sign-in needs no setup or API key.
   const conn = el(`
-    <div class="card">
-      <div class="field">
-        <label for="w-url">Worker URL</label>
-        <input id="w-url" type="url" autocapitalize="off" spellcheck="false" value="${escapeHtml(workerUrl())}" />
-      </div>
-      <div class="field">
-        <label for="w-key">API key</label>
-        <input id="w-key" type="password" autocomplete="off" value="${escapeHtml(apiKey())}" />
-      </div>
-      <div id="w-status" class="error-text" style="color:var(--good)"></div>
-      <button class="btn secondary" id="w-save">Save connection</button>
-    </div>
+    <details class="card"><summary>Advanced settings</summary>
+      <h2>Custom server</h2>
+      <p class="muted small">Use the default unless you operate your own TeachAssist-compatible sign-in service. Your login will be sent to the server you choose.</p>
+      <form>
+        <div class="field"><label for="w-url">Server URL</label><input id="w-url" type="url" required autocapitalize="off" spellcheck="false" value="${escapeHtml(workerUrl())}"></div>
+        <p class="small muted" data-current>Currently using ${escapeHtml(workerUrl())}</p>
+        <p role="status"></p>
+        <div class="tool-buttons"><button class="btn secondary">Save server</button><button class="btn secondary" type="button" data-reset>Reset default</button></div>
+      </form>
+    </details>
   `);
-  conn.querySelector("#w-save").addEventListener("click", (e) => {
-    setWorkerUrl(conn.querySelector("#w-url").value);
-    setApiKey(conn.querySelector("#w-key").value);
-    conn.querySelector("#w-status").textContent = "Saved on this device.";
-    savedFeedback(e.currentTarget, "Saved ✓");
-  });
-  container.appendChild(conn);
+  const saveConnection = value => {
+    try {
+      setWorkerUrl(value);
+      conn.querySelector('input').value = workerUrl();
+      conn.querySelector('[data-current]').textContent = `Currently using ${workerUrl()}`;
+      conn.querySelector('[role=status]').textContent = 'Saved on this device. Refresh your courses to connect.';
+    } catch (err) { conn.querySelector('[role=status]').textContent = err.message || 'Enter a valid server URL.'; }
+  };
+  conn.querySelector('form').onsubmit = e => { e.preventDefault(); saveConnection(conn.querySelector('input').value); };
+  conn.querySelector('[data-reset]').onclick = () => saveConnection(WORKER_URL);
+  container.append(conn, debugCard());
 
   // Sign out
   const out = el(

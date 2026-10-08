@@ -1,5 +1,5 @@
 // ============================================================================
-// TeachAssist client — auth + live data (single user)
+// TeachAssist client — student sign-in + account-scoped live data
 // ----------------------------------------------------------------------------
 // Signs you in by POSTing your student number + password to the Worker, which
 // logs into ta.yrdsb.ca and returns your marks. Your credentials are kept in
@@ -10,20 +10,21 @@
 //   { code, name, currentMark, midterm, evaluations: [{ name, category, percent, weight }] }
 // ============================================================================
 
+import { readHistory, recordSnapshot } from "./history.js";
+import { validServerUrl } from "./student-store.js";
 import { WORKER_URL } from "./config.js";
 import { DEMO_COURSES, DEMO_SCRAPED_AT } from "./demo-data.js";
 
 const LS = {
   url: "ta_worker_url",
-  key: "ta_api_key",
   num: "ta_student_number",
   pass: "ta_password",
-  snaps: "ta_snapshots",
   demo: "ta_demo_mode",
 };
 
+let cacheAccount = null;
 let cache = null; // last fetched courses (this page load)
-let cachedAt = null; // ISO time the shown marks were scraped (from /api/cached)
+let cachedAt = null; // ISO time of the active student’s successful refresh
 
 /** When the marks currently on screen were scraped (ISO string), or null. */
 export function lastSyncedAt() {
@@ -35,13 +36,10 @@ export function workerUrl() {
   return (localStorage.getItem(LS.url) || WORKER_URL || "").trim().replace(/\/+$/, "");
 }
 export function setWorkerUrl(u) {
-  localStorage.setItem(LS.url, (u || "").trim());
-}
-export function apiKey() {
-  return (localStorage.getItem(LS.key) || "").trim();
-}
-export function setApiKey(k) {
-  localStorage.setItem(LS.key, (k || "").trim());
+  const value = validServerUrl(u || WORKER_URL);
+  localStorage.setItem(LS.url, value);
+  cache = null;
+  cachedAt = null;
 }
 export function studentNumber() {
   return localStorage.getItem(LS.num) || "";
@@ -85,22 +83,26 @@ export function overallAverage(courses) {
   return m.length ? m.reduce((a, b) => a + b, 0) / m.length : null;
 }
 
+export function sessionToken() {
+  return sessionStorage.getItem(`ta-session:${workerUrl()}:${studentNumber()}`) || "";
+}
+
 // ---- network ---------------------------------------------------------------
 async function postMarks(username, pass) {
   const url = workerUrl();
-  if (!url) throw new Error("Worker URL is not set (see Advanced on the sign-in screen).");
+  if (!url) throw new Error("Sign-in is not configured. Please contact the site owner.");
   let res;
   try {
     res = await fetch(url + "/api/marks", {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(apiKey() ? { "x-api-key": apiKey() } : {}),
       },
       body: JSON.stringify({ username, password: pass }),
+      signal: AbortSignal.timeout(60000),
     });
   } catch {
-    throw new Error("Couldn't reach the Worker. Check the Worker URL and that its DASHBOARD_ORIGIN matches this site.");
+    throw new Error("Couldn't connect to TeachAssist. Check your connection and try again.");
   }
   let body = null;
   try {
@@ -108,9 +110,11 @@ async function postMarks(username, pass) {
   } catch {
     /* non-JSON */
   }
-  if (res.status === 401) throw new Error("Unauthorized — check your API key (Advanced).");
+  if (res.status === 401) throw new Error("Sign-in failed. Check your student number and password.");
   if (!res.ok) throw new Error((body && body.error) || `Worker returned HTTP ${res.status}`);
   if (!Array.isArray(body)) throw new Error("Unexpected response from the Worker.");
+  const token = res.headers.get("X-TeachAssist-Session");
+  if (token) sessionStorage.setItem(`ta-session:${url}:${username}`, token);
   return body;
 }
 
@@ -119,63 +123,32 @@ export async function login(num, pass) {
   const courses = await postMarks(num.trim(), pass);
   localStorage.setItem(LS.num, num.trim());
   localStorage.setItem(LS.pass, pass);
+  localStorage.removeItem(LS.demo);
   cache = courses;
+  cacheAccount = `${workerUrl()}:${studentNumber()}`;
   cachedAt = new Date().toISOString();
   saveSnapshot(courses);
   return courses;
 }
 
-/**
- * Read the daily snapshot the Worker caches in KV (populated by the Cron
- * Trigger and by every live scrape). Returns the courses array, or null if
- * there is no cache yet / it can't be reached — callers fall back to a live
- * scrape. Also records when the snapshot was scraped (lastSyncedAt()).
- */
-async function getCachedMarks() {
-  const url = workerUrl();
-  if (!url) return null;
-  try {
-    const res = await fetch(url + "/api/cached", {
-      headers: { ...(apiKey() ? { "x-api-key": apiKey() } : {}) },
-    });
-    if (!res.ok) return null;
-    const body = await res.json();
-    if (body && Array.isArray(body.courses)) {
-      cachedAt = body.scrapedAt || null;
-      return body.courses;
-    }
-  } catch {
-    /* unreachable cache -> fall back to a live scrape */
-  }
-  return null;
-}
-
-/**
- * Get courses for this page load. A normal load prefers the daily cache for an
- * instant, login-free render; {refresh:true} forces a live re-scrape (which
- * also repopulates the shared cache server-side).
- */
+/** Get only the active student's marks; the shared owner cache is never read. */
 export async function getCourses({ refresh = false } = {}) {
   if (isDemo()) {
     cache = DEMO_COURSES;
     cachedAt = DEMO_SCRAPED_AT;
+    saveSnapshot(cache);
     return cache;
   }
-  if (cache && !refresh) return cache;
-
-  if (!refresh) {
-    const cached = await getCachedMarks();
-    if (cached && cached.length) {
-      cache = cached;
-      saveSnapshot(cache);
-      return cache;
-    }
-  }
+  const account = `${workerUrl()}:${studentNumber()}`;
+  if (cache && cacheAccount === account && !refresh) return cache;
 
   if (!isLoggedIn()) throw new Error("Not signed in.");
-  cache = await postMarks(studentNumber(), password());
+  const courses = await postMarks(studentNumber(), password());
+  if (isDemo() || account !== `${workerUrl()}:${studentNumber()}`) throw new Error("Your account changed. Open your courses again.");
+  cache = courses;
+  cacheAccount = account;
   cachedAt = new Date().toISOString();
-  saveSnapshot(cache);
+  saveSnapshot(cache, { checked: refresh });
   return cache;
 }
 
@@ -188,39 +161,36 @@ export function requireLogin() {
 }
 
 export function signOut() {
+  sessionStorage.removeItem(`ta-session:${workerUrl()}:${studentNumber()}`);
   localStorage.removeItem(LS.num);
   localStorage.removeItem(LS.pass);
   localStorage.removeItem(LS.demo);
+  localStorage.removeItem("ta_api_key");
   cache = null;
   window.location.replace("index.html");
 }
 
-// ---- "Updates" feed: compare day-over-day snapshots -------------------------
-function saveSnapshot(courses) {
+// ---- Grade history and recent updates -------------------------
+export function getSnapshots() {
+  return readHistory(isDemo() ? "demo" : workerUrl());
+}
+function saveSnapshot(courses, { checked = false } = {}) {
   try {
-    const snaps = JSON.parse(localStorage.getItem(LS.snaps) || "[]");
-    const today = new Date().toISOString().slice(0, 10);
     const snap = {
-      date: new Date().toISOString(),
+      date: cachedAt || new Date().toISOString(),
       overall: overallAverage(courses),
-      marks: Object.fromEntries(courses.map((c) => [c.code, displayMark(c)])),
+      marks: Object.fromEntries(courses.map(c => [c.code, displayMark(c)])),
     };
-    const kept = snaps.filter((s) => s.date.slice(0, 10) !== today);
-    kept.push(snap);
-    localStorage.setItem(LS.snaps, JSON.stringify(kept.slice(-30)));
-  } catch {
-    /* ignore */
-  }
+    const result = recordSnapshot(isDemo() ? "demo" : workerUrl(), snap);
+    if (!isDemo() && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("ta:marks-checked", { detail: { ...result, checked } }));
+    }
+  } catch { /* Storage may be unavailable; marks should still load. */ }
 }
 
-/** Recent mark changes (between the two latest day snapshots), newest first. */
+/** Recent mark changes (between the two latest snapshots), newest first. */
 export function getUpdates() {
-  let snaps = [];
-  try {
-    snaps = JSON.parse(localStorage.getItem(LS.snaps) || "[]");
-  } catch {
-    return [];
-  }
+  const snaps = getSnapshots();
   if (snaps.length < 2) return [];
   const prev = snaps[snaps.length - 2];
   const cur = snaps[snaps.length - 1];
@@ -235,4 +205,15 @@ export function getUpdates() {
     }
   }
   return out;
+}
+
+// A sign-out/account switch in another tab must clear that tab's rendered marks too.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', event => {
+    if ([LS.num, LS.pass, LS.demo, LS.url].includes(event.key) || event.key === null) {
+      cache = null;
+      cachedAt = null;
+      window.location.replace('index.html');
+    }
+  });
 }

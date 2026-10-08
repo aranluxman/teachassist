@@ -1,21 +1,33 @@
-# Personal TeachAssist marks fetcher (Cloudflare Worker)
+# TeachAssist sign-in service (Cloudflare Worker)
 
-A single Cloudflare Worker that logs into the YRDSB TeachAssist site
-(`ta.yrdsb.ca`) with **my own** credentials and returns **my** marks as JSON.
+Students POST their own YRDSB student number and password to `/api/marks`.
+They do not need a shared API key. The Worker signs into TeachAssist for that
+request and returns only that student's marks; it does not store the submitted
+credentials or write their results into the shared owner cache.
 
-A browser can't log into `ta.yrdsb.ca` from another domain (CORS). This Worker
-runs server-side, so it can POST the login form, hold the session cookie, fetch
-the marks pages, and return clean JSON to my dashboard.
+The owner-only `GET /api/marks`, debug routes, and `GET /api/cached` retain their
+API-key gate. The optional owner cron still uses `TA_USERNAME` / `TA_PASSWORD`.
+A missing or invalid POST body is rejected, never replaced with owner secrets.
+All responses use `Cache-Control: no-store`. Browser requests are restricted to
+`DASHBOARD_ORIGIN`, currently `https://teachassist.pages.dev`.
 
-> Personal, single-user tool. Credentials live **only** as encrypted Worker
-> secrets — never hardcoded, never in this repo, never sent to the browser.
+Successful student sign-ins return an `X-TeachAssist-Session` header containing
+a one-hour capability for `/api/assistant`. It is signed using the existing
+server-side `API_KEY` secret, includes no student identity or credentials, and is
+sent by the frontend as a Bearer token. The API key is never sent to students.
+Without that secret, marks sign-in still works but the AI assistant is unavailable.
 
----
+Deploy this Worker before publishing the v4.1 frontend. Verify actual school
+login on the deployed service; the regression tests use simulated upstream HTML.
+Owner setup and debugging instructions below apply only to administrators.
 
-## Endpoint
+## Student endpoint
 
-```
-GET /api/marks
+```http
+POST /api/marks
+Content-Type: application/json
+
+{"username":"YOUR_STUDENT_NUMBER","password":"YOUR_PASSWORD"}
 ```
 
 Returns an array of courses:
