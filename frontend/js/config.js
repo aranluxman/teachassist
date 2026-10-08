@@ -1,14 +1,15 @@
 // ============================================================================
 // Config
 // ----------------------------------------------------------------------------
-// This is a live TeachAssist client (single user): you sign in with your YRDSB
+// This is a live TeachAssist client: you sign in with your YRDSB
 // student number + password, the Cloudflare Worker logs into ta.yrdsb.ca and
 // returns your marks, and this app renders them. No database, no manual entry.
 // ============================================================================
 
-// Your deployed Worker. Not a secret (the API key + your login are what gate
-// access). Can be overridden per-device on the sign-in screen ("Advanced").
-export const WORKER_URL = "https://teachassist-marks.aran-luxman.workers.dev";
+// Sign-in deploys with this site through Cloudflare Pages advanced mode.
+// A custom compatible server can still be chosen in signed-in Settings.
+export const LEGACY_WORKER_URL = "https://teachassist-marks.aran-luxman.workers.dev";
+export const WORKER_URL = globalThis.location?.origin || "https://teachassist.pages.dev";
 
 // Course icon colours, rotated through by course order.
 export const COURSE_COLORS = [

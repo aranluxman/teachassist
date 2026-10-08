@@ -17,9 +17,21 @@ server-side `API_KEY` secret, includes no student identity or credentials, and i
 sent by the frontend as a Bearer token. The API key is never sent to students.
 Without that secret, marks sign-in still works but the AI assistant is unavailable.
 
-Deploy this Worker before publishing the v4.1 frontend. Verify actual school
-login on the deployed service; the regression tests use simulated upstream HTML.
-Owner setup and debugging instructions below apply only to administrators.
+The main website now bundles this implementation into `frontend/_worker.js` so
+student sign-in deploys with Cloudflare Pages. It does not need a separate Worker
+deployment or any API key for sign-in. `src/pages.js` permits same-origin student
+routes only and never passes owner credentials or the owner cache into the handler.
+It also works on Pages preview domains.
+
+Rebuild after backend edits with `npm run build:pages`, then commit the generated
+file. `npm test` checks that bundle and exercises the Pages service without any
+secrets. Optional Pages AI questions require an `AI` binding and a server-side
+`API_KEY`; ordinary sign-in and local calculators need neither.
+
+The standalone Worker deployment remains optional for the owner cron, existing
+private integrations, or an explicitly chosen custom server. Its setup and debugging
+instructions below apply only to administrators. The browser no longer contacts
+that service by default.
 
 ## Student endpoint
 

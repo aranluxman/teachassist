@@ -53,6 +53,7 @@
 
           <div class="error-text" id="auth-error" role="alert"></div>
           <button type="submit" class="btn" id="auth-submit">Sign In</button>
+          <button type="button" class="btn ghost hidden" id="reset-service">Reset sign-in connection</button>
         </form>
 
         <div class="auth-divider">or</div>
@@ -91,6 +92,7 @@
         login,
         isLoggedIn,
         enterDemo,
+        resetSignInService,
       } from "./js/ta-client.js";
       import {
         initMotion,
@@ -109,6 +111,12 @@
       const form = document.getElementById("auth-form");
       const submit = document.getElementById("auth-submit");
       const errorEl = document.getElementById("auth-error");
+      const resetService = document.getElementById("reset-service");
+      resetService.addEventListener("click", () => {
+        resetSignInService();
+        errorEl.textContent = "Connection reset. Try signing in again.";
+        resetService.classList.add("hidden");
+      });
       document.getElementById("demo-btn").addEventListener("click", () => {
         enterDemo();
         window.location.replace("app.html");
@@ -127,6 +135,7 @@
           window.location.replace("app.html");
         } catch (err) {
           errorEl.textContent = err?.message || "Sign in failed.";
+          resetService.classList.remove("hidden");
           replay(errorEl, "m-error-in");
           shake(form);
         } finally {
