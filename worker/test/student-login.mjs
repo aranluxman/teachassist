@@ -6,6 +6,7 @@ let upstreamLogins = [];
 const mf = new Miniflare({modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2025-09-01',kvNamespaces:{MARKS:'student-login-test'},bindings:{API_KEY:'owner-secret',TA_USERNAME:'owner',TA_PASSWORD:'owner-pass'},outboundService:async request => {
   const url = new URL(request.url);
   if (url.pathname === '/yrdsb/index.php') {
+    if (request.method === 'GET') return new Response('<form action="/yrdsb/index.php"><input name="username"><input type="password" name="password"></form>');
     const form = new URLSearchParams(await request.text());
     const username = form.get('username'); upstreamLogins.push(username);
     if (form.get('password') !== 'correct') return new Response('',{status:302,headers:{location:'https://ta.yrdsb.ca/yrdsb/index.php?error=1'}});

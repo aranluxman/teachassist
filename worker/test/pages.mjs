@@ -7,6 +7,7 @@ const upstream = async request => {
   upstreamRequests++;
   const url = new URL(request.url);
   if (url.pathname === '/yrdsb/index.php') {
+    if (request.method === 'GET') return new Response('<form action="/yrdsb/index.php"><input name="username"><input type="password" name="password"></form>');
     const form = new URLSearchParams(await request.text());
     assert.notEqual(form.get('username'), 'owner');
     if (form.get('password') !== 'correct') {

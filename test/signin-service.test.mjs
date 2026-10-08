@@ -28,7 +28,7 @@ test('old API-key gate, invalid passwords, and missing Pages backend have distin
   try {
     for (const [status, body, expected] of [
       [401, {error:'Unauthorized'}, /server is out of date/],
-      [401, {error:'TeachAssist rejected your credentials'}, /Check your student number and password/],
+      [401, {error:'TeachAssist rejected your credentials'}, /TeachAssist rejected your credentials/],
       [404, {error:'Not found'}, /sign-in service is not available/],
       [200, null, /sign-in service is not available/],
     ]) {
