@@ -61,11 +61,14 @@ const inputsIn = html => [...html.matchAll(/<input\b[^>]*>/gi)].map(([tag]) => a
 const typeOf = input => (input.type || 'text').toLowerCase();
 const isPassword = input => typeOf(input) === 'password';
 const isUserField = input => !['password', 'hidden', 'submit', 'button', 'checkbox', 'radio', 'image', 'reset'].includes(typeOf(input)) && !!input.name;
-// A sign-in page has both a password box and a user-name box. A lone password
-// input elsewhere (e.g. a settings widget) is not the login page.
+// A sign-in page has a sign-in password box and a user-name box. The marks
+// page also carries a change-password form (old_password/new_password plus a
+// date box), which must never be mistaken for the login page.
+const isSignInPassword = input => isPassword(input) && !/old|new|confirm|again|repeat|change/i.test(input.name || '');
+const isSignInUser = input => isUserField(input) && /user|login|email|student/i.test(input.name);
 function looksLikeLogin(html) {
   const inputs = inputsIn(html);
-  return inputs.some(isPassword) && inputs.some(isUserField);
+  return inputs.some(isSignInPassword) && inputs.some(isSignInUser);
 }
 const REJECT_TEXT = /(?:invalid|incorrect|wrong)\s+(?:student\s+(?:number|id)|user\s*name|username|password|credentials|login)|(?:user\s*name|username|password)\s+(?:is\s+|was\s+)?(?:invalid|incorrect|wrong)|access denied|login failed/i;
 export function assertLoggedIn(html) {

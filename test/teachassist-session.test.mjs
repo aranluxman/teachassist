@@ -206,3 +206,14 @@ test('a timeout on the form retry still reports the first, real rejection', asyn
     await assert.rejects(client.login({},creds),err=>err.code==='TA_LOGIN_REJECTED'&&err.trace.some(l=>/connection failed/.test(l)));
   });
 });
+test('the real marks page, with its change-password form, is a signed-in page', async()=>{
+  const marks='<form><input type="hidden" name="school_id" value="1"><input type="hidden" name="student_id" value="567"><input type="text" name="inputDate"><input type="password" name="old_password"><input type="password" name="new_password"><input type="password" name="new_password_again"><input type="submit" name="submit"></form><table><tr><td>ENG1D1-01</td><td><a href="viewReport.php?subject_id=9&student_id=567">current mark = 91%</a></td></tr></table>';
+  assert.doesNotThrow(()=>client.assertLoggedIn(marks));
+  await mocked(async(url,options)=>{
+    if(options.method==='POST')return redirect(courseListUrl+'?student_id=567',['session_token=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT','session_token=abc; Path=/','student_id=567; Path=/']);
+    return new Response(marks);
+  },async()=>{
+    const session=await client.login({},creds);
+    assert.equal(session.studentId,'567');assert.match(session.listHtml,/ENG1D1/);assert.match(session.cookie,/session_token=abc/);
+  });
+});

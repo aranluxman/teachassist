@@ -64,9 +64,11 @@ var inputsIn = (html) => [...html.matchAll(/<input\b[^>]*>/gi)].map(([tag]) => a
 var typeOf = (input) => (input.type || "text").toLowerCase();
 var isPassword = (input) => typeOf(input) === "password";
 var isUserField = (input) => !["password", "hidden", "submit", "button", "checkbox", "radio", "image", "reset"].includes(typeOf(input)) && !!input.name;
+var isSignInPassword = (input) => isPassword(input) && !/old|new|confirm|again|repeat|change/i.test(input.name || "");
+var isSignInUser = (input) => isUserField(input) && /user|login|email|student/i.test(input.name);
 function looksLikeLogin(html) {
   const inputs = inputsIn(html);
-  return inputs.some(isPassword) && inputs.some(isUserField);
+  return inputs.some(isSignInPassword) && inputs.some(isSignInUser);
 }
 var REJECT_TEXT = /(?:invalid|incorrect|wrong)\s+(?:student\s+(?:number|id)|user\s*name|username|password|credentials|login)|(?:user\s*name|username|password)\s+(?:is\s+|was\s+)?(?:invalid|incorrect|wrong)|access denied|login failed/i;
 function assertLoggedIn(html) {
