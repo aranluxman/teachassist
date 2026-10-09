@@ -29,6 +29,7 @@ const APP_VERSION = "4.1.0";
 // Selectable colour themes. Every accent keeps AA contrast when used as text
 // (dark-on-light for the light themes, light-on-dark for the dark themes).
 export const THEMES = [
+  { id: "auto", name: "Auto — follows your device's light/dark mode", color: "linear-gradient(135deg, #f5f5f7 50%, #1c1c1e 50%)" },
   { id: "pearl", name: "Pearl", color: "#52525b" },
   { id: "lavender", name: "Lavender", color: "#7050a0" },
   { id: "matcha", name: "Matcha", color: "#526b35" },
@@ -49,8 +50,8 @@ export const THEMES = [
 function currentTheme() {
   const t = localStorage.getItem(THEME_KEY);
   // Migrate the old light/dark values.
-  if (t === "light" || !t) return "indigo";
-  return THEMES.some((x) => x.id === t) ? t : "indigo";
+  if (t === "light") return "indigo";
+  return THEMES.some((x) => x.id === t) ? t : "auto";
 }
 
 function applyTheme(id, { crossfade = false } = {}) {
@@ -63,6 +64,15 @@ function applyTheme(id, { crossfade = false } = {}) {
       () => document.documentElement.classList.remove("m-theming"),
       400,
     );
+  }
+  // "auto" resolves to the default light theme or Dark, live with the OS.
+  if (id === "auto") {
+    const dark = matchMedia("(prefers-color-scheme: dark)");
+    if (!applyTheme.watching) {
+      applyTheme.watching = true;
+      dark.addEventListener?.("change", () => currentTheme() === "auto" && applyTheme("auto", { crossfade: true }));
+    }
+    id = dark.matches ? "dark" : "indigo";
   }
   document.documentElement.setAttribute("data-theme", id);
   // Keep the browser/OS chrome colour in step with the theme's top wash.

@@ -8,7 +8,9 @@
 // aggregates a weighted average per category with strand-coloured bars.
 // ============================================================================
 
-import { courseLabel, courseSubtitle, el, escapeHtml, fmtPercent, semiGauge } from "./courses.js";
+import { courseLabel, courseTitle, el, escapeHtml, fmtPercent, semiGauge } from "./courses.js";
+import { courseMeta } from "./course-names.js";
+import { teacherFor, editTeacher } from "./teachers.js";
 import { displayMark, markKind } from "./ta-client.js";
 import {
   animateGauge,
@@ -72,8 +74,8 @@ export async function openCourseDetail(container, course) {
     <div class="detail-nav">
       <button class="back-btn">Courses</button>
       <div class="detail-titlewrap">
-        <div class="detail-title">${escapeHtml(courseLabel(course))}</div>
-        ${courseSubtitle(course) ? `<div class="detail-subtitle">${escapeHtml(courseSubtitle(course))}</div>` : ""}
+        <div class="detail-title">${escapeHtml(courseTitle(course))}</div>
+        <div class="detail-subtitle">${escapeHtml([courseLabel(course), courseMeta(courseLabel(course))].filter(Boolean).join(" · "))}</div>
       </div>
       <div class="detail-actions"></div>
     </div>
@@ -115,7 +117,7 @@ export async function openCourseDetail(container, course) {
     <div class="panel"><div class="card gauge-card">
       <div class="info-list" style="width:100%">
         <div class="info-row"><span>Code</span><span>${escapeHtml(courseLabel(course) || "—")}</span></div>
-        ${course.teacher ? `<div class="info-row"><span>Teacher</span><span>${escapeHtml(course.teacher)}</span></div>` : ""}
+        ${teacherFor(course).name ? `<div class="info-row"><span>Teacher</span><span>${escapeHtml(teacherFor(course).name)}</span></div>` : ""}
         ${course.block ? `<div class="info-row"><span>Block</span><span>${escapeHtml(course.block)}</span></div>` : ""}
         ${course.room ? `<div class="info-row"><span>Room</span><span>${escapeHtml(course.room)}</span></div>` : ""}
         <div class="info-row"><span>Current mark</span><span>${course.currentMark != null ? fmtPercent(Number(course.currentMark)) : "—"}</span></div>
@@ -151,6 +153,8 @@ export async function openCourseDetail(container, course) {
   window.addEventListener("resize", syncControls);
   requestAnimationFrame(syncControls);
 
+  container.appendChild(teacherCard(course));
+
   // ── Segmented: Evaluations / Breakdown ──
   const seg = el(`
     <div class="segmented">
@@ -176,6 +180,26 @@ export async function openCourseDetail(container, course) {
   requestAnimationFrame(() => moveSegThumb(seg.querySelector("button.active")));
 
   if (hasChart) drawProgress(container, evals);
+}
+
+/** Teacher contact card — add once, then tap to email. */
+function teacherCard(course) {
+  const t = teacherFor(course);
+  const card = el(`
+    <section class="card teacher-card">
+      <div class="person-row">
+        <span class="avatar">${t.name ? escapeHtml(t.name.replace(/^(mr|ms|mrs|dr|mx)\.?\s+/i, "").charAt(0).toUpperCase()) : "?"}</span>
+        <div class="person-main">
+          <div class="eyebrow">TEACHER</div>
+          <b>${t.name ? escapeHtml(t.name) : "Add your teacher"}</b>
+          <p class="small muted">${t.name ? escapeHtml([t.room && `Room ${t.room}`, t.help && `Extra help: ${t.help}`].filter(Boolean).join(" · ") || "Add room and extra-help times") : "Name, email, room and extra-help times"}</p>
+        </div>
+        ${t.email ? `<a class="btn secondary" href="mailto:${encodeURIComponent(t.email)}?subject=${encodeURIComponent(courseLabel(course))}">Email</a>` : ""}
+        <button type="button" class="btn ghost" data-edit>${t.name ? "Edit" : "Add"}</button>
+      </div>
+    </section>`);
+  card.querySelector("[data-edit]").onclick = () => editTeacher(course, () => card.replaceWith(teacherCard(course)));
+  return card;
 }
 
 // ── Evaluations list (strand-tinted icon + name + pill/weight/date + %) ──
