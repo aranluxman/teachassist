@@ -149,7 +149,7 @@ test("courses and detail screens render live marks analytics", () => {
   assert.match(courseDetailJs, /strandBreakdown/);
 });
 
-test("course cards show only the class code", () => {
+test("course cards show the course name and a clean class code", () => {
   // "SNC2D1-8" is the timetable code; the card shows the class itself.
   assert.equal(courseLabel({ code: "SNC2D1-8" }), "SNC2D1");
   assert.equal(courseLabel({ code: "FIF2DF-3" }), "FIF2DF");
@@ -169,6 +169,7 @@ test("course cards show only the class code", () => {
   assert.doesNotMatch(coursesJs, /cc-name|cc-meta/);
   assert.doesNotMatch(coursesJs, /c\.block|c\.room/);
   assert.match(coursesJs, /class="cc-code">\$\{escapeHtml\(label\)\}/);
+  assert.match(coursesJs, /class="cc-title">\$\{escapeHtml\(title\)\}/);
 });
 
 // ---------------------------------------------------------------------------

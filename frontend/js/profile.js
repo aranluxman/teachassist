@@ -4,6 +4,7 @@ import { readStudentData, writeStudentData } from './student-store.js';
 import { studentNumber, isDemo, getCourses } from './ta-client.js';
 import { requiredGrade, projectedGrade } from './grade-math.js';
 import { checkReminders } from './notifications.js';
+import { savedTeachers, teacherFor } from './teachers.js';
 
 const icon = paths => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 const personIcon = icon('<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>');
@@ -43,7 +44,7 @@ export async function renderProfile(container) {
   for (const [id, label, icon] of ACTIONS) {
     if (hidden.includes(id)) continue;
     const button = el(`<button class="quick-action"><span aria-hidden="true">${icon}</span>${label}</button>`);
-    button.onclick = () => ({ website: () => window.open('https://ta.yrdsb.ca', '_blank', 'noopener,noreferrer'), teachers: teacherSearch, volunteer: volunteerHours, exam: examCalculator, id: studentId })[id]();
+    button.onclick = () => ({ website: () => window.open('https://ta.yrdsb.ca', '_blank', 'noopener,noreferrer'), teachers: teacherSearch, volunteer: () => window.AppNav.toGuidance('volunteer'), exam: examCalculator, id: studentId })[id]();
     section.querySelector('.quick-actions').append(button);
   }
   if (hidden.length === ACTIONS.length) section.querySelector('.quick-actions').append(el('<p class="muted">Choose Edit to show your quick actions.</p>'));
@@ -82,7 +83,8 @@ async function teacherSearch() {
   const render = () => {
     const query = body.querySelector('#teacher-query').value.trim().toLowerCase();
     const saved = readStudentData('teachers', []);
-    const found = [...courses, ...saved].filter(c => c.teacher && `${c.teacher} ${c.code} ${c.name || ''}`.toLowerCase().includes(query));
+    const fromCourses = courses.map(c => ({ ...c, teacher: teacherFor(c).name, room: teacherFor(c).room }));
+    const found = [...fromCourses, ...savedTeachers().filter(t => !fromCourses.some(c => c.teacher === t.teacher)), ...saved].filter(c => c.teacher && `${c.teacher} ${c.code} ${c.name || ''}`.toLowerCase().includes(query));
     const results = body.querySelector('.teacher-results'); results.innerHTML = '';
     for (const c of found) {
       const item = el(`<div class="card"><b>${esc(c.teacher)}</b><p>${esc(c.code)}${c.name ? ` · ${esc(c.name)}` : ''}</p>${c.room ? `<p class="muted">Room ${esc(c.room)}</p>` : ''}${c.id ? '<p class="small muted">Personal contact</p><button class="btn ghost">Remove contact</button>' : ''}</div>`);
@@ -109,29 +111,6 @@ async function teacherSearch() {
 function studentId() {
   const p = profile();
   openSheet('Student ID', el(`<div class="student-id card"><div class="eyebrow">PERSONAL REFERENCE</div><h2>${esc(preferences().name || (isDemo() ? 'Demo student' : 'Student'))}</h2><p class="id-number">${esc(isDemo() ? 'Demo — no student number' : studentNumber())}</p><p>${esc(p.school || 'School not added')}</p><p class="small muted">This is a personal reference, not an official school-issued ID.</p></div>`));
-}
-function volunteerHours() {
-  const body = el('<div><p class="muted">A personal log saved on this device. Your school must approve hours separately.</p><div class="volunteer-list"></div><form><div class="field"><label for="vol-activity">Activity</label><input id="vol-activity" name="activity" maxlength="120" required></div><div class="form-grid"><div class="field"><label for="vol-date">Date</label><input id="vol-date" name="date" type="date" required></div><div class="field"><label for="vol-hours">Hours</label><input id="vol-hours" name="hours" type="number" min="0.25" max="24" step="0.25" required></div></div><p role="status"></p><button class="btn">Add hours</button></form></div>');
-  const render = () => {
-    const entries = readStudentData('volunteer', []);
-    const total = entries.reduce((sum, r) => sum + r.hours, 0);
-    const list = body.querySelector('.volunteer-list');
-    list.innerHTML = `<h3>${total} / 40 hours logged</h3><progress max="40" value="${Math.min(total,40)}" aria-label="Volunteer hours toward 40-hour goal"></progress>`;
-    entries.forEach(row => {
-      const item = el(`<div class="tool-heading"><div><b>${esc(row.activity)}</b><p class="small muted">${esc(row.date)} · ${row.hours} hours</p></div><button class="btn ghost" aria-label="Remove ${esc(row.activity)}">Remove</button></div>`);
-      item.querySelector('button').onclick = () => { writeStudentData('volunteer', entries.filter(r => r.id !== row.id)); render(); };
-      list.append(item);
-    });
-  };
-  const form = body.querySelector('form');
-  form.onsubmit = e => {
-    e.preventDefault();
-    const activity = form.elements.activity.value.trim(), hours = Number(form.elements.hours.value), date = form.elements.date.value;
-    if (!activity || !Number.isFinite(hours) || hours <= 0 || hours > 24 || !date) return;
-    try { writeStudentData('volunteer', [...readStudentData('volunteer', []), { id: crypto.randomUUID(), activity, hours, date }]); form.reset(); render(); }
-    catch { form.querySelector('[role=status]').textContent = 'Could not save. Device storage may be full.'; }
-  };
-  render(); openSheet('My volunteer hours', body);
 }
 export function examCalculator() {
   const form = el(`<form><p class="muted">Use the exam’s share of your final grade. Assumes your current mark represents the rest of the course.</p><div class="field"><label for="exam-mode">Calculate</label><select id="exam-mode" name="mode"><option value="required">Exam mark needed for my target</option><option value="projected">Final grade from an exam mark</option></select></div>${[['current','Current grade (%)','85'],['score','Target final grade (%)','90'],['weight','Exam weight (%)','30']].map(([id,label,value]) => `<div class="field"><label for="exam-${id}">${label}</label><input id="exam-${id}" name="${id}" type="number" min="${id === 'weight' ? '0.01' : '0'}" max="100" step="any" value="${value}" required></div>`).join('')}<button class="btn">Calculate</button><p class="calc-result" role="status"></p></form>`);

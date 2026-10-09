@@ -1,18 +1,38 @@
 {
   "name": "TeachAssist Dashboard",
   "short_name": "TeachAssist",
-  "description": "Your YRDSB TeachAssist marks: every course, evaluation, and achievement-category breakdown in a fast mobile dashboard.",
-  "start_url": "app.html",
+  "description": "Your YRDSB TeachAssist marks, school info, diploma tracker and volunteer hours in a fast mobile app.",
+  "start_url": "app.html#courses",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f4f6fb",
-  "theme_color": "#4338ca",
+  "background_color": "#f5f5f7",
+  "theme_color": "#f5f5f7",
   "icons": [
     {
       "src": "icons/app-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "id": "app.html",
+  "orientation": "portrait",
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "shortcuts": [
+    {
+      "name": "Courses",
+      "url": "app.html#courses"
+    },
+    {
+      "name": "Volunteer hours",
+      "url": "app.html#guidance/volunteer"
+    },
+    {
+      "name": "School map",
+      "url": "app.html#guidance/map"
     }
   ]
 }

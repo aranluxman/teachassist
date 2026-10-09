@@ -9,9 +9,10 @@ import { preferences } from "./personalization.js";
 // ============================================================================
 
 import { COURSE_COLORS } from "./config.js";
+import { courseName, courseMeta } from "./course-names.js";
+import { teacherFor } from "./teachers.js";
 import { splitByTerm } from "./term.js";
 import {
-  animateGauge,
   countUp,
   finishRefreshSpin,
   marksHidden,
@@ -88,6 +89,29 @@ export function escapeHtml(s) {
   );
 }
 
+/** Ontario achievement level for a percentage ("Level 4", "Level 3"…). */
+export function achievementLevel(v) {
+  if (v == null || isNaN(v)) return "";
+  if (v >= 80) return "Level 4";
+  if (v >= 70) return "Level 3";
+  if (v >= 60) return "Level 2";
+  if (v >= 50) return "Level 1";
+  return "Below Level 1";
+}
+
+/** Letter grade, the way university/college applications read a mark. */
+export function letterGrade(v) {
+  if (v == null || isNaN(v)) return "";
+  const bands = [[90, "A+"], [85, "A"], [80, "A−"], [77, "B+"], [73, "B"], [70, "B−"], [67, "C+"], [63, "C"], [60, "C−"], [57, "D+"], [53, "D"], [50, "D−"]];
+  return (bands.find(([min]) => v >= min) || [0, "R"])[1];
+}
+
+/** The readable course title: scraped name if real, else the code lookup. */
+export function courseTitle(course) {
+  const label = courseLabel(course);
+  return courseName(label) || courseSubtitle(course).split(",")[0] || label;
+}
+
 /** Round to one decimal and add "%". Shows "—" when there is no value. */
 export function fmtPercent(v) {
   if (v == null || isNaN(v)) return "—";
@@ -95,7 +119,7 @@ export function fmtPercent(v) {
 }
 
 /**
- * Clean class label for the UI: just the course code, no section suffix.
+ * Clean class code for the UI: just the course code, no section suffix.
  * TeachAssist reports codes like "SNC2D1-8" or "FIF2DF-3"; the dashboard only
  * ever shows the course part ("SNC2D1"). Falls back to the first word of the
  * course name when a scrape hands us no code at all.
@@ -280,40 +304,36 @@ export async function renderCourses(container, { refresh = false } = {}) {
   container.appendChild(header);
   mountTicker(header.querySelector(".dashboard-ticker"), ENCOURAGEMENT);
 
-  // Overall average — semicircular gauge with a change pill (reference look).
+  // Overall average — the number people look for first, so it's the hero.
   const ov = updates.find((u) => u.overall);
   const delta = ov ? ov.to - ov.from : null;
   const deltaPill =
     delta != null && Math.abs(delta) >= 0.05
       ? `<div class="delta-pill ${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "↑" : "↓"} ${Math.abs(Math.round(delta * 10) / 10).toFixed(1)}%</div>`
       : "";
-  const gaugeCard = el(`
-    <div class="card overall-gauge">
-      ${semiGauge(overall)}
-      ${deltaPill}
-      <div class="gauge-cap">Overall Average · ${courses.length} course${courses.length === 1 ? "" : "s"}</div>
-    </div>
+  const hero = el(`
+    <section class="card overall-hero" aria-label="Overall average ${overall == null ? "not available" : fmtPercent(overall)}">
+      <div class="hero-top">
+        <div class="eyebrow">Overall Average</div>
+        ${deltaPill}
+      </div>
+      <div class="hero-num private-mark tnum">${fmtPercent(overall)}</div>
+      <div class="hero-meta">
+        ${overall != null ? `<span class="hero-chip">${achievementLevel(overall)}</span><span class="hero-chip">${letterGrade(overall)}</span>` : ""}
+        <span>${courses.length} course${courses.length === 1 ? "" : "s"}${hiddenCount ? " this semester" : ""}</span>
+      </div>
+      <div class="hero-bar cc-bar" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, ((overall ?? 50) - 50) * 2))}%"></i></div>
+      <div class="hero-scale" aria-hidden="true"><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span></div>
+    </section>
   `);
-  container.appendChild(gaugeCard);
+  container.appendChild(hero);
   if (overall != null) {
-    // On a refresh the arc and the number travel from the last shown value.
-    animateGauge(gaugeCard, overall, { from: previousValue("overall", 0) });
+    countUp(hero.querySelector(".hero-num"), overall, { from: previousValue("overall", 0), duration: 1100, format: fmtPercent });
     rememberValue("overall", overall);
   }
 
-  container.append(historyCard(courses.map(c => c.code)));
-
-  const p = preferences();
-  const dream = el(
-    `<div class="card dream-preview"><div><div class="eyebrow">THE BIG PICTURE</div><h2>${escapeHtml(p.career || "What’s your next chapter?")}</h2><p class="muted">${escapeHtml(p.school || "Give your grades a little direction. Set a dream, make a plan.")} </p><button class="btn secondary" style="width:auto">${p.career ? "View my dreams" : "Set a dream"} ↗</button></div><div class="dream-orbit" aria-hidden="true">✧</div></div>`,
-  );
-  dream
-    .querySelector("button")
-    .addEventListener("click", () => window.AppNav.toDreams());
-  container.append(dream);
-  orbitSparkles(dream.querySelector(".dream-orbit"), 4);
   const actions = el(
-    `<div class="dashboard-actions"><h2>Your courses <span class="muted small">${hiddenCount ? `${courses.length} this semester` : `${courses.length} total`}</span></h2><button class="btn ghost" style="width:auto"><span class="m-ask-star m-loop" aria-hidden="true">✦</span> Ask the assistant</button></div>`,
+    `<div class="dashboard-actions"><h2>Your courses</h2><button class="btn ghost" style="width:auto"><span class="m-ask-star m-loop" aria-hidden="true">✦</span> Ask the assistant</button></div>`,
   );
   actions
     .querySelector("button")
@@ -336,11 +356,15 @@ export async function renderCourses(container, { refresh = false } = {}) {
     const big = displayMark(c);
     const tag = markKind(c);
     const label = courseLabel(c);
+    const title = courseTitle(c);
+    const teacher = teacherFor(c).name;
     const card = el(`
-      <div class="card course-card" role="button" tabindex="0" aria-label="Open ${escapeHtml(label)}">
+      <div class="card course-card" role="button" tabindex="0" aria-label="Open ${escapeHtml(title)} (${escapeHtml(label)})">
         <div class="icon-circle" style="background:${color}">${escapeHtml(letter)}</div>
         <div class="cc-main">
+          <div class="cc-title">${escapeHtml(title)}</div>
           <div class="cc-code">${escapeHtml(label)}</div>
+          <div class="cc-sub">${escapeHtml([courseMeta(label), teacher].filter(Boolean).join(" · "))}</div>
           ${big != null ? `<div class="cc-bar"><i style="width:${Math.max(0, Math.min(100, big))}%"></i></div>` : ""}
         </div>
         <div class="cc-right">
@@ -393,6 +417,18 @@ export async function renderCourses(container, { refresh = false } = {}) {
     changes.forEach((u) => feed.appendChild(updateCard(u)));
     container.appendChild(feed);
   }
+
+  const p = preferences();
+  const dream = el(
+    `<div class="card dream-preview"><div><div class="eyebrow">THE BIG PICTURE</div><h2>${escapeHtml(p.career || "What’s your next chapter?")}</h2><p class="muted">${escapeHtml(p.school || "Give your grades a little direction. Set a dream, make a plan.")} </p><button class="btn secondary" style="width:auto">${p.career ? "View my dreams" : "Set a dream"} ↗</button></div><div class="dream-orbit" aria-hidden="true">✧</div></div>`,
+  );
+  dream
+    .querySelector("button")
+    .addEventListener("click", () => window.AppNav.toDreams());
+  container.append(dream);
+  orbitSparkles(dream.querySelector(".dream-orbit"), 4);
+  // Grade history sits last: it's for looking back, not the first thing you need.
+  container.append(historyCard(courses.map((c) => c.code)));
 }
 
 /** One "Recent updates" row: label, what changed, from → to, delta pill. */
@@ -407,7 +443,7 @@ function updateCard(u) {
     <div class="card update-card">
       <div class="icon-circle" style="background:${color}">${glyph}</div>
       <div class="cc-main">
-        <div class="cc-code">${escapeHtml(u.overall ? u.label : courseLabel({ code: u.label }))}</div>
+        <div class="cc-title">${escapeHtml(u.overall ? u.label : courseTitle({ code: u.label }))}</div>
         <div class="muted small">${u.overall ? "Overall average changed" : "Mark changed"}</div>
         <div class="update-trend">${fmtPercent(u.from)} <span class="muted">→</span> <b>${fmtPercent(u.to)}</b></div>
       </div>

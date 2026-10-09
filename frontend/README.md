@@ -19,17 +19,42 @@ source and rebuild command live in [`../worker`](../worker).
 
 ## Screens
 
-- **Courses** — overall-average gauge, per-course cards with progress bars,
-  and a "Recent updates" feed of day-over-day mark changes.
-- **Course detail** — semicircular mark gauge, grade-progression chart, course
+- **Courses** — a large overall average (with Ontario level and letter grade),
+  course cards with the real course name ("Mathematics", not just `MTH1W1`),
+  grade, teacher and progress bar, a "Recent updates" feed, and grade history
+  at the bottom.
+- **Course detail** — a Teacher card (name, email, room, extra-help times —
+  added once per course, saved on the device), semicircular mark gauge, grade-progression chart, course
   info, an **Evaluations** list (category pill, weight, date, teacher
   feedback), and a **Breakdown** tab with weighted per-category strand bars in
   TeachAssist's classic strand colours.
-- **Guidance** — curated YRDSB / Ontario planning, academic, and support links.
+- **Guidance** — my school (principal, VPs, bell times, phone, website,
+  official boundary map), an interactive **school map** of all 218 YRDSB
+  schools, a counsellor card, an **OSSD diploma tracker**, a full **volunteer
+  hours** log, appointment reminders, and verified resource links with icons.
+- **Assistant** — answers from your own data on the device: what you need on
+  a final, what-if scores, a weekly study plan built from your weakest
+  categories, school questions (bell times, principal…), credits and hours.
 - **Science** — a static analytics deep-dive for the Grade 9 Science course.
 - **Links** — an editable, locally-stored list of student tools.
 - **Settings** — 15 colour themes, notification preferences, advanced server settings, diagnostic reports, refresh, and sign out.
 - **Profile** — editable name, school, photo and cover; customizable quick actions, volunteer log, exam calculator, and student ID reference.
+
+## URLs
+
+Every screen has its own address, so refresh, Back and bookmarks work:
+`app.html#courses`, `#course/MTH1W`, `#guidance`, `#guidance/map`,
+`#guidance/volunteer`, `#dreams`, `#assistant`, `#settings`, `#profile`.
+
+## School data
+
+`data/schools.json` is built from YRDSB's public
+[school profiles](https://www2.yrdsb.ca/school-profiles) and geocoded with
+OpenStreetMap. Rebuild it (about once a year) with:
+
+```bash
+node worker/scripts/build-schools.mjs
+```
 
 ## Run locally
 
