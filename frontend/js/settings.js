@@ -21,74 +21,59 @@ import {
   setWorkerUrl,
   isDemo,
 } from "./ta-client.js";
-import { savedFeedback, stagger } from "./motion.js";
+import { mountThumb, savedFeedback, stagger } from "./motion.js";
+import { APPEARANCES, COLORS, applyTheme, setTheme, themeChoice, themeLabel } from "./theme.js";
+import { glassButton, pageHeader, GLYPHS } from "./ui-kit.js";
 
-const THEME_KEY = "theme";
-const APP_VERSION = "4.1.0";
-
-// Selectable colour themes. Every accent keeps AA contrast when used as text
-// (dark-on-light for the light themes, light-on-dark for the dark themes).
-export const THEMES = [
-  { id: "auto", name: "Auto — follows your device's light/dark mode", color: "linear-gradient(135deg, #f5f5f7 50%, #1c1c1e 50%)" },
-  { id: "pearl", name: "Pearl", color: "#52525b" },
-  { id: "lavender", name: "Lavender", color: "#7050a0" },
-  { id: "matcha", name: "Matcha", color: "#526b35" },
-  { id: "peach", name: "Peach", color: "#a34c35" },
-  { id: "coffee", name: "Coffee", color: "#795548" },
-  { id: "arctic", name: "Arctic", color: "#276682" },
-  { id: "indigo", name: "Indigo", color: "#4338ca" },
-  { id: "ocean", name: "Ocean", color: "#0e7490" },
-  { id: "sunset", name: "Sunset", color: "#c2410c" },
-  { id: "rose", name: "Rose", color: "#be123c" },
-  { id: "forest", name: "Forest", color: "#15803d" },
-  { id: "grape", name: "Grape", color: "#6d28d9" },
-  { id: "slate", name: "Slate", color: "#334155" },
-  { id: "dark", name: "Dark", color: "#1a1c22" },
-  { id: "midnight", name: "Midnight", color: "#14203a" },
-];
-
-function currentTheme() {
-  const t = localStorage.getItem(THEME_KEY);
-  // Migrate the old light/dark values.
-  if (t === "light") return "indigo";
-  return THEMES.some((x) => x.id === t) ? t : "auto";
-}
-
-function applyTheme(id, { crossfade = false } = {}) {
-  // `m-theming` puts a short transition on the themed surfaces so switching
-  // theme fades rather than flashes. It is removed again straight after.
-  if (crossfade) {
-    document.documentElement.classList.add("m-theming");
-    clearTimeout(applyTheme.timer);
-    applyTheme.timer = setTimeout(
-      () => document.documentElement.classList.remove("m-theming"),
-      400,
-    );
-  }
-  // "auto" resolves to the default light theme or Dark, live with the OS.
-  if (id === "auto") {
-    const dark = matchMedia("(prefers-color-scheme: dark)");
-    if (!applyTheme.watching) {
-      applyTheme.watching = true;
-      dark.addEventListener?.("change", () => currentTheme() === "auto" && applyTheme("auto", { crossfade: true }));
-    }
-    id = dark.matches ? "dark" : "indigo";
-  }
-  document.documentElement.setAttribute("data-theme", id);
-  // Keep the browser/OS chrome colour in step with the theme's top wash.
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) {
-    const wash = getComputedStyle(document.documentElement)
-      .getPropertyValue("--bg-tint-top")
-      .trim();
-    if (wash) meta.setAttribute("content", wash);
-  }
-}
+const APP_VERSION = "5.0.0";
 
 /** Apply the saved theme on app boot (called from app.html). */
 export function applyStoredTheme() {
-  applyTheme(currentTheme());
+  applyTheme();
   applyPreferences();
+}
+
+/** The Theme page: appearance segmented control + six colour tiles. */
+export function renderThemeSettings(container) {
+  container.innerHTML = "";
+  const head = el(pageHeader({ title: "Theme", left: glassButton("back", "Back to settings", "data-back") }));
+  head.querySelector("[data-back]").onclick = () => window.AppNav.toSettings();
+  container.append(head);
+
+  const { appearance, color } = themeChoice();
+  const body = el(`
+    <div class="theme-page">
+      <h2 class="g-section">Appearance</h2>
+      <div class="segmented g-segmented" role="radiogroup" aria-label="Appearance">
+        ${APPEARANCES.map((a) => `<button type="button" role="radio" data-appearance="${a.id}" aria-checked="${a.id === appearance}" class="${a.id === appearance ? "active" : ""}">${a.name}</button>`).join("")}
+      </div>
+      <h2 class="g-section">Color</h2>
+      <div class="theme-grid" role="radiogroup" aria-label="Color">
+        ${COLORS.map((c) => `<button type="button" role="radio" class="theme-tile" data-color="${c.id}" aria-checked="${c.id === color}"><span class="theme-orb" style="background:${c.orb}"></span><b>${c.name}</b></button>`).join("")}
+      </div>
+    </div>`);
+  container.append(body);
+
+  const seg = body.querySelector(".segmented");
+  const moveThumb = mountThumb(seg, { inset: 5, radius: "999px" });
+  requestAnimationFrame(() => moveThumb(seg.querySelector(".active")));
+  seg.querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => {
+      setTheme({ appearance: b.dataset.appearance });
+      seg.querySelectorAll("button").forEach((x) => {
+        x.classList.toggle("active", x === b);
+        x.setAttribute("aria-checked", String(x === b));
+      });
+      moveThumb(b);
+    }),
+  );
+  body.querySelectorAll(".theme-tile").forEach((tile) =>
+    tile.addEventListener("click", () => {
+      setTheme({ color: tile.dataset.color });
+      body.querySelectorAll(".theme-tile").forEach((x) => x.setAttribute("aria-checked", String(x === tile)));
+    }),
+  );
+  stagger(container.children);
 }
 
 /** Render the Settings screen. */
@@ -124,41 +109,16 @@ export async function renderSettings(container) {
   personal.querySelector("[data-profile]").onclick = () => window.AppNav.toProfile();
   container.append(personal);
 
-  // Appearance — theme picker and layout.
-  const active = currentTheme();
+  // Appearance — theme page and layout.
   const appearance = group("Appearance", "", [
     ["glass", "Translucent surfaces", "Frosted navigation and layered depth"],
     ["compact", "Compact layout", "Fit more courses on screen"],
   ]);
-  appearance.querySelector(".preference-row").before(el(`
-    <div>
-      <div class="theme-swatches" role="group" aria-label="Colour theme">
-        ${THEMES.map(
-          (t) =>
-            `<button type="button" class="swatch ${t.id === active ? "active" : ""}" data-theme-id="${t.id}" title="${escapeHtml(t.name)}" aria-pressed="${t.id === active}" aria-label="${escapeHtml(t.name)} theme" style="background:${t.color}"></button>`,
-        ).join("")}
-      </div>
-      <p class="small muted" style="margin:10px 0 4px">Theme: <span class="theme-current" id="theme-name">${escapeHtml(
-        THEMES.find((t) => t.id === active)?.name || "Indigo",
-      )}</span></p>
-    </div>`));
-  appearance.querySelectorAll(".swatch").forEach((sw) =>
-    sw.addEventListener("click", () => {
-      const id = sw.dataset.themeId;
-      localStorage.setItem(THEME_KEY, id);
-      applyTheme(id, { crossfade: true });
-      appearance
-        .querySelectorAll(".swatch")
-        .forEach(
-          (s) => (
-            s.classList.toggle("active", s.dataset.themeId === id),
-            s.setAttribute("aria-pressed", String(s.dataset.themeId === id))
-          ),
-        );
-      appearance.querySelector("#theme-name").textContent =
-        THEMES.find((t) => t.id === id)?.name || "";
-    }),
+  const themeRow = el(
+    `<button type="button" class="preference-row theme-row"><span><b>Theme</b><small>${escapeHtml(themeLabel())}</small></span><span class="g-chev">${GLYPHS.chevron}</span></button>`,
   );
+  themeRow.onclick = () => window.AppNav.go("settings", "theme");
+  appearance.querySelector(".preference-row").before(themeRow);
   container.append(appearance);
 
   // Accessibility & privacy on screen.

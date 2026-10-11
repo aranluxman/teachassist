@@ -23,6 +23,7 @@ import { volunteerTotal } from "./volunteer.js";
 import { calculatePlan } from "./grade-math.js";
 import { preferences } from "./personalization.js";
 import { countUp, motionEnabled, replay, shake, typingIndicator } from "./motion.js";
+import { glassButton, pageHeader } from "./ui-kit.js";
 
 const SEND_ICON = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`;
 const CALC_KIND = { required: "Target grade", projected: "Final grade", arithmetic: "Arithmetic", average: "Weighted average" };
@@ -251,14 +252,18 @@ function emptyNode() {
   const node = el(`<div class="chat-empty">
     <span class="chat-empty-mark" aria-hidden="true">✦</span>
     <h2>${name ? `Hey ${escapeHtml(name)}, what can I help with?` : "What can I help with?"}</h2>
-    <p class="muted">Marks, finals, study plans, school info and graduation. Ask in your own words — I'll follow along.</p>
+    <p class="muted">${tutorOn
+      ? "Ask me anything: any subject, raising your grades, study plans, university and college, careers. I'll follow along."
+      : "Marks, finals, study plans, school info and graduation. Ask in your own words — I'll follow along."}</p>
     <div class="chat-starters" role="group" aria-label="Starter questions"></div>
     <p class="small muted chat-privacy">${tutorOn
       ? "Marks, plans and school questions are answered on this device. Other questions go to the AI tutor (OpenAI): only the messages you send it and its replies — plus course names and current marks if you turn on “Share my marks”. Never your login or student number. Up to 30 tutor messages a day. This chat clears when you close the tab."
       : "Answers are worked out on this device from your TeachAssist marks. If I can't parse a grade-math question, only the words you typed (and the question it follows up on) go to the AI helper — never your marks, courses or login. This chat clears when you close the tab."}</p>
   </div>`);
   const row = node.querySelector(".chat-starters");
-  const starters = tutorOn ? [STARTERS[0], STARTERS[1], "Explain photosynthesis simply"] : STARTERS;
+  const starters = tutorOn
+    ? [STARTERS[0], "What average do I need for university engineering?", "Explain photosynthesis simply"]
+    : STARTERS;
   for (const s of starters) {
     const b = el(`<button type="button" class="suggest-chip"></button>`);
     b.textContent = s;
@@ -300,13 +305,12 @@ function installSizing() {
 export function renderAssistant(container) {
   container.classList.add("chat-screen");
   container.innerHTML = `
-    <header class="chat-head">
-      <h1>Assistant</h1>
-      <div class="chat-head-actions">
-        <button type="button" class="btn ghost chat-tool" data-calc aria-expanded="false" aria-controls="chat-calc">Calculator</button>
-        <button type="button" class="btn ghost chat-tool" data-new>New chat</button>
-      </div>
-    </header>
+    ${pageHeader({
+      title: "Assistant",
+      subtitle: "Ask me anything about school",
+      left: glassButton("calc", "Quick calculator", 'data-calc aria-expanded="false" aria-controls="chat-calc"'),
+      right: glassButton("compose", "New chat", "data-new"),
+    }).replace('class="g-header"', 'class="g-header chat-head"')}
     <section id="chat-calc" class="card chat-calc" hidden aria-label="Quick calculator">
       <form class="quick-calc"><p class="small muted">Quick calculator · works without AI</p><div class="form-grid"><div class="field"><label for="calc-current">Current grade (%)</label><input id="calc-current" name="current" type="number" inputmode="decimal" min="0" max="100" step="any" value="85" required></div><div class="field"><label for="calc-target">Target grade (%)</label><input id="calc-target" name="target" type="number" inputmode="decimal" min="0" max="100" step="any" value="90" required></div><div class="field"><label for="calc-remaining">Remaining weight (%)</label><input id="calc-remaining" name="remaining" type="number" inputmode="decimal" min="0.01" max="100" step="any" value="30" required></div></div><button class="btn secondary">Find required grade</button><p class="calc-result" role="status"></p></form>
     </section>
@@ -314,7 +318,7 @@ export function renderAssistant(container) {
     <button type="button" class="chat-jump hidden">New message ↓</button>
     <form class="composer" novalidate>
       <label for="chat-input" class="sr-only">Message the assistant</label>
-      <textarea id="chat-input" rows="1" maxlength="1500" enterkeyhint="send" placeholder="Ask about marks, plans, school…"></textarea>
+      <textarea id="chat-input" rows="1" maxlength="1500" enterkeyhint="send" placeholder="Ask anything…"></textarea>
       <button type="submit" class="send-btn" aria-label="Send message">${SEND_ICON}</button>
     </form>
     <label class="share-toggle" hidden><input type="checkbox" role="switch" id="share-marks"><span>Share my marks with the AI tutor</span></label>`;

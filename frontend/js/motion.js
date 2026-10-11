@@ -119,12 +119,14 @@ export function countUp(node, to, options = {}) {
     duration = 1200,
     isMark = true,
     format,
+    html = false, // `format` returns trusted markup built from the number
   } = options;
   if (!node) return;
-  const render = (v) =>
-    (node.textContent = format
-      ? format(v)
-      : `${prefix}${v.toFixed(decimals)}${suffix}`);
+  const render = (v) => {
+    const out = format ? format(v) : `${prefix}${v.toFixed(decimals)}${suffix}`;
+    if (html) node.innerHTML = out;
+    else node.textContent = out;
+  };
 
   if (to == null || !isFinite(to)) return;
   if (!motionEnabled() || (isMark && marksHidden())) {
@@ -157,7 +159,7 @@ export function rememberValue(key, value) {
 
 /**
  * Draw a semicircular gauge arc from `from` % to `to` % and count its number
- * up over the same time. Reads the hooks semiGauge() puts on the SVG.
+ * up over the same time. Reads the hooks arcGauge() (ui-kit.js) puts on the SVG.
  */
 export function animateGauge(root, to, options = {}) {
   if (!root) return;

@@ -95,6 +95,8 @@ export function parseCourseCode(code) {
 
 /** Human course name for a code ("MTH1W1" → "Mathematics"), or "". */
 export function courseName(code) {
+  // TeachAssist lists the lunch period as a "course" (LUNCH-4).
+  if (/^\s*LUNCH/i.test(String(code || ""))) return "Lunch";
   const p = parseCourseCode(code);
   if (!p) return "";
   return EXACT[p.key] || SUBJECT[p.prefix] || (p.prefix[0] === "L" ? "International Languages" : "");

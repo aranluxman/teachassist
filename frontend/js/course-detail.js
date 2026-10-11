@@ -1,30 +1,23 @@
 // ============================================================================
-// Course detail — semicircular gauge carousel + Evaluations / Breakdown tabs.
+// Course detail — swipeable gauge / progression / info pages + Evaluations and
+// Breakdown tabs.
 // ----------------------------------------------------------------------------
-// Evaluations are rendered TeachAssist-style: each assessment shows its
-// Ontario achievement category (Knowledge/Understanding, Thinking,
-// Communication, Application, Final/Culminating) as a colour-coded pill, plus
-// its weight, date and teacher feedback when available. The Breakdown tab
-// aggregates a weighted average per category with strand-coloured bars.
+// Each evaluation row carries its Ontario achievement category as a round
+// letter badge (K/U, T, C, A, F) with its weight and mark; tapping it opens a
+// sheet with the strand bars and how much it moved the average. The Breakdown
+// tab aggregates a weighted average per category as segmented bars.
 // ============================================================================
 
-import { courseLabel, courseTitle, el, escapeHtml, fmtPercent, semiGauge } from "./courses.js";
+import { achievementLevel, courseLabel, courseTitle, el, escapeHtml, fmtPercent, openSheet, trendChart } from "./courses.js";
+import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct, segBar } from "./ui-kit.js";
+import { fmtDay, fullCode, letterBadge, scheduleOf, subjectBadge } from "./subjects.js";
 import { courseMeta } from "./course-names.js";
 import { teacherFor, editTeacher } from "./teachers.js";
 import { askAboutCourse } from "./assistant-session.js";
 import { preferences } from "./personalization.js";
 import { displayMark, markKind } from "./ta-client.js";
-import {
-  animateGauge,
-  chartAnimation,
-  countUp,
-  motionEnabled,
-  mountThumb,
-  previousValue,
-  rememberValue,
-} from "./motion.js";
+import { animateGauge, countUp, mountThumb, previousValue, rememberValue } from "./motion.js";
 
-let charts = [];
 let activeSeg = "evals";
 
 /** Map a category label to its strand key: k / t / c / a / f (or ""). */
@@ -38,15 +31,6 @@ export function strandKey(category) {
   return "";
 }
 
-/** Short display label for a category ("Knowledge/Understanding" -> "K/U"). */
-function strandShort(category) {
-  return (
-    { k: "K/U", t: "Thinking", c: "Comm", a: "App", f: "Final" }[strandKey(category)] ||
-    category ||
-    ""
-  );
-}
-
 function fmtDate(iso) {
   if (!iso) return "";
   const d = new Date(iso + "T00:00:00");
@@ -54,14 +38,36 @@ function fmtDate(iso) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function catPill(category) {
-  const key = strandKey(category);
-  return `<span class="cat-pill ${key ? `cat-${key}` : ""}" title="${escapeHtml(category || "")}">${escapeHtml(strandShort(category))}</span>`;
+// Strand letter-badge gradients (TeachAssist's yellow / green / blue / orange,
+// plus pink for Final/Culminating and other categories).
+const STRAND_STYLE = {
+  k: ["K/U", "#ffcf4a", "#f59e0b"],
+  t: ["T", "#3ee0a1", "#10a37a"],
+  c: ["C", "#8f96ff", "#5b5ff0"],
+  a: ["A", "#ffa25a", "#f2640c"],
+  f: ["F", "#ff7aa0", "#e8336a"],
+};
+function strandBadge(category) {
+  const key = strandKey(category) || "f";
+  const [letter, from, to] = STRAND_STYLE[key];
+  const text = strandKey(category) ? letter : (String(category || "?").trim().charAt(0).toUpperCase() || "?");
+  return letterBadge(escapeHtml(text), from, to);
+}
+const strandColor = (category) => `var(--strand-${strandKey(category) || "f"}-bar)`;
+
+/** Weighted mean of evaluations (weight 1 when missing). */
+function weightedMean(list) {
+  let sum = 0, w = 0;
+  for (const e of list) {
+    const wt = typeof e.weight === "number" && e.weight > 0 ? e.weight : 1;
+    sum += e.percent * wt;
+    w += wt;
+  }
+  return w ? sum / w : null;
 }
 
 /** Open the detail screen for a (live or demo) course object. */
 export async function openCourseDetail(container, course) {
-  destroyCharts();
   activeSeg = "evals";
   container.innerHTML = "";
 
@@ -70,95 +76,19 @@ export async function openCourseDetail(container, course) {
   );
   const mark = displayMark(course);
   const kind = markKind(course);
+  const { period, room, term } = scheduleOf(course);
 
-  // ── Nav ──
-  const nav = el(`
-    <div class="detail-nav">
-      <button class="back-btn">Courses</button>
-      <div class="detail-titlewrap">
-        <div class="detail-title">${escapeHtml(courseTitle(course))}</div>
-        <div class="detail-subtitle">${escapeHtml([courseLabel(course), courseMeta(courseLabel(course))].filter(Boolean).join(" · "))}</div>
-      </div>
-      <div class="detail-actions"></div>
-    </div>
-  `);
-  nav.querySelector(".back-btn").addEventListener("click", () => window.AppNav.toCourses());
-  container.appendChild(nav);
-
-  // ── Carousel: gauge / progression chart / info ──
-  const carousel = el(`<div class="carousel" id="d-carousel"></div>`);
-
-  carousel.appendChild(
-    el(`
-    <div class="panel"><div class="card gauge-card">
-      ${semiGauge(mark)}
-      ${
-        course.midterm != null
-          ? `<div class="midterm-pill">Midterm: ${fmtPercent(Number(course.midterm))}</div>`
-          : ""
-      }
-      <div class="gauge-cap">${kind === "midterm" ? "Midterm Mark" : "Current Mark"}</div>
-    </div></div>
-  `)
+  // ── Header: back · code · ask the assistant ──
+  const nav = el(
+    pageHeader({
+      title: fullCode(course) || courseLabel(course),
+      subtitle: escapeHtml(courseTitle(course)),
+      left: glassButton("back", "Back to courses", "data-back"),
+      right: glassButton("wand", "Ask the assistant about this course", "data-ask"),
+    }),
   );
-
-  const hasChart = evals.length >= 1 && window.Chart;
-  if (hasChart) {
-    carousel.appendChild(
-      el(`
-      <div class="panel"><div class="card gauge-card">
-        <div class="muted small" style="font-weight:600;align-self:flex-start">GRADE PROGRESSION</div>
-        <div class="chart-box"><canvas id="d-chart"></canvas></div>
-      </div></div>
-    `)
-    );
-  }
-
-  carousel.appendChild(
-    el(`
-    <div class="panel"><div class="card gauge-card">
-      <div class="info-list" style="width:100%">
-        <div class="info-row"><span>Code</span><span>${escapeHtml(courseLabel(course) || "—")}</span></div>
-        ${teacherFor(course).name ? `<div class="info-row"><span>Teacher</span><span>${escapeHtml(teacherFor(course).name)}</span></div>` : ""}
-        ${course.block ? `<div class="info-row"><span>Block</span><span>${escapeHtml(course.block)}</span></div>` : ""}
-        ${course.room ? `<div class="info-row"><span>Room</span><span>${escapeHtml(course.room)}</span></div>` : ""}
-        <div class="info-row"><span>Current mark</span><span>${course.currentMark != null ? fmtPercent(Number(course.currentMark)) : "—"}</span></div>
-        <div class="info-row"><span>Midterm</span><span>${course.midterm != null ? fmtPercent(Number(course.midterm)) : "—"}</span></div>
-        <div class="info-row"><span>Evaluations</span><span>${evals.length}</span></div>
-      </div>
-    </div></div>
-  `)
-  );
-  container.appendChild(carousel);
-  if (mark != null) {
-    const key = `course:${course.code || courseLabel(course)}`;
-    animateGauge(carousel.querySelector(".gauge-card"), mark, {
-      from: previousValue(key, 0),
-    });
-    rememberValue(key, mark);
-  }
-
-  // Named, touch-sized controls supplement horizontal swiping.
-  const labels = hasChart ? ["Grade", "Trend", "Info"] : ["Grade", "Info"];
-  const controls = el(`<div class="carousel-controls" role="group" aria-label="Course overview: choose a view">${labels.map((label, i) => `<button type="button" aria-pressed="${i === 0}" aria-controls="d-carousel">${label}</button>`).join("")}</div>`);
-  container.appendChild(controls);
-  const buttons = [...controls.querySelectorAll("button")];
-  buttons.forEach((button, i) => button.addEventListener("click", () => {
-    const reduce = !motionEnabled();
-    carousel.scrollTo({left: i * carousel.clientWidth, behavior: reduce ? "instant" : "smooth"});
-  }));
-  const syncControls = () => {
-    const current = Math.round(carousel.scrollLeft / carousel.clientWidth);
-    buttons.forEach((button, i) => button.setAttribute("aria-pressed", String(i === current)));
-  };
-  carousel.addEventListener("scroll", syncControls, {passive: true});
-  window.addEventListener("resize", syncControls);
-  requestAnimationFrame(syncControls);
-
-  // Ask the assistant about this course: only its code, name and visible
-  // mark are used, on this device.
-  const ask = el(`<button type="button" class="btn secondary ask-course"><span aria-hidden="true">✦</span> Ask about this course</button>`);
-  ask.addEventListener("click", () => {
+  nav.querySelector("[data-back]").addEventListener("click", () => window.AppNav.toCourses());
+  nav.querySelector("[data-ask]").addEventListener("click", () => {
     askAboutCourse({
       code: courseLabel(course),
       title: courseTitle(course),
@@ -166,23 +96,90 @@ export async function openCourseDetail(container, course) {
     });
     window.AppNav.toAssistant();
   });
-  container.appendChild(ask);
+  container.appendChild(nav);
+
+  // ── Pager: mark gauge · progression · course info ──
+  const track = el(`<div class="g-pager" id="d-carousel"></div>`);
+  const gaugePage = el(`
+    <section class="g-page g-hero" aria-label="${kind === "midterm" ? "Midterm mark" : "Current mark"} ${mark == null ? "not available" : fmtPercent(mark)}">
+      <div class="g-gauge-wrap">
+        ${arcGauge(mark, { id: "course" })}
+        <div class="g-gauge-center">
+          <div class="g-hero-num private-mark">${pct(mark)}</div>
+          ${course.midterm != null && kind !== "midterm" ? `<div class="g-delta">Midterm ${pct(Number(course.midterm))}</div>` : ""}
+        </div>
+      </div>
+      <p class="g-caption">${kind === "midterm" ? "Midterm Mark" : "Current Mark"}${mark != null ? ` · ${achievementLevel(mark)}` : ""}</p>
+    </section>`);
+  track.appendChild(gaugePage);
+
+  const labels = ["Mark"];
+  if (evals.length) {
+    let sum = 0;
+    const rows = evals.map((e, i) => ((sum += e.percent), { date: i, value: sum / (i + 1) }));
+    const page = el(`<section class="g-page g-hero" aria-label="Grade progression"></section>`);
+    page.insertAdjacentHTML("beforeend", preferences().hideMarks ? `<p class="g-empty-note">Hidden while “Hide grades” is on.</p>` : trendChart(rows));
+    page.append(el(`<p class="g-caption">Grade Progression</p>`));
+    track.appendChild(page);
+    labels.push("Grade progression");
+  }
+
+  const chip = (glyph, text) => `<span class="g-chip">${GLYPHS[glyph]}${text}</span>`;
+  const chips = [
+    period && chip("clock", `Period ${escapeHtml(period)}`),
+    room && chip("pin", `Room ${escapeHtml(room)}`),
+    term && chip("calendar", `${escapeHtml(fmtDay(term.start))} <span class="g-chip-arrow">${GLYPHS.arrowRight}</span> ${escapeHtml(fmtDay(term.end))}`),
+    !term && courseMeta(courseLabel(course)) && chip("calendar", escapeHtml(courseMeta(courseLabel(course)))),
+  ].filter(Boolean);
+  const stat = (glyph, value, label) =>
+    `<div class="g-stat">${GLYPHS[glyph]}<div><b class="private-mark">${value == null ? `<span class="g-pct g-none">No Mark</span>` : pct(Number(value))}</b><small>${label}</small></div></div>`;
+  track.appendChild(
+    el(`
+    <section class="g-page g-info" aria-label="Course info">
+      <div class="g-info-top">
+        ${subjectBadge(course.code, "g-badge-xl")}
+        <div class="g-chips">${chips.join("") || chip("clock", "Timetable details not listed")}</div>
+      </div>
+      <div class="g-stats">
+        ${stat("percent", course.midterm, "Midterm")}
+        ${stat("seal", course.final ?? course.finalMark ?? null, "Final")}
+      </div>
+    </section>`),
+  );
+  labels.push("Course info");
+  container.appendChild(track);
+  container.appendChild(pager(track, labels));
+  if (mark != null) {
+    const key = `course:${course.code || courseLabel(course)}`;
+    const from = previousValue(key, 0);
+    animateGauge(gaugePage, mark, { from });
+    countUp(gaugePage.querySelector(".g-hero-num .g-pct"), mark, {
+      from,
+      duration: 1100,
+      format: (v) => `${(Math.round(v * 10) / 10).toFixed(1)}<small>%</small>`,
+      html: true,
+    });
+    rememberValue(key, mark);
+  }
 
   // ── Segmented: Evaluations / Breakdown ──
   const seg = el(`
-    <div class="segmented">
-      <button data-seg="evals">Evaluations</button>
-      <button data-seg="breakdown">Breakdown</button>
+    <div class="segmented g-segmented" role="tablist" aria-label="Course details">
+      <button type="button" role="tab" data-seg="evals">Evaluations</button>
+      <button type="button" role="tab" data-seg="breakdown">Breakdown</button>
     </div>
   `);
-  const content = el(`<div id="seg-content"></div>`);
+  const content = el(`<div id="seg-content" class="g-list"></div>`);
   container.appendChild(seg);
   container.appendChild(content);
 
-  const moveSegThumb = mountThumb(seg, {inset: 3, radius: "9px"});
+  const moveSegThumb = mountThumb(seg, { inset: 5, radius: "999px" });
   const show = (s) => {
     activeSeg = s;
-    seg.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.seg === s));
+    seg.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("active", b.dataset.seg === s);
+      b.setAttribute("aria-selected", String(b.dataset.seg === s));
+    });
     moveSegThumb(seg.querySelector("button.active"));
     content.innerHTML = "";
     content.appendChild(s === "evals" ? buildEvals(evals, kind) : buildBreakdown(evals));
@@ -193,8 +190,6 @@ export async function openCourseDetail(container, course) {
   requestAnimationFrame(() => moveSegThumb(seg.querySelector("button.active")));
 
   container.appendChild(teacherCard(course));
-
-  if (hasChart) drawProgress(container, evals);
 }
 
 /** Teacher contact card — add once, then tap to email. */
@@ -217,9 +212,10 @@ function teacherCard(course) {
   return card;
 }
 
-// ── Evaluations list (strand-tinted icon + name + pill/weight/date + %) ──
+// ── Evaluations list (letter badge + name + weight + mark → detail sheet) ──
 function buildEvals(evals, kind) {
   const frag = document.createElement("div");
+  frag.className = "g-list";
   if (!evals.length) {
     frag.appendChild(
       el(`<div class="card empty-inline" role="status"><b>No evaluations yet</b>${
@@ -233,31 +229,57 @@ function buildEvals(evals, kind) {
     return frag;
   }
   evals.forEach((e, i) => {
-    const key = strandKey(e.category) || "f";
-    const letter = (e.name || e.category || "?").trim().charAt(0).toUpperCase();
-    const meta = [];
-    if (e.category) meta.push(catPill(e.category));
-    if (e.weight != null) meta.push(`<span>Weight ${escapeHtml(String(e.weight))}</span>`);
-    const date = fmtDate(e.date);
-    if (date) meta.push(`<span>${escapeHtml(date)}</span>`);
-    frag.appendChild(
-      el(`
-      <div class="card eval-row">
-        <div class="icon-circle" style="width:38px;height:38px;min-width:38px;font-size:15px;background:var(--strand-${key}-tint);color:var(--strand-${key});text-shadow:none">${escapeHtml(letter)}</div>
-        <div class="eval-main">
-          <div class="eval-name">${escapeHtml(e.name || e.category || "Assessment")}</div>
-          ${meta.length ? `<div class="eval-sub">${meta.join("")}</div>` : ""}
-          ${e.feedback ? `<div class="eval-feedback">“${escapeHtml(e.feedback)}”</div>` : ""}
-        </div>
-        <div class="row-value">${fmtPercent(e.percent)}</div>
-      </div>
-    `)
-    );
-    // The row, its category pill and its feedback quote share one index, so
-    // each evaluation arrives as a single unit 0.04s after the last.
-    frag.lastElementChild.style.setProperty("--m-i", String(i));
+    const sub = [e.weight != null ? `Weight: <span class="g-mono">${escapeHtml(String(e.weight))}</span>` : "", fmtDate(e.date)].filter(Boolean).join(" · ");
+    const row = el(`
+      <button type="button" class="g-row eval-row" aria-haspopup="dialog">
+        ${strandBadge(e.category || e.name)}
+        <span class="g-row-main">
+          <b>${escapeHtml(e.name || e.category || "Assessment")}</b>
+          ${sub ? `<small>${sub}</small>` : ""}
+        </span>
+        <span class="g-row-value">${pct(e.percent)}</span>
+        <span class="g-chev">${GLYPHS.chevron}</span>
+      </button>
+    `);
+    row.style.setProperty("--m-i", String(i));
+    row.addEventListener("click", () => openEvaluation(e, evals));
+    frag.appendChild(row);
   });
   return frag;
+}
+
+/** Bottom sheet for one evaluation: big mark, strand bars, impact. */
+function openEvaluation(e, evals) {
+  const others = evals.filter((x) => x !== e);
+  const impact = others.length ? weightedMean(evals) - weightedMean(others) : null;
+  const strands = Array.isArray(e.strands) && e.strands.length ? e.strands : [{ category: e.category || e.name, percent: e.percent, weight: e.weight }];
+  const body = el(`
+    <div class="eval-sheet">
+      <div class="eval-sheet-head">
+        ${subjectBadge("ENG", "g-badge-lg")}
+        <h3>${escapeHtml(e.name || e.category || "Assessment")}</h3>
+        <div class="g-hero-num private-mark">${pct(e.percent)}</div>
+        <p class="g-caption">Overall${e.date ? ` · ${escapeHtml(fmtDate(e.date))}` : ""}</p>
+      </div>
+      <div class="eval-strands">
+        ${strands
+          .map(
+            (s) => `<div class="eval-strand">
+              <div class="eval-strand-top"><b>${escapeHtml(s.category || "Mark")}</b><span class="private-mark">${pct(s.percent)}</span></div>
+              <div class="eval-strand-sub"><span>${s.weight != null ? `Weight: <span class="g-mono">${escapeHtml(String(s.weight))}</span>` : ""}</span></div>
+              ${segBar(s.percent, strandColor(s.category))}
+            </div>`,
+          )
+          .join("")}
+      </div>
+      ${e.feedback ? `<p class="eval-feedback">“${escapeHtml(e.feedback)}”</p>` : ""}
+      ${
+        impact != null && Math.abs(impact) >= 0.05 && !preferences().hideMarks
+          ? `<p class="eval-impact ${impact >= 0 ? "up" : "down"}">${impact >= 0 ? GLYPHS.trendUp : GLYPHS.trendDown}This evaluation ${impact >= 0 ? "raised" : "lowered"} your average by about ${Math.abs(Math.round(impact * 10) / 10).toFixed(1)}%</p>`
+          : ""
+      }
+    </div>`);
+  openSheet(" ", body, { className: "sheet-eval" });
 }
 
 /** Weighted average per achievement category, in TeachAssist strand order. */
@@ -291,124 +313,28 @@ export function strandBreakdown(evals) {
     }));
 }
 
-// ── Breakdown (weighted per-category bars) ──
+// ── Breakdown (weighted per-category segmented bars) ──
 function buildBreakdown(evals) {
   const frag = document.createElement("div");
+  frag.className = "g-list";
   if (!evals.length) {
     frag.appendChild(el(`<div class="card empty-inline" role="status"><b>No breakdown yet</b>The category breakdown appears once TeachAssist lists individual assessments for this course.</div>`));
     return frag;
   }
-  const allZero = evals.every((e) => !e.percent);
-  if (allZero) {
-    frag.appendChild(
-      el(`<div class="card" style="margin-bottom:12px;background:var(--accent-tint);box-shadow:none">
-        <div class="small" style="color:var(--text)">Your teacher hasn't posted assignment marks yet, so percentages are 0%. The weightings below are from TeachAssist.</div>
-      </div>`)
-    );
+  if (evals.every((e) => !e.percent)) {
+    frag.appendChild(el(`<p class="g-empty-note">Your teacher hasn't posted assignment marks yet, so percentages are 0%. The weightings below are from TeachAssist.</p>`));
   }
-
-  const strands = strandBreakdown(evals);
-  const card = el(`<div class="card" style="padding:6px var(--gap)"></div>`);
-  strands.forEach((s, i) => {
-    card.appendChild(
-      el(`
-      <div class="strand-row">
-        <div class="strand-head">
-          <span class="strand-name">${escapeHtml(s.name)}</span>
-          <span class="strand-value tnum">${fmtPercent(s.average)}</span>
-        </div>
-        <div class="strand-meta">${s.count} assessment${s.count === 1 ? "" : "s"} · weight ${Math.round(s.weight * 10) / 10}</div>
-        <div class="bar-track"><i class="bar-fill cat-${s.key}" style="width:${Math.max(0, Math.min(100, s.average))}%"></i></div>
-      </div>
-    `)
-    );
-    // Each strand's bar grows and its percentage counts up, one after another.
-    const row = card.lastElementChild;
+  const card = el(`<div class="g-panel eval-strands"></div>`);
+  strandBreakdown(evals).forEach((s, i) => {
+    const row = el(`
+      <div class="eval-strand strand-row">
+        <div class="eval-strand-top"><span class="eval-strand-name">${strandBadge(s.name)}<b>${escapeHtml(s.name)}</b></span><span class="strand-value private-mark">${pct(s.average)}</span></div>
+        <div class="eval-strand-sub"><span>Weight: <span class="g-mono">${Math.round(s.weight * 10) / 10}</span></span><span class="g-mono">${s.count} ${s.count === 1 ? "entry" : "entries"}</span></div>
+        ${segBar(s.average, `var(--strand-${s.key}-bar)`, 10)}
+      </div>`);
     row.style.setProperty("--m-i", String(i));
-    row.querySelector(".bar-fill").style.setProperty("--m-i", String(i));
-    countUp(row.querySelector(".strand-value"), s.average, {
-      from: 0,
-      duration: 900,
-      format: fmtPercent,
-    });
+    card.appendChild(row);
   });
   frag.appendChild(card);
-
-  // Every individual entry with its weight, for the fine print.
-  frag.appendChild(el(`<div class="section-label">All entries</div>`));
-  const rows = el(`<div class="rows"></div>`);
-  evals.forEach((e) =>
-    rows.appendChild(
-      el(`<div class="row" style="cursor:default">
-        <div class="row-main"><div class="row-title">${escapeHtml(e.name || e.category || "")}</div>
-        <div class="row-sub">${e.category ? `${escapeHtml(e.category)} · ` : ""}Weight ${escapeHtml(String(e.weight ?? 0))}</div></div>
-        <div class="row-value">${fmtPercent(e.percent)}</div>
-      </div>`)
-    )
-  );
-  frag.appendChild(rows);
   return frag;
-}
-
-// ── Grade Progression chart (running average) ──
-function destroyCharts() {
-  for (const c of charts) {
-    try {
-      c.destroy();
-    } catch {
-      /* ignore */
-    }
-  }
-  charts = [];
-}
-
-function drawProgress(container, evals) {
-  const canvas = container.querySelector("#d-chart");
-  if (!canvas || !window.Chart) return;
-  const styles = getComputedStyle(document.documentElement);
-  const accent = styles.getPropertyValue("--accent").trim() || "#4338ca";
-  const tick = styles.getPropertyValue("--text-faint").trim() || "#64748b";
-  const running = [];
-  let sum = 0;
-  evals.forEach((e, i) => {
-    sum += e.percent;
-    running.push(Math.round((sum / (i + 1)) * 10) / 10);
-  });
-  const lo = Math.max(0, Math.floor(Math.min(...running, ...evals.map((e) => e.percent))) - 4);
-  const ctx = canvas.getContext("2d");
-  const grad = ctx.createLinearGradient(0, 0, 0, 180);
-  grad.addColorStop(0, accent + "40");
-  grad.addColorStop(1, accent + "00");
-  charts.push(
-    new window.Chart(canvas, {
-      type: "line",
-      data: {
-        labels: running.map((_, i) => i + 1),
-        datasets: [
-          {
-            data: running,
-            borderColor: accent,
-            backgroundColor: grad,
-            fill: true,
-            tension: 0.35,
-            pointRadius: 3,
-            pointBackgroundColor: accent,
-            borderWidth: 2.5,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        // The line draws left-to-right and the points pop in; `false` when
-        // motion is off, which is Chart.js's own "render the final chart".
-        animation: chartAnimation(running.length),
-        plugins: { legend: { display: false }, tooltip: { displayColors: false } },
-        scales: {
-          y: { min: lo, max: 100, ticks: { callback: (v) => v + "%", maxTicksLimit: 5, color: tick }, grid: { color: "rgba(127,127,127,0.15)", drawTicks: false }, border: { display: false } },
-          x: { grid: { display: false }, ticks: { color: tick }, border: { display: false } },
-        },
-      },
-    })
-  );
 }

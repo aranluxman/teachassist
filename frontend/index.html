@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-mode="dark" data-accent="ember" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#e3e9f4" />
+    <meta name="theme-color" content="#000000" />
     <meta name="description" content="Sign in with your YRDSB TeachAssist student number to see your marks, evaluations, and achievement-category breakdowns." />
     <title>TeachAssist — Sign in</title>
     <link rel="manifest" href="manifest.webmanifest" />
@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="css/mobile.css" />
     <link rel="stylesheet" href="css/motion.css" />
     <link rel="stylesheet" href="css/refresh.css" />
+    <link rel="stylesheet" href="css/v6.css" />
   </head>
   <body>
     <div class="auth-wrap">
@@ -85,7 +86,7 @@
         </div>
         <div class="feature-item" style="--m-i:2">
           <span class="feature-dot" aria-hidden="true">🎨</span>
-          <span><b>16 colour themes</b> — including Auto, which follows your phone’s dark mode</span>
+          <span><b>6 colour themes</b> — in dark, light, or following your phone’s setting</span>
         </div>
       </div>
 
@@ -97,6 +98,7 @@
     </div>
 
     <script type="module">
+      import { applyTheme } from "./js/theme.js";
       import {
         login,
         isLoggedIn,
@@ -109,6 +111,7 @@
         replay,
       } from "./js/motion.js";
       import { applyPreferences } from "./js/personalization.js";
+      applyTheme();
 
       // Motion follows the same Settings toggle the app uses.
       applyPreferences();
