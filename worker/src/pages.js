@@ -1,6 +1,7 @@
 // Pages advanced-mode entry point. Deploy the sign-in service with the site so
 // a frontend release cannot depend on an out-of-date standalone Worker.
 import worker from './index.js';
+import { handleChat } from './chat.js';
 
 function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -13,7 +14,12 @@ export default {
     if (origin && origin !== url.origin) return json({ error: 'Origin not allowed.' }, 403);
 
     if (url.pathname === '/api/status' && request.method === 'GET') {
-      return json({ service: 'TeachAssist', studentSignIn: true, version: 1 });
+      return json({ service: 'TeachAssist', studentSignIn: true, version: 1, tutor: !!(env.OPENAI_API_KEY && env.API_KEY) });
+    }
+    // School-focused AI tutor (OpenAI). Same-origin was checked above.
+    if (url.pathname === '/api/chat' && !url.search) {
+      if (request.method !== 'POST') return json({ error: 'Use POST.' }, 405);
+      return handleChat(request, env);
     }
     // The website exposes only student operations, never owner/cache/debug APIs.
     if (!['/api/marks', '/api/assistant'].includes(url.pathname) || url.search) {

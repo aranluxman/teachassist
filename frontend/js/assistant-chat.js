@@ -5,6 +5,7 @@
 //   { kind: "reply", reply, state }        answered on this device
 //   { kind: "calc", plan, state }           a formula the student typed
 //   { kind: "ai", question, state }         needs the AI input extractor
+//   { kind: "chat", state }                 goes to the AI tutor (/api/chat)
 // `state` is the conversation's updated topic/pending info, applied by the
 // caller only if the reply is still wanted (no late responses after New chat).
 //
@@ -16,6 +17,9 @@
 // resolved locally against that memory. The only thing ever added to an AI
 // request is the earlier question + clarification of that same AI exchange —
 // text that was already sent — never marks, course lists or other answers.
+// The AI tutor (ctx.tutor) only receives its own thread: messages the student
+// sent to it and its replies — plus course marks only if the student turns on
+// "Share my marks". On-device answers never go to it.
 // ============================================================================
 
 import { answer, findCourse } from "./assistant-brain.js";
@@ -209,6 +213,9 @@ export function respond(text, state = emptyState(), ctx = {}) {
     const question = [...thread, `Student reply: ${t}`].join("\n").slice(-1500);
     return { kind: "ai", question, original: t, state: { ...state, pending: null } };
   }
+
+  // Everything else goes to the AI tutor when this site has one.
+  if (ctx.tutor) return { kind: "chat", state: cleared };
 
   if (CONCEPT.test(t) && !MATHY.test(t)) {
     return reply(cleared, {

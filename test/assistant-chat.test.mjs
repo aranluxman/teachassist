@@ -94,3 +94,17 @@ test("conversations are session-only and separate for each account", () => {
   assert.equal(conversation().messages.length, 0);
   assert.ok(!session.has("ta-chat:111"));
 });
+
+test("with the AI tutor, open questions go to it but marks questions stay on the device", () => {
+  const tutor = { ...ctx, tutor: true };
+  const [concept] = chat(["What is photosynthesis?"], tutor);
+  assert.equal(concept.kind, "chat");
+  const [marks, plan, follow] = chat(["How can I improve in Science?", "Make that a plan for this week", "Can you explain that more simply?"], tutor);
+  assert.equal(marks.kind, "reply");
+  assert.equal(plan.kind, "reply");
+  assert.equal(follow.kind, "chat");
+  const [calc] = chat(["current 85, target 90, remaining 30"], tutor);
+  assert.equal(calc.kind, "calc", "grade maths stays deterministic");
+  const [demo] = chat(["What is photosynthesis?"], { ...ctx, tutor: false, demo: true });
+  assert.equal(demo.kind, "reply");
+});

@@ -1,5 +1,5 @@
 import { createTeachAssistSession, TeachAssistError, extractCookies } from "./teachassist-session.js";
-import { issueSession, verifySession } from "./session.js";
+import { issueSession, verifySession, subjectFor } from "./session.js";
 import {interpretQuestion} from "./assistant.js";
 /**
  * TeachAssist sign-in service. Student POSTs use only the submitted credentials
@@ -291,7 +291,7 @@ export default {
       // Only the owner GET/cron writes the shared owner cache. Student responses
       // are returned directly and are never stored in that cache.
       if (request.method === "GET") storeMarks(env, ctx, out);
-      const session = publicSignIn ? await issueSession(env.API_KEY) : "";
+      const session = publicSignIn ? await issueSession(env.API_KEY, Date.now(), await subjectFor(env.API_KEY, creds?.username)) : "";
       return json(out, 200, session ? { "X-TeachAssist-Session": session } : {});
     } catch (err) {
       if (err instanceof TeachAssistError) {

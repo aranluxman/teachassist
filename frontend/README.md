@@ -182,6 +182,30 @@ routes retain their existing administrative gate.
   Diagnostic reports are previewed before downloading/sharing and exclude student
   numbers, grades, credentials, profile data, and server URLs.
 
+### AI tutor (optional)
+
+With an OpenAI key, the Assistant also answers open school questions (explaining
+concepts, homework guidance, essays, French, careers) through `POST /api/chat`
+(`worker/src/chat.js`, model `gpt-4o-mini`). Marks, plans, school info and grade
+maths are still answered on the device.
+
+- **What's sent:** only the tutor thread (messages the student sends to the tutor
+  and its replies, at most 12). Course names and current marks are added only
+  while the student turns on "Share my marks" (off by default, reset by New
+  chat). Login, student number and on-device answers are never sent.
+- **Safety:** school-focused system prompt; every message goes through OpenAI
+  moderation first, and self-harm flags return Kids Help Phone information
+  without calling the model.
+- **Cost:** 30 tutor messages per student per day (Toronto time), counted by a
+  one-way hash of the student number carried in the signed session token.
+
+Setup in Cloudflare Pages → the project → Settings:
+1. **Variables and secrets:** add secret `OPENAI_API_KEY` (never commit it). `API_KEY`
+   must also be set (it signs sessions).
+2. **Bindings → KV namespace:** bind a namespace (e.g. `teachassist-chat-limits`)
+   as `CHAT_LIMITS`. Without it the daily limit is only per server instance.
+3. Redeploy. `GET /api/status` returns `"tutor": true` when it's ready.
+
 ### Publishing the sign-in fix
 
 Deploy `frontend/` through the existing Cloudflare Pages Git integration. Pages

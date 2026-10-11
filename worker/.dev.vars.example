@@ -7,3 +7,6 @@ TA_PASSWORD = "your-password"
 
 # Only needed if REQUIRE_API_KEY = true in src/index.js
 API_KEY = "some-long-random-string"
+
+# Optional: AI tutor (Pages project secret). Never commit a real key.
+OPENAI_API_KEY = "sk-your-key-here"

@@ -4,13 +4,16 @@
 // Compact header (New chat, Quick calculator), a scrolling conversation, and
 // a composer pinned above the tab bar. Conversation memory and follow-ups
 // come from assistant-chat.js; storage (session-only, per account) from
-// assistant-session.js. Answers are worked out on this device; only grade
-// maths it can't parse goes to the existing /api/assistant extractor, and the
-// grade numbers it returns are always calculated locally.
+// assistant-session.js. Marks, plans and school questions are answered on
+// this device and grade numbers are always calculated locally. When the site
+// has the AI tutor (/api/status → tutor), other questions go to /api/chat with
+// only the tutor thread (and marks only if "Share my marks" is on). Without
+// it, grade maths it can't parse goes to the /api/assistant extractor.
 // ============================================================================
 
-import { el, escapeHtml } from "./courses.js";
-import { workerUrl, sessionToken, isDemo, getCourses } from "./ta-client.js";
+import { el, escapeHtml, courseLabel, courseTitle } from "./courses.js";
+import { workerUrl, sessionToken, isDemo, getCourses, displayMark } from "./ta-client.js";
+import { splitByTerm } from "./term.js";
 import { accountKey } from "./student-store.js";
 import { respond, aiClarification, STARTERS } from "./assistant-chat.js";
 import { conversation, saveConversation, resetConversation, messageId } from "./assistant-session.js";
@@ -27,6 +30,17 @@ const CALC_KIND = { required: "Target grade", projected: "Final grade", arithmet
 let view = null; // the mounted screen: { container, renderLog, setBusy }
 let controller = null; // aborts an AI request when the chat is reset
 let lastSend = { text: "", at: 0 };
+let tutorStatus = null; // Promise<boolean>: does this site have the AI tutor?
+
+/** Ask the backend once per page load whether the AI tutor is set up. */
+function tutorAvailable() {
+  if (isDemo()) return Promise.resolve(false);
+  tutorStatus ||= fetch(workerUrl() + "/api/status", { signal: AbortSignal.timeout(8000) })
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((d) => d.tutor === true)
+    .catch(() => false);
+  return tutorStatus;
+}
 
 // What the assistant knows: the student's own data on this device.
 async function loadContext() {
@@ -37,6 +51,7 @@ async function loadContext() {
     ossd: ossdProgress(courses),
     volunteerHours: Math.round(volunteerTotal() * 100) / 100,
     demo: isDemo(),
+    tutor: await tutorAvailable(),
   };
 }
 
@@ -71,6 +86,31 @@ async function askAI(question, signal) {
   return data;
 }
 
+/** The marks a student chose to share: course names and current marks only. */
+function sharedMarks(courses) {
+  const shown = preferences().currentTermOnly ? splitByTerm(courses).current : courses;
+  return shown.slice(0, 12).map((c) => ({ course: `${courseTitle(c)} (${courseLabel(c)})`, mark: displayMark(c) }));
+}
+
+async function askTutor(messages, marks, signal) {
+  let response;
+  try {
+    response = await fetch(workerUrl() + "/api/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json", Authorization: `Bearer ${sessionToken()}` },
+      body: JSON.stringify(marks.length ? { messages, marks } : { messages }),
+      signal: AbortSignal.any ? AbortSignal.any([signal, AbortSignal.timeout(35000)]) : signal,
+    });
+  } catch (err) {
+    if (err.name === "AbortError" && signal.aborted) throw err;
+    if (err.name === "TimeoutError") throw new Error("The AI tutor took too long to answer.");
+    throw new Error("Couldn't reach the AI tutor. Check your connection.");
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "The AI tutor is unavailable right now.");
+  return data;
+}
+
 /** Send one student message (or retry one) and add the reply. */
 async function send(text, { retryId = null } = {}) {
   const convo = conversation();
@@ -101,7 +141,18 @@ async function send(text, { retryId = null } = {}) {
     nextState = step.state;
     if (step.kind === "reply") message = step.reply;
     else if (step.kind === "calc") message = calcReply(step.plan);
-    else {
+    else if (step.kind === "chat") {
+      // The tutor sees only its own thread: what was sent to it and its replies.
+      const asked = convo.messages.findLast((m) => m.role === "user" && m.text === q);
+      if (asked) asked.via = "chat";
+      const history = convo.messages
+        .filter((m) => m.via === "chat" && m.status === "done")
+        .map((m) => ({ role: m.role, content: m.text }))
+        .slice(-12);
+      const data = await askTutor(history, convo.shareMarks ? sharedMarks(ctx.courses) : [], signal);
+      const left = Number.isFinite(data.remaining) && data.remaining <= 5 ? ` · ${data.remaining} left today` : "";
+      message = { badge: `AI tutor${left}`, text: data.reply, via: "chat", tutor: true, suggestions: [] };
+    } else {
       const data = await askAI(step.question, signal);
       if (data.clarification) {
         message = { title: "One more thing", badge: "Needs info", text: data.clarification };
@@ -130,6 +181,7 @@ function newChat() {
   controller = null;
   lastSend = { text: "", at: 0 };
   resetConversation();
+  view?.resetShare?.();
 }
 
 // ───────────────────────────── rendering ───────────────────────────────────
@@ -137,6 +189,26 @@ function newChat() {
 function actionLinks(actions = []) {
   if (!actions.length) return "";
   return `<div class="msg-actions">${actions.map((a) => `<a class="chip" href="#${escapeHtml(a.route)}">${escapeHtml(a.label)} →</a>`).join("")}</div>`;
+}
+
+let tutorOn = false; // set once /api/status answers
+
+/**
+ * Tutor replies may use light Markdown. Render **bold**, headings and list
+ * markers safely as text nodes — never as HTML.
+ */
+function fillText(target, text, rich) {
+  if (!rich) { target.textContent = text; return; }
+  const lines = String(text).replace(/\r/g, "").split("\n").map((line) =>
+    line.replace(/^\s*#{1,6}\s+(.*)$/, "**$1**").replace(/^(\s*)[-*]\s+/, "$1• "));
+  lines.forEach((line, i) => {
+    line.split(/\*\*(.+?)\*\*/g).forEach((part, j) => {
+      if (!part) return;
+      if (j % 2) { const b = document.createElement("b"); b.textContent = part; target.append(b); }
+      else target.append(part.replace(/`([^`]+)`/g, "$1"));
+    });
+    if (i < lines.length - 1) target.append("\n");
+  });
 }
 
 function messageNode(m, isLatest) {
@@ -159,7 +231,7 @@ function messageNode(m, isLatest) {
   const node = el(`<div class="msg msg-bot"><span class="sr-only">Assistant:</span>${m.title || m.badge ? `<div class="msg-head">${m.title ? `<b class="msg-title"></b>` : ""}${m.badge ? `<span class="msg-badge"></span>` : ""}</div>` : ""}<p class="msg-text"></p>${m.detail ? `<details class="msg-detail"><summary>More detail</summary><p></p></details>` : ""}${actionLinks(m.actions)}</div>`);
   if (m.title) node.querySelector(".msg-title").textContent = m.title;
   if (m.badge) node.querySelector(".msg-badge").textContent = m.badge;
-  node.querySelector(".msg-text").textContent = m.text;
+  fillText(node.querySelector(".msg-text"), m.text, m.tutor);
   if (m.detail) node.querySelector(".msg-detail p").textContent = m.detail;
   if (isLatest && m.suggestions?.length) {
     const row = el(`<div class="msg-suggest" role="group" aria-label="Suggested replies"></div>`);
@@ -181,10 +253,13 @@ function emptyNode() {
     <h2>${name ? `Hey ${escapeHtml(name)}, what can I help with?` : "What can I help with?"}</h2>
     <p class="muted">Marks, finals, study plans, school info and graduation. Ask in your own words — I'll follow along.</p>
     <div class="chat-starters" role="group" aria-label="Starter questions"></div>
-    <p class="small muted chat-privacy">Answers are worked out on this device from your TeachAssist marks. If I can't parse a grade-math question, only the words you typed (and the question it follows up on) go to the AI helper — never your marks, courses or login. This chat clears when you close the tab.</p>
+    <p class="small muted chat-privacy">${tutorOn
+      ? "Marks, plans and school questions are answered on this device. Other questions go to the AI tutor (OpenAI): only the messages you send it and its replies — plus course names and current marks if you turn on “Share my marks”. Never your login or student number. Up to 30 tutor messages a day. This chat clears when you close the tab."
+      : "Answers are worked out on this device from your TeachAssist marks. If I can't parse a grade-math question, only the words you typed (and the question it follows up on) go to the AI helper — never your marks, courses or login. This chat clears when you close the tab."}</p>
   </div>`);
   const row = node.querySelector(".chat-starters");
-  for (const s of STARTERS) {
+  const starters = tutorOn ? [STARTERS[0], STARTERS[1], "Explain photosynthesis simply"] : STARTERS;
+  for (const s of starters) {
     const b = el(`<button type="button" class="suggest-chip"></button>`);
     b.textContent = s;
     b.onclick = () => send(s);
@@ -241,7 +316,8 @@ export function renderAssistant(container) {
       <label for="chat-input" class="sr-only">Message the assistant</label>
       <textarea id="chat-input" rows="1" maxlength="1500" enterkeyhint="send" placeholder="Ask about marks, plans, school…"></textarea>
       <button type="submit" class="send-btn" aria-label="Send message">${SEND_ICON}</button>
-    </form>`;
+    </form>
+    <label class="share-toggle" hidden><input type="checkbox" role="switch" id="share-marks"><span>Share my marks with the AI tutor</span></label>`;
 
   const scroll = container.querySelector(".chat-scroll");
   const list = container.querySelector(".chat-list");
@@ -278,7 +354,26 @@ export function renderAssistant(container) {
     sendBtn.setAttribute("aria-label", busy ? "Waiting for the reply" : "Send message");
     form.classList.toggle("is-busy", busy);
   };
-  view = { container, renderLog, setBusy };
+  // "Share my marks": off by default, per chat. Only course names and current
+  // marks are added to tutor messages while it's on.
+  const shareRow = container.querySelector(".share-toggle");
+  const share = shareRow.querySelector("input");
+  const shareLabel = shareRow.querySelector("span");
+  const syncShare = () => {
+    share.checked = !!conversation().shareMarks;
+    shareLabel.textContent = share.checked ? "Sharing course names + current marks with the AI tutor" : "Share my marks with the AI tutor";
+  };
+  share.addEventListener("change", () => { const c = conversation(); c.shareMarks = share.checked; saveConversation(c); syncShare(); });
+  const resetShare = () => { const c = conversation(); c.shareMarks = false; syncShare(); };
+  view = { container, renderLog, setBusy, resetShare };
+  syncShare();
+  tutorAvailable().then((on) => {
+    tutorOn = on;
+    shareRow.hidden = !on;
+    if (!container.isConnected) return;
+    sizeChat();
+    if (!conversation().messages.length) renderLog({ stick: true });
+  });
 
   // The draft survives tab switches and re-renders; typing never resets it.
   const grow = () => { input.style.height = "auto"; input.style.height = `${Math.min(input.scrollHeight, 140)}px`; };
