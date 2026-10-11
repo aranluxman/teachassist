@@ -14,7 +14,13 @@ export default {
     if (origin && origin !== url.origin) return json({ error: 'Origin not allowed.' }, 403);
 
     if (url.pathname === '/api/status' && request.method === 'GET') {
-      return json({ service: 'TeachAssist', studentSignIn: true, version: 1, tutor: !!(env.OPENAI_API_KEY && env.API_KEY) });
+      // `setup` says only whether each tutor setting is present — never values —
+      // so a missing secret or binding is easy to spot after a deploy.
+      return json({
+        service: 'TeachAssist', studentSignIn: true, version: 1,
+        tutor: !!(env.OPENAI_API_KEY && env.API_KEY),
+        setup: { OPENAI_API_KEY: !!env.OPENAI_API_KEY, API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS },
+      });
     }
     // School-focused AI tutor (OpenAI). Same-origin was checked above.
     if (url.pathname === '/api/chat' && !url.search) {

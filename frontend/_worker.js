@@ -1204,7 +1204,13 @@ var pages_default = {
     const origin = request.headers.get("Origin");
     if (origin && origin !== url.origin) return json3({ error: "Origin not allowed." }, 403);
     if (url.pathname === "/api/status" && request.method === "GET") {
-      return json3({ service: "TeachAssist", studentSignIn: true, version: 1, tutor: !!(env.OPENAI_API_KEY && env.API_KEY) });
+      return json3({
+        service: "TeachAssist",
+        studentSignIn: true,
+        version: 1,
+        tutor: !!(env.OPENAI_API_KEY && env.API_KEY),
+        setup: { OPENAI_API_KEY: !!env.OPENAI_API_KEY, API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS }
+      });
     }
     if (url.pathname === "/api/chat" && !url.search) {
       if (request.method !== "POST") return json3({ error: "Use POST." }, 405);

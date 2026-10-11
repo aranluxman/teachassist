@@ -40,7 +40,10 @@ assert.deepEqual(cleaned, { messages: [{ role: 'user', content: 'hi' }], marks: 
 
 const off = make({ API_KEY: 'server-secret' });
 try {
-  assert.equal((await (await off.dispatchFetch(`${base}/api/status`)).json()).tutor, false);
+  const offStatus = await (await off.dispatchFetch(`${base}/api/status`)).json();
+  assert.equal(offStatus.tutor, false);
+  assert.deepEqual(offStatus.setup, { OPENAI_API_KEY: false, API_KEY: true, CHAT_LIMITS: true }, 'status names the missing setting');
+  assert.doesNotMatch(JSON.stringify(offStatus), /server-secret/, 'status never reveals values');
   assert.equal((await off.dispatchFetch(`${base}/api/chat`, { method: 'POST', body: '{}' })).status, 503, 'no OpenAI key → clear 503');
 } finally { await off.dispose(); }
 
