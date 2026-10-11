@@ -32,9 +32,17 @@ source and rebuild command live in [`../worker`](../worker).
   official boundary map), an interactive **school map** of all 218 YRDSB
   schools, a counsellor card, an **OSSD diploma tracker**, a full **volunteer
   hours** log, appointment reminders, and verified resource links with icons.
-- **Assistant** — answers from your own data on the device: what you need on
-  a final, what-if scores, a weekly study plan built from your weakest
-  categories, school questions (bell times, principal…), credits and hours.
+- **Assistant** — a conversational chat that answers from your own data on the
+  device: what you need on a final, what-if scores, advice and weekly study
+  plans built from your weakest categories (sized to your daily study time),
+  school questions (bell times, principal…), credits and hours. It remembers
+  the conversation, so "How can I improve in Science?" → "Make that a plan for
+  this week" → "I only have 30 minutes a day" stays one thread. It asks one
+  clarifying question when a course or number is missing, labels estimates,
+  and says so when something is outside what it can do. The quick calculator
+  lives behind the Calculator button. Course pages have an "Ask about this
+  course" shortcut. Chats are kept per account in this tab's sessionStorage
+  only, and close with the tab.
 - **Science** — a static analytics deep-dive for the Grade 9 Science course.
 - **Links** — an editable, locally-stored list of student tools.
 - **Settings** — 15 colour themes, notification preferences, advanced server settings, diagnostic reports, refresh, and sign out.
@@ -88,6 +96,10 @@ frontend/
   js/courses.js       course list, overall gauge, updates feed, shared helpers
   js/course-detail.js gauge/chart/info carousel, evaluations, strand breakdown
   js/guidance.js      YRDSB / Ontario guidance resources
+  js/assistant.js     assistant chat screen (composer, messages, quick calculator)
+  js/assistant-chat.js conversation engine: follow-ups, clarifications, AI hand-off
+  js/assistant-session.js session-only, per-account chat storage
+  css/v5.css          chat layout and compact phone layout (loaded last)
   js/links.js         Student Tools links (stored locally, editable)
   js/settings.js      account, data refresh, themes, Worker connection
 ```
@@ -108,7 +120,7 @@ light and dark themes.
 - Personalization: name, compact layout, larger text, reduced animation, opaque navigation, and visual grade concealment on the dashboard. Preferences stay in this browser and are scoped by student number (demo uses a separate profile).
 - The Links tab is replaced by Dreams and Assistant; Guidance remains. Science is available through its regular course card; the separate Science page has been removed.
 - Assistant arithmetic and explicit grade commands work locally. Examples: `sqrt(144) + 2^3`, `Current 85, target 90, remaining 30`, and `Current 88, score 95, remaining 20`.
-- Natural-language questions require deploying the updated Worker with its `AI` binding. The model extracts inputs; shared code validates and calculates results. Missing inputs produce clarification. Only the question is sent to the model, never account credentials or the course snapshot. Demo mode does not call AI.
+- Natural-language questions require deploying the updated Worker with its `AI` binding. The model extracts inputs; shared code validates and calculates results. Missing inputs produce clarification. Only the student's typed question is sent to the model, plus, when replying to the model's own clarification, the earlier question and that clarification. Account credentials, the course snapshot and on-device answers are never sent. The AI endpoint keeps no history; conversation memory (topic course, last intent, study time) lives in `js/assistant-chat.js` on the device. Demo mode does not call AI.
 - This assistant handles arithmetic, target grades, projected grades, and weighted averages; it is not a general symbolic algebra tutor. Decimal arithmetic uses JavaScript numbers and displays up to 12 significant digits. Grade predictions assume supplied final-grade weights and a 100% maximum.
 
 ### Validation
@@ -169,6 +181,30 @@ routes retain their existing administrative gate.
   choose a trusted compatible server because it receives the login credentials.
   Diagnostic reports are previewed before downloading/sharing and exclude student
   numbers, grades, credentials, profile data, and server URLs.
+
+### AI tutor (optional)
+
+With an OpenAI key, the Assistant also answers open school questions (explaining
+concepts, homework guidance, essays, French, careers) through `POST /api/chat`
+(`worker/src/chat.js`, model `gpt-4o-mini`). Marks, plans, school info and grade
+maths are still answered on the device.
+
+- **What's sent:** only the tutor thread (messages the student sends to the tutor
+  and its replies, at most 12). Course names and current marks are added only
+  while the student turns on "Share my marks" (off by default, reset by New
+  chat). Login, student number and on-device answers are never sent.
+- **Safety:** school-focused system prompt; every message goes through OpenAI
+  moderation first, and self-harm flags return Kids Help Phone information
+  without calling the model.
+- **Cost:** 30 tutor messages per student per day (Toronto time), counted by a
+  one-way hash of the student number carried in the signed session token.
+
+Setup in Cloudflare Pages → the project → Settings:
+1. **Variables and secrets:** add secret `OPENAI_API_KEY` (never commit it). `API_KEY`
+   must also be set (it signs sessions).
+2. **Bindings → KV namespace:** bind a namespace (e.g. `teachassist-chat-limits`)
+   as `CHAT_LIMITS`. Without it the daily limit is only per server instance.
+3. Redeploy. `GET /api/status` returns `"tutor": true` when it's ready.
 
 ### Publishing the sign-in fix
 

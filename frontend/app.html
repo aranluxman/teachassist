@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="css/motion.css" />
     <link rel="stylesheet" href="css/student-tools.css" />
     <link rel="stylesheet" href="css/refresh.css" />
+    <link rel="stylesheet" href="css/v5.css" />
   </head>
   <body>
     <div class="shell">
@@ -188,6 +189,12 @@
         notice.querySelector("p").textContent = e.detail.body;
         notice.classList.remove("hidden");
       });
+      // Sticky sub-headers sit just under the top bar, whatever its height
+      // (safe-area insets, larger text).
+      const topbar = document.querySelector(".app-topbar");
+      const syncTopbar = () => document.documentElement.style.setProperty("--topbar-actual", `${topbar.offsetHeight}px`);
+      new ResizeObserver(syncTopbar).observe(topbar);
+      syncTopbar();
       // Keep the sliding tab pill aligned when the viewport changes size.
       window.addEventListener("resize", () =>
         moveTabIndicator(tabbar.querySelector("button.active")),

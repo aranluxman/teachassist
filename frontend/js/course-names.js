@@ -106,3 +106,22 @@ export function courseMeta(code) {
   if (!p) return "";
   return [p.grade ? `Grade ${p.grade}` : "", p.type].filter(Boolean).join(" · ");
 }
+
+/**
+ * Secondary facts for display — period, room and term dates — read from the
+ * fields a course already carries (the live timetable line packs them into
+ * `name`, e.g. "SNC2D1-8 : Science Block: P1 - rm. 302 2026-09-08 ~ 2027-02-02").
+ * Missing pieces are simply left out. Display only; nothing is stored.
+ */
+export function courseFacts(course) {
+  const text = String(course?.name || "");
+  const rawPeriod = String(course?.block || (text.match(/\bblock\s*:\s*([A-Za-z]?\d+[A-Za-z]?)/i) || [])[1] || "").trim();
+  const rawRoom = String(course?.room || (text.match(/\brm\.?\s*([A-Za-z0-9-]+)/i) || [])[1] || "").trim();
+  const dates = text.match(/(\d{4}-\d{2}-\d{2})\s*~\s*(\d{4}-\d{2}-\d{2})/);
+  const fmt = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return {
+    period: !rawPeriod ? "" : /^period\b/i.test(rawPeriod) ? rawPeriod : `Period ${rawPeriod.replace(/^P/i, "")}`,
+    room: !rawRoom ? "" : `Room ${rawRoom.replace(/^(room|rm\.?)\s*/i, "")}`,
+    dates: dates ? `${fmt(dates[1])} – ${fmt(dates[2])}` : "",
+  };
+}

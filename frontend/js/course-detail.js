@@ -11,6 +11,8 @@
 import { courseLabel, courseTitle, el, escapeHtml, fmtPercent, semiGauge } from "./courses.js";
 import { courseMeta } from "./course-names.js";
 import { teacherFor, editTeacher } from "./teachers.js";
+import { askAboutCourse } from "./assistant-session.js";
+import { preferences } from "./personalization.js";
 import { displayMark, markKind } from "./ta-client.js";
 import {
   animateGauge,
@@ -138,7 +140,7 @@ export async function openCourseDetail(container, course) {
 
   // Named, touch-sized controls supplement horizontal swiping.
   const labels = hasChart ? ["Grade", "Trend", "Info"] : ["Grade", "Info"];
-  const controls = el(`<div class="carousel-controls" role="group" aria-label="Course overview">${labels.map((label, i) => `<button type="button" aria-pressed="${i === 0}" aria-controls="d-carousel">${label}</button>`).join("")}</div>`);
+  const controls = el(`<div class="carousel-controls" role="group" aria-label="Course overview: choose a view">${labels.map((label, i) => `<button type="button" aria-pressed="${i === 0}" aria-controls="d-carousel">${label}</button>`).join("")}</div>`);
   container.appendChild(controls);
   const buttons = [...controls.querySelectorAll("button")];
   buttons.forEach((button, i) => button.addEventListener("click", () => {
@@ -153,7 +155,18 @@ export async function openCourseDetail(container, course) {
   window.addEventListener("resize", syncControls);
   requestAnimationFrame(syncControls);
 
-  container.appendChild(teacherCard(course));
+  // Ask the assistant about this course: only its code, name and visible
+  // mark are used, on this device.
+  const ask = el(`<button type="button" class="btn secondary ask-course"><span aria-hidden="true">✦</span> Ask about this course</button>`);
+  ask.addEventListener("click", () => {
+    askAboutCourse({
+      code: courseLabel(course),
+      title: courseTitle(course),
+      markText: mark != null && !preferences().hideMarks ? fmtPercent(mark) : "",
+    });
+    window.AppNav.toAssistant();
+  });
+  container.appendChild(ask);
 
   // ── Segmented: Evaluations / Breakdown ──
   const seg = el(`
@@ -178,6 +191,8 @@ export async function openCourseDetail(container, course) {
   seg.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => show(b.dataset.seg)));
   show(activeSeg);
   requestAnimationFrame(() => moveSegThumb(seg.querySelector("button.active")));
+
+  container.appendChild(teacherCard(course));
 
   if (hasChart) drawProgress(container, evals);
 }
@@ -207,10 +222,12 @@ function buildEvals(evals, kind) {
   const frag = document.createElement("div");
   if (!evals.length) {
     frag.appendChild(
-      el(`<div class="empty centered"><div class="empty-title">No evaluations yet</div>${
+      el(`<div class="card empty-inline" role="status"><b>No evaluations yet</b>${
         kind === "midterm"
           ? "Showing the midterm mark — individual assessments aren't posted yet."
-          : 'This course shows "please see teacher" on TeachAssist.'
+          : kind === "current"
+            ? "TeachAssist shows a mark for this course but no individual assessments yet."
+            : 'Nothing has been posted for this course yet, or it shows "please see teacher" on TeachAssist.'
       }</div>`)
     );
     return frag;
@@ -278,7 +295,7 @@ export function strandBreakdown(evals) {
 function buildBreakdown(evals) {
   const frag = document.createElement("div");
   if (!evals.length) {
-    frag.appendChild(el(`<div class="empty centered"><div class="empty-title">No breakdown available</div></div>`));
+    frag.appendChild(el(`<div class="card empty-inline" role="status"><b>No breakdown yet</b>The category breakdown appears once TeachAssist lists individual assessments for this course.</div>`));
     return frag;
   }
   const allZero = evals.every((e) => !e.percent);

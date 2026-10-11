@@ -79,16 +79,16 @@ export function linkRow(item) {
 /** Render the Guidance screen. */
 export async function renderGuidance(container) {
   container.innerHTML = "";
-  container.append(el(`<div class="screen-header"><div><div class="eyebrow">GUIDANCE</div><h1>Plan your path.</h1><p class="muted dashboard-subtitle">Your school, your diploma, and the people who can help.</p></div></div>`));
+  container.append(el(`<div class="screen-header v5-header"><div><h1>Guidance</h1><p>Your school, your diploma, and the people who can help.</p></div></div>`));
 
   const [school, courses] = await Promise.all([mySchool(), getCourses().catch(() => [])]);
 
-  // Quick tiles
+  // Quick actions first: the three things students open most.
   const p = ossdProgress(courses);
   const hours = volunteerTotal();
   const tiles = el(`<div class="tile-grid">
     <button class="tile" data-go="volunteer"><span class="tile-ring">${ring(hours, GOAL, { size: 56, stroke: 6, label: `${hours} of ${GOAL} volunteer hours` })}</span><span><b>${Math.round(hours * 10) / 10}<small>/${GOAL}</small></b><span>Volunteer hours</span></span></button>
-    <button class="tile" data-go="ossd"><span class="tile-ring">${ring(p.credits, TOTAL_CREDITS, { size: 56, stroke: 6, label: `${p.credits} of 30 credits` })}</span><span><b>${p.credits}<small>/${TOTAL_CREDITS}</small></b><span>Credits on track</span></span></button>
+    <button class="tile" data-go="ossd"><span class="tile-ring">${ring(p.credits, TOTAL_CREDITS, { size: 56, stroke: 6, label: `${p.credits} of 30 credits on track` })}</span><span><b>${p.credits}<small>/${TOTAL_CREDITS}</small></b><span>Credits on track</span></span></button>
     <button class="tile" data-go="map"><span class="tile-icon">${icon("map", 24)}</span><span><b>School map</b><span>Boundaries & info</span></span></button>
   </div>`);
   tiles.querySelector('[data-go="volunteer"]').onclick = () => window.AppNav.toGuidance("volunteer");
@@ -96,7 +96,8 @@ export async function renderGuidance(container) {
   tiles.querySelector('[data-go="ossd"]').onclick = () => container.querySelector(".ossd-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
   container.append(tiles);
 
-  // My school
+  // School
+  container.append(el(`<h2 class="section-title">School information</h2>`));
   const schoolSection = el(`<section class="card my-school"><div class="tool-heading"><h2>My school</h2><button class="btn ghost" data-change>${school ? "Change" : "Choose"}</button></div></section>`);
   schoolSection.querySelector("[data-change]").onclick = () => window.AppNav.toGuidance("map");
   if (school) {
@@ -110,15 +111,22 @@ export async function renderGuidance(container) {
   }
   container.append(schoolSection);
 
-  container.append(counsellorCard());
+  // Diploma
+  container.append(el(`<h2 class="section-title">Diploma progress</h2>`));
   container.append(ossdCard(courses, () => renderGuidance(container)));
+
+  // People & appointments
+  container.append(el(`<h2 class="section-title">People & appointments</h2>`));
+  container.append(counsellorCard());
   container.append(appointmentCard());
 
+  // Resources: grouped and collapsed so nobody has to scroll a long list.
+  container.append(el(`<h2 class="section-title">Resources</h2>`));
+  const blurbs = { Planning: "Graduation rules, myBlueprint, universities & colleges", Academics: "OSSLT, TVO Learn, summer and night school", Support: "Kids Help Phone, mental health, counselling" };
   for (const section of RESOURCES) {
-    container.append(el(`<div class="section-label">${escapeHtml(section.group)}</div>`));
-    const list = el(`<div class="card link-list"></div>`);
-    section.items.forEach((item) => list.append(linkRow(item)));
-    container.append(list);
+    const box = el(`<details class="card disclosure"${section.group === "Support" ? " open" : ""}><summary><span>${escapeHtml(section.group)}<small>${escapeHtml(blurbs[section.group] || "")}</small></span></summary><div class="disclosure-body"><div class="link-list"></div></div></details>`);
+    section.items.forEach((item) => box.querySelector(".link-list").append(linkRow(item)));
+    container.append(box);
   }
   container.append(el(`<p class="muted small" style="text-align:center;margin-top:18px">Talk to your school's guidance department for personalized advice.</p>`));
 }
@@ -160,8 +168,8 @@ function ossdCard(courses, rerender) {
       <div><b>${p.online}/2</b><span>online</span></div>
     </div>
     <div class="bar-track ossd-bar"><i style="width:${(p.credits / TOTAL_CREDITS) * 100}%"></i></div>
-    <p class="small muted">${p.onTrack} credit${p.onTrack === 1 ? "" : "s"} from TeachAssist this year${p.prior ? ` + ${p.prior} earned before` : ""}. Tick off anything you finished in earlier years.</p>
-    <ul class="req-list"></ul>
+    <p class="small muted">${p.prior ? `${p.prior} earned before this year + ` : ""}${p.onTrack} in progress on TeachAssist this year. Courses you're taking now count once you pass them — this is an estimate, not your official transcript. Tick off anything you finished in earlier years.</p>
+    <details class="req-details"><summary>Compulsory credits · ${p.compulsoryLeft} left</summary><ul class="req-list"></ul></details>
     <details><summary>Earlier credits, literacy & online learning</summary>
       <form class="ossd-form">
         <div class="form-grid">
