@@ -16,7 +16,6 @@ import {
   countUp,
   finishRefreshSpin,
   marksHidden,
-  mountTicker,
   orbitSparkles,
   previousValue,
   rememberValue,
@@ -31,15 +30,6 @@ import {
   lastSyncedAt,
   isDemo,
 } from "./ta-client.js";
-
-// The short lines that rotate under the dashboard subtitle. They all live in
-// one CSS grid cell, so swapping them can never move the layout.
-const ENCOURAGEMENT = [
-  "Small steps today.",
-  "Every mark tells a story.",
-  "Progress over perfection.",
-  "Bigger possibilities tomorrow.",
-];
 
 /** Human "Updated 3h ago" string from an ISO timestamp (for the top bar). */
 function relativeUpdated(iso) {
@@ -286,11 +276,12 @@ export async function renderCourses(container, { refresh = false } = {}) {
 
   container.innerHTML = "";
 
-  // Header with a refresh button.
+  // Compact header: the course list should be visible without scrolling.
+  const name = preferences().name;
   const header = el(`
-    <div class="screen-header">
-      <div><div class="eyebrow">YOUR DAY, IN PERSPECTIVE</div><h1>${preferences().name ? `Hey, ${escapeHtml(preferences().name)}.` : "Room to grow."}</h1><p class="muted dashboard-subtitle">Small steps today. Bigger possibilities tomorrow.</p><p class="muted small dashboard-ticker" aria-live="off"></p></div>
-      <button class="btn ghost" id="refresh" style="width:auto;padding:6px 10px" aria-label="Refresh">↻</button>
+    <div class="screen-header v5-header">
+      <div><h1>${name ? `Hey, ${escapeHtml(name)}` : "Courses"}</h1><p>${courses.length} course${courses.length === 1 ? "" : "s"}${hiddenCount ? " this semester" : ""}</p></div>
+      <button class="btn ghost" id="refresh" style="width:auto;padding:6px 10px" aria-label="Refresh marks from TeachAssist">↻</button>
     </div>
   `);
   const refreshBtn = header.querySelector("#refresh");
@@ -302,28 +293,27 @@ export async function renderCourses(container, { refresh = false } = {}) {
     finishRefreshSpin(container.querySelector("#refresh"));
   });
   container.appendChild(header);
-  mountTicker(header.querySelector(".dashboard-ticker"), ENCOURAGEMENT);
 
-  // Overall average — the number people look for first, so it's the hero.
+  // Overall average — a compact summary that says what the number means.
   const ov = updates.find((u) => u.overall);
   const delta = ov ? ov.to - ov.from : null;
   const deltaPill =
     delta != null && Math.abs(delta) >= 0.05
       ? `<div class="delta-pill ${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "↑" : "↓"} ${Math.abs(Math.round(delta * 10) / 10).toFixed(1)}%</div>`
       : "";
+  const counted = courses.filter((c) => displayMark(c) != null).length;
   const hero = el(`
-    <section class="card overall-hero" aria-label="Overall average ${overall == null ? "not available" : fmtPercent(overall)}">
-      <div class="hero-top">
+    <section class="card overall-hero overall-compact" aria-label="Overall average ${overall == null ? "not available" : fmtPercent(overall)}">
+      <div>
         <div class="eyebrow">Overall Average</div>
+        <p class="oc-explain">${overall == null ? "No marks posted yet." : `Simple average of ${counted} course mark${counted === 1 ? "" : "s"} shown below. Not an official report card average.`}</p>
+      </div>
+      <div class="oc-right">
+        <div class="hero-num private-mark tnum">${fmtPercent(overall)}</div>
+        <div class="hero-meta">${overall != null ? `<span class="hero-chip">${achievementLevel(overall)}</span><span class="hero-chip">${letterGrade(overall)}</span>` : ""}</div>
         ${deltaPill}
       </div>
-      <div class="hero-num private-mark tnum">${fmtPercent(overall)}</div>
-      <div class="hero-meta">
-        ${overall != null ? `<span class="hero-chip">${achievementLevel(overall)}</span><span class="hero-chip">${letterGrade(overall)}</span>` : ""}
-        <span>${courses.length} course${courses.length === 1 ? "" : "s"}${hiddenCount ? " this semester" : ""}</span>
-      </div>
-      <div class="hero-bar cc-bar" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, ((overall ?? 50) - 50) * 2))}%"></i></div>
-      <div class="hero-scale" aria-hidden="true"><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span></div>
+      <div class="hero-bar cc-bar" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, overall ?? 0))}%"></i></div>
     </section>
   `);
   container.appendChild(hero);

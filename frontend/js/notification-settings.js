@@ -34,7 +34,7 @@ function row(id,title,desc,checked) {
   return `<label class="preference-row"><span><b>${title}</b><small>${desc}</small></span><input type="checkbox" role="switch" data-notification="${id}" ${checked ? 'checked' : ''}></label>`;
 }
 export function debugCard() {
-  const card = el('<section class="card"><h2>Device & app info</h2><p class="muted">Preview a diagnostic report to download or share. It excludes credentials, student numbers, marks, profile details, and server addresses.</p><button class="btn secondary">Preview debug info</button></section>');
+  const card = el('<section class="card settings-group"><h2>Device & app info</h2><p class="muted">Preview a diagnostic report to download or share. It excludes credentials, student numbers, marks, profile details, and server addresses.</p><button class="btn secondary">Preview debug info</button></section>');
   card.querySelector('button').onclick = () => {
     const report = {
       app: 'TeachAssist', version: '4.1.0', generatedAt: new Date().toISOString(),

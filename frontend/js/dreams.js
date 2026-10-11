@@ -1,4 +1,5 @@
-import { el, escapeHtml, fmtPercent } from "./courses.js";
+import { el, escapeHtml, fmtPercent, courseLabel, courseTitle } from "./courses.js";
+import { courseFacts } from "./course-names.js";
 import { getCourses, displayMark } from "./ta-client.js";
 import { preferences, savePreferences } from "./personalization.js";
 import { splitByTerm } from "./term.js";
@@ -19,11 +20,11 @@ export async function renderDreams(container) {
   container.innerHTML = "";
   container.append(
     el(
-      `<div class="screen-header"><div><div class="eyebrow">A LITTLE CLOSER, EVERY DAY</div><h1>Dream big.<br><span class="accent-text">Start here.</span></h1></div><span class="feature-symbol">✧</span></div>`,
+      `<div class="screen-header v5-header"><div><h1>Dreams</h1><p>Where you're headed, and the marks you're aiming for.</p></div></div>`,
     ),
   );
   const form = el(
-    `<form class="card dream-form"><h2>Your next chapter</h2><p class="muted">A place for what you’re working toward. You can change your mind anytime.</p><div class="form-grid">${[
+    `<form class="card dream-form"><h2>Your next chapter</h2><p class="muted small">You can change your mind anytime.</p><div class="form-grid">${[
       ["career", "Dream career", "e.g. Software engineer"],
       [
         "school",
@@ -37,7 +38,7 @@ export async function renderDreams(container) {
       )
       .join(
         "",
-      )}<div class="field"><label for="dream-target">Dream average (%)</label><input id="dream-target" name="target" type="number" min="0" max="100" step="0.1" required value="${escapeHtml(p.target)}"></div><div class="field"><label for="dream-motivation">Your reason to keep going</label><input id="dream-motivation" name="motivation" maxlength="240" placeholder="What makes this matter to you?" value="${escapeHtml(p.motivation)}"></div></div><button class="btn" type="submit">Save my dreams <span>↗</span></button><p class="small muted" role="status">Saved only in this browser, separately for each account.</p></form>`,
+      )}<div class="field"><label for="dream-target">Dream average (%)</label><input id="dream-target" name="target" type="number" min="0" max="100" step="0.1" required value="${escapeHtml(p.target)}"></div><div class="field"><label for="dream-motivation">Your reason to keep going</label><input id="dream-motivation" name="motivation" maxlength="240" placeholder="What makes this matter to you?" value="${escapeHtml(p.motivation)}"></div></div><button class="btn" type="submit">Save my dreams</button><p class="small muted" role="status">Saved only in this browser, separately for each account.</p></form>`,
   );
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -72,8 +73,11 @@ export async function renderDreams(container) {
     courses.forEach((c, i) => {
       const mark = displayMark(c),
         target = p.goals[c.code] ?? p.target;
+      // Clean name as on Courses; code, period, room and dates are secondary.
+      const facts = courseFacts(c);
+      const meta = [courseLabel(c), facts.period, facts.room, facts.dates].filter(Boolean).join(" · ");
       const row = el(
-        `<div class="card goal-row"><div><h3>${escapeHtml(c.name || c.code)}</h3><div class="muted small">Current <span class="private-mark">${fmtPercent(mark)}</span> · ${escapeHtml(c.code)}</div><div class="goal-meter" aria-hidden="true"><i></i></div></div><p class="goal-gap small accent-text"></p><label for="goal-${i}" class="small">Target %<input id="goal-${i}" type="number" min="0" max="100" step="0.1" required value="${escapeHtml(target)}"></label></div>`,
+        `<div class="card goal-row"><div><h3>${escapeHtml(courseTitle(c))}</h3><div class="goal-meta">${escapeHtml(meta)}</div><div class="muted small">Current <span class="private-mark">${fmtPercent(mark)}</span></div><div class="goal-meter" aria-hidden="true"><i></i></div></div><p class="goal-gap small accent-text"></p><label for="goal-${i}" class="small">Target %<input id="goal-${i}" type="number" inputmode="decimal" min="0" max="100" step="0.1" required value="${escapeHtml(target)}" aria-describedby="goal-saved-${i}"></label><p class="goal-saved" id="goal-saved-${i}" role="status"></p></div>`,
       );
       row.style.setProperty("--m-i", String(i));
       row.querySelector(".goal-meter > i").style.setProperty("--m-i", String(i));
@@ -119,11 +123,19 @@ export async function renderDreams(container) {
       };
       updateGap(true);
       row.querySelector("input").addEventListener("input", (e) => {
-        if (e.target.checkValidity()) {
-          savePreferences({
-            goals: { ...preferences().goals, [c.code]: Number(e.target.value) },
-          });
+        const saved = row.querySelector(".goal-saved");
+        if (e.target.checkValidity() && e.target.value !== "") {
+          try {
+            savePreferences({
+              goals: { ...preferences().goals, [c.code]: Number(e.target.value) },
+            });
+            saved.textContent = "Target saved ✓";
+          } catch {
+            saved.textContent = "Couldn't save — check browser storage.";
+          }
           updateGap();
+        } else {
+          saved.textContent = "Enter a target from 0 to 100.";
         }
       });
       section.querySelector(".goal-list").append(row);
