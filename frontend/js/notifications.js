@@ -15,7 +15,7 @@ export async function notify(title, body) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try {
     const registration = await navigator.serviceWorker?.getRegistration();
-    if (registration) await registration.showNotification(title, { body, icon: 'icons/app-icon.svg', tag: 'teachassist' });
+    if (registration) await registration.showNotification(title, { body, icon: 'icons/icon-192.png', tag: 'teachassist' });
     else new Notification(title, { body, tag: 'teachassist' });
   } catch { /* The in-page notice remains available on unsupported browsers. */ }
 }
