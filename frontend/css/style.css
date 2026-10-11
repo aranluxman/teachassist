@@ -82,65 +82,9 @@
 }
 
 /* ============================ Colour themes ==============================
-   Light themes swap the accent family + top wash. Every accent keeps
-   ≥ 4.5:1 contrast on white so accent-coloured text stays readable.
-   Dark themes redefine the full token set (surfaces, text, strands), so no
-   per-component overrides are needed — components only use the tokens.    */
-
-[data-theme="ocean"] {
-  --accent: #0e7490;
-  --accent-press: #155e75;
-  --accent-tint: #cff4fc;
-  --accent-tint-2: #e8fafe;
-  --bg-tint-top: #d9edf4;
-  --shadow-accent:
-    0 6px 14px rgba(14, 116, 144, 0.28), 0 12px 28px rgba(14, 116, 144, 0.2);
-}
-[data-theme="sunset"] {
-  --accent: #c2410c;
-  --accent-press: #9a3412;
-  --accent-tint: #ffe4d1;
-  --accent-tint-2: #fff1e8;
-  --bg-tint-top: #f8e6d9;
-  --shadow-accent:
-    0 6px 14px rgba(194, 65, 12, 0.28), 0 12px 28px rgba(194, 65, 12, 0.2);
-}
-[data-theme="rose"] {
-  --accent: #be123c;
-  --accent-press: #9f1239;
-  --accent-tint: #ffd9e1;
-  --accent-tint-2: #ffeaef;
-  --bg-tint-top: #f7dfe5;
-  --shadow-accent:
-    0 6px 14px rgba(190, 18, 60, 0.28), 0 12px 28px rgba(190, 18, 60, 0.2);
-}
-[data-theme="forest"] {
-  --accent: #15803d;
-  --accent-press: #166534;
-  --accent-tint: #d3f2de;
-  --accent-tint-2: #e9faf0;
-  --bg-tint-top: #dfeee5;
-  --shadow-accent:
-    0 6px 14px rgba(21, 128, 61, 0.28), 0 12px 28px rgba(21, 128, 61, 0.2);
-}
-[data-theme="grape"] {
-  --accent: #6d28d9;
-  --accent-press: #5b21b6;
-  --accent-tint: #eadcff;
-  --accent-tint-2: #f4edff;
-  --bg-tint-top: #e9e2f6;
-  --shadow-accent:
-    0 6px 14px rgba(109, 40, 217, 0.28), 0 12px 28px rgba(109, 40, 217, 0.2);
-}
-[data-theme="slate"] {
-  --accent: #334155;
-  --accent-press: #1e293b;
-  --accent-tint: #dde5ef;
-  --accent-tint-2: #ecf1f7;
-  --bg-tint-top: #dfe5ee;
-  --shadow-accent:
-    0 6px 14px rgba(51, 65, 85, 0.28), 0 12px 28px rgba(51, 65, 85, 0.2);
-}
+   The theme colours (six accents × dark/light) live in css/v6.css and are
+   chosen by js/theme.js. The dark block below is the base token set that
+   older layers key off via data-theme="dark".                              */
 
 /* Dark themes: accents are LIGHT so they contrast on dark cards. */
 [data-theme="dark"] {
@@ -179,43 +123,6 @@
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
   --shadow-accent: 0 8px 22px rgba(80, 100, 220, 0.35);
-}
-[data-theme="midnight"] {
-  --bg: #0b1220;
-  --bg-tint-top: #101b31;
-  --card: #14203a;
-  --card-soft: rgba(21, 33, 59, 0.92);
-  --card-border: rgba(148, 190, 255, 0.1);
-  --text: #eef3fb;
-  --text-secondary: #a3b3cd;
-  --text-faint: #8195b3;
-  --accent: #5fc7f0; /* 7.9:1 on card */
-  --accent-press: #8ad7f5;
-  --accent-contrast: #06222f;
-  --accent-tint: #173954;
-  --accent-tint-2: #132c44;
-  --accent-2: #4fd1c5;
-  --accent-3: #f5b463;
-  --strand-k: #e6c04a;
-  --strand-k-tint: #33300f;
-  --strand-t: #6fd695;
-  --strand-t-tint: #10321f;
-  --strand-c: #a2aaff;
-  --strand-c-tint: #21294f;
-  --strand-a: #f29464;
-  --strand-a-tint: #392213;
-  --strand-f: #aeb7c6;
-  --strand-f-tint: #232e42;
-  --separator: #223252;
-  --track: #223252;
-  --pill: #1b2a47;
-  --danger: #ff7b72;
-  --good: #56d364;
-  --good-tint: #10321f;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow: 0 8px 24px rgba(2, 6, 18, 0.55);
-  --shadow-lg: 0 16px 40px rgba(2, 6, 18, 0.65);
-  --shadow-accent: 0 8px 22px rgba(60, 150, 220, 0.35);
 }
 
 * {
@@ -1706,54 +1613,6 @@ details#advanced > summary::before {
   display: none !important;
 }
 /* 4.0: a calmer, responsive workspace. Existing analytical views use these tokens. */
-[data-theme="pearl"] {
-  --accent: #52525b;
-  --accent-press: #3f3f46;
-  --accent-tint: #e8e8ed;
-  --accent-tint-2: #f5f5f7;
-  --bg: #f5f5f7;
-  --bg-tint-top: #eeeeef;
-}
-[data-theme="lavender"] {
-  --accent: #7050a0;
-  --accent-press: #573880;
-  --accent-tint: #e9def6;
-  --accent-tint-2: #f4eefb;
-  --bg: #f6f3fa;
-  --bg-tint-top: #ede5f6;
-}
-[data-theme="matcha"] {
-  --accent: #526b35;
-  --accent-press: #354923;
-  --accent-tint: #e3ebd5;
-  --accent-tint-2: #f0f4e9;
-  --bg: #f5f6f0;
-  --bg-tint-top: #e7ebdc;
-}
-[data-theme="peach"] {
-  --accent: #a34c35;
-  --accent-press: #833c28;
-  --accent-tint: #f8e0d6;
-  --accent-tint-2: #fff1eb;
-  --bg: #faf5f2;
-  --bg-tint-top: #f5e4da;
-}
-[data-theme="coffee"] {
-  --accent: #795548;
-  --accent-press: #583b30;
-  --accent-tint: #ebdfd5;
-  --accent-tint-2: #f8f0e9;
-  --bg: #f6f3ef;
-  --bg-tint-top: #eae0d6;
-}
-[data-theme="arctic"] {
-  --accent: #276682;
-  --accent-press: #17495f;
-  --accent-tint: #d8eaf1;
-  --accent-tint-2: #edf7fb;
-  --bg: #f2f7f9;
-  --bg-tint-top: #dfedf3;
-}
 :root {
   --max-width: 1120px;
   --radius: 24px;

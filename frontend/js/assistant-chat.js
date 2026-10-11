@@ -200,7 +200,9 @@ export function respond(text, state = emptyState(), ctx = {}) {
   if (GREETING.test(t)) return reply(cleared, { title: "Hey! 👋", text: "I can help with your marks, study plans, school info and graduation. What's on your mind?", suggestions: STARTERS });
   if (THANKS.test(t)) return reply(cleared, { title: "Anytime", text: "Good luck — you've got this. Ask me anything else whenever.", suggestions: ["Make me a study plan for this week", "What's my lowest course?"] });
 
-  const skill = SKILLS.find((s) => s.re.test(t));
+  // Canned study tips only when there is no AI tutor; with one, the tutor
+  // gives a fuller answer to the same question.
+  const skill = !ctx.tutor && SKILLS.find((s) => s.re.test(t));
   if (skill) return reply(cleared, { title: skill.title, badge: "Study tips", text: skill.text, actions: skill.actions || [], suggestions: ["Make me a study plan for this week", "I only have 30 minutes a day"] });
 
   // A formula the student typed ("current 85, target 90, remaining 30").

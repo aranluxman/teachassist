@@ -143,9 +143,10 @@ test("courses and detail screens render live marks analytics", () => {
   assert.match(coursesJs, /getCourses/);
   assert.match(coursesJs, /Overall Average/);
   assert.match(coursesJs, /Recent updates/);
-  assert.match(courseDetailJs, /GRADE PROGRESSION/);
-  assert.match(courseDetailJs, /new window\.Chart/);
-  assert.match(courseDetailJs, /cat-pill/);
+  assert.match(courseDetailJs, /Grade Progression/);
+  assert.match(courseDetailJs, /trendChart\(/);
+  assert.match(courseDetailJs, /strandBadge\(/);
+  assert.match(courseDetailJs, /openEvaluation\(/);
   assert.match(courseDetailJs, /strandBreakdown/);
 });
 
@@ -168,8 +169,8 @@ test("course cards show the course name and a clean class code", () => {
   // No teacher / block / room row is rendered on the dashboard cards.
   assert.doesNotMatch(coursesJs, /cc-name|cc-meta/);
   assert.doesNotMatch(coursesJs, /c\.block|c\.room/);
-  assert.match(coursesJs, /class="cc-code">\$\{escapeHtml\(label\)\}/);
-  assert.match(coursesJs, /class="cc-title">\$\{escapeHtml\(title\)\}/);
+  assert.match(coursesJs, /<b>\$\{escapeHtml\(title\)\}<\/b>/);
+  assert.match(coursesJs, /\[label, teacher\]/);
 });
 
 // ---------------------------------------------------------------------------
@@ -209,41 +210,43 @@ function cssVar(block, name) {
   return m ? m[1] : null;
 }
 
-/** Extract the body of a [data-theme="x"] { ... } block. */
-function themeBlock(id) {
-  const m = css.match(new RegExp(`\\[data-theme="${id}"\\]\\s*\\{([^}]*)\\}`));
+const v6 = read("frontend/css/v6.css");
+const themeJs = read("frontend/js/theme.js");
+const COLORS = ["default", "mono", "tide", "olive", "ember", "blossom"];
+
+/** Body of the `html[data-mode="m"]...` block for a mode (+ accent). */
+function modeBlock(mode, accent = null) {
+  const sel = accent
+    ? `html\\[data-mode="${mode}"\\]\\[data-accent="${accent}"\\]`
+    : `html\\[data-mode="${mode}"\\]`;
+  const m = v6.match(new RegExp(`${sel}\\s*\\{([^}]*)\\}`));
   return m ? m[1] : null;
 }
 
-const LIGHT_THEMES = ["pearl", "lavender", "matcha", "peach", "coffee", "arctic", "ocean", "sunset", "rose", "forest", "grape", "slate"];
-const DARK_THEMES = ["dark", "midnight"];
-
-test("all 15 themes exist in CSS and the Settings picker", () => {
-  for (const id of [...LIGHT_THEMES, ...DARK_THEMES]) {
-    assert.ok(themeBlock(id), `theme "${id}" is defined in style.css`);
-    assert.match(settingsJs, new RegExp(`id: "${id}"`), `theme "${id}" is pickable in Settings`);
+test("six colours × dark/light exist in CSS and the Theme page", () => {
+  for (const id of COLORS) {
+    assert.match(themeJs, new RegExp(`id: "${id}"`), `colour "${id}" is pickable`);
+    for (const mode of ["dark", "light"]) assert.ok(modeBlock(mode, id), `${mode} × ${id} is defined in v6.css`);
   }
-  assert.match(settingsJs, /id: "indigo"/); // the :root default
+  for (const id of ["system", "dark", "light"]) assert.match(themeJs, new RegExp(`id: "${id}"`));
+  assert.match(themeJs, /\["dark", "ember"\]/); // first-run default
+  assert.match(appHtml, /css\/v6\.css/);
 });
 
-test("theme accents meet WCAG AA contrast (4.5:1) as text", () => {
-  const white = "#ffffff";
-  const rootAccent = cssVar(css.match(/:root\s*\{([\s\S]*?)\n\}/)[1], "--accent");
-  assert.ok(contrast(rootAccent, white) >= 4.5, `indigo ${rootAccent} on white`);
-  for (const id of LIGHT_THEMES) {
-    const accent = cssVar(themeBlock(id), "--accent");
-    const ratio = contrast(accent, white);
-    assert.ok(ratio >= 4.5, `${id} accent ${accent} on white is ${ratio.toFixed(2)}:1`);
-  }
-  for (const id of DARK_THEMES) {
-    const block = themeBlock(id);
-    const accent = cssVar(block, "--accent");
-    const card = cssVar(block, "--card");
-    const text = cssVar(block, "--text");
-    const secondary = cssVar(block, "--text-secondary");
-    assert.ok(contrast(accent, card) >= 4.5, `${id} accent ${accent} on card ${card}`);
-    assert.ok(contrast(text, card) >= 7, `${id} text on card`);
-    assert.ok(contrast(secondary, card) >= 4.5, `${id} secondary text on card`);
+test("theme colours and text meet WCAG AA contrast", () => {
+  for (const mode of ["dark", "light"]) {
+    const base = modeBlock(mode);
+    const card = cssVar(base, "--card-solid");
+    assert.ok(contrast(cssVar(base, "--text"), card) >= 7, `${mode} text on card`);
+    assert.ok(contrast(cssVar(base, "--text-secondary"), card) >= 4.5, `${mode} secondary text on card`);
+    assert.ok(contrast(cssVar(base, "--text-faint"), card) >= 4.5, `${mode} faint text on card`);
+    for (const id of COLORS) {
+      const accent = cssVar(modeBlock(mode, id), "--accent");
+      const ratio = contrast(accent, card);
+      assert.ok(ratio >= 4.5, `${mode} ${id} accent ${accent} on ${card} is ${ratio.toFixed(2)}:1`);
+      const onAccent = cssVar(base, "--accent-contrast");
+      assert.ok(contrast(onAccent, accent) >= 4.5, `${mode} ${id}: button text on accent`);
+    }
   }
 });
 

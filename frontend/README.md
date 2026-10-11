@@ -19,15 +19,17 @@ source and rebuild command live in [`../worker`](../worker).
 
 ## Screens
 
-- **Courses** — a large overall average (with Ontario level and letter grade),
-  course cards with the real course name ("Mathematics", not just `MTH1W1`),
-  grade, teacher and progress bar, a "Recent updates" feed, and grade history
-  at the bottom.
-- **Course detail** — a Teacher card (name, email, room, extra-help times —
-  added once per course, saved on the device), semicircular mark gauge, grade-progression chart, course
-  info, an **Evaluations** list (category pill, weight, date, teacher
-  feedback), and a **Breakdown** tab with weighted per-category strand bars in
-  TeachAssist's classic strand colours.
+- **Courses** — a glass header (class schedule · TeachAssist · recent
+  updates), a swipeable gradient gauge of the overall average (with Ontario
+  level and letter grade) and its average over time, and pill-shaped course
+  rows with a subject icon, the real course name and the mark.
+- **Class Schedule** — a sheet with one colour-tinted card per period: code,
+  course name and room, plus the term's dates and a share button.
+- **Course detail** — swipeable mark gauge / grade progression / course info
+  (period, room, term dates, midterm and final), an **Evaluations** list with
+  round K/U · T · C · A · F badges that open a sheet with segmented strand bars
+  and how much each one moved your average, a **Breakdown** tab of weighted
+  per-category bars, and a Teacher card.
 - **Guidance** — my school (principal, VPs, bell times, phone, website,
   official boundary map), an interactive **school map** of all 218 YRDSB
   schools, a counsellor card, an **OSSD diploma tracker**, a full **volunteer
@@ -45,7 +47,7 @@ source and rebuild command live in [`../worker`](../worker).
   only, and close with the tab.
 - **Science** — a static analytics deep-dive for the Grade 9 Science course.
 - **Links** — an editable, locally-stored list of student tools.
-- **Settings** — 15 colour themes, notification preferences, advanced server settings, diagnostic reports, refresh, and sign out.
+- **Settings** — a Theme page (System / Dark / Light × Default, Mono, Tide, Olive, Ember, Blossom), notification preferences, advanced server settings, diagnostic reports, refresh, and sign out.
 - **Profile** — editable name, school, photo and cover; customizable quick actions, volunteer log, exam calculator, and student ID reference.
 
 ## URLs
@@ -89,12 +91,16 @@ regression tests simulate that upstream.
 frontend/
   index.html          sign in (live) or enter demo mode
   app.html            main shell (tab bar + screens)
-  css/style.css       design system: tokens, 9 themes, strand colours
+  css/style.css       base design tokens and strand colours
+  css/v6.css          dark-glass look + the six colour themes (loaded last)
+  js/theme.js         appearance × colour choice, saved per device
+  js/ui-kit.js        glass buttons, headers, gauge, pager dots, segmented bars
+  js/subjects.js      subject icons/colours, period/room/term from a course
   js/config.js        Worker URL, icon colours, default links
   js/ta-client.js     auth + live data + demo mode + local snapshots
   js/demo-data.js     bundled TeachAssist snapshot (8 courses, all evaluations)
-  js/courses.js       course list, overall gauge, updates feed, shared helpers
-  js/course-detail.js gauge/chart/info carousel, evaluations, strand breakdown
+  js/courses.js       course list, overall gauge, schedule + updates sheets, shared helpers
+  js/course-detail.js gauge/chart/info pager, evaluations + sheet, strand breakdown
   js/guidance.js      YRDSB / Ontario guidance resources
   js/assistant.js     assistant chat screen (composer, messages, quick calculator)
   js/assistant-chat.js conversation engine: follow-ups, clarifications, AI hand-off
@@ -106,8 +112,8 @@ frontend/
 
 ## Colour & contrast
 
-Every theme's accent is chosen to keep at least **4.5:1** contrast when used
-as text on cards, and the Ontario achievement-strand colours (yellow, green,
+Every colour theme's accent, in both dark and light, keeps at least **4.5:1**
+contrast as text on cards (checked in `test/frontend-static.test.mjs`), and the Ontario achievement-strand colours (yellow, green,
 periwinkle, orange, grey — the same families TeachAssist uses on its report
 pages) each ship in a text-safe shade plus a tint for pills and bars, in both
 light and dark themes.
