@@ -1,0 +1,171 @@
+/* ── v7: Dreams steps, myBlueprint button, goals, tutor polish ──────────────
+   Uses the site's own tokens (--card, --accent, --text…) so every theme works. */
+
+/* Press feedback is instant (on pointer-down), motion respects the user's setting. */
+.stepper button,
+.blueprint-cta,
+.seg label span,
+.goal-check .box,
+.chip {
+  transition: transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 160ms, border-color 160ms, color 160ms;
+}
+.stepper button:active,
+.blueprint-cta:active,
+.chip:active {
+  transform: scale(0.96);
+}
+
+/* Progress steps */
+.dream-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  list-style: none;
+  margin: 4px 0 14px;
+  padding: 0;
+}
+.dream-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-faint);
+  min-width: 0;
+}
+.dream-steps .dot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--card-border);
+  background: var(--glass);
+  font-size: 12px;
+}
+.dream-steps li.is-active { color: var(--text); }
+.dream-steps li.is-active .dot { border-color: var(--accent); color: var(--accent); }
+.dream-steps li.is-done { color: var(--text-secondary); }
+.dream-steps li.is-done .dot { background: var(--accent); border-color: var(--accent); color: var(--card-solid); }
+
+/* Dream blocks */
+.dream-block { margin-bottom: 14px; }
+.dream-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+.dream-head h2 { margin: 0 0 2px; font-size: 19px; letter-spacing: -0.01em; }
+.dream-head p { margin: 0; }
+.dream-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-size: 18px;
+}
+.disclosure.dream-block > summary { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.dream-sum { flex: 1; min-width: 0; }
+.dream-sum b { display: block; font-size: 16px; }
+.dream-sum small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.done-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.dream-block .disclosure-body { padding-top: 4px; }
+.dream-why {
+  margin: 0 0 14px;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--accent);
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.dream-form-body .btn { margin-top: 6px; }
+.dream-form-body .chip-row { margin-bottom: 8px; }
+.form-msg { min-height: 1.2em; margin: 8px 0 0; }
+.cloud-status { text-align: center; margin: 10px 0 18px; min-height: 1.2em; }
+
+/* Course rows: a stepper beats typing on a phone */
+.dream-course { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; margin-bottom: 10px; }
+.dc-target { display: grid; gap: 4px; justify-items: center; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--card-border); border-radius: 14px; background: var(--glass); overflow: hidden; }
+.stepper button { width: 40px; height: 44px; border: 0; background: transparent; color: var(--text); font-size: 20px; cursor: pointer; }
+.stepper button:hover { background: var(--glass-hi); }
+.stepper input { width: 58px; height: 44px; border: 0; background: transparent; text-align: center; font-size: 17px; font-weight: 700; color: var(--text); -moz-appearance: textfield; }
+.stepper input::-webkit-outer-spin-button,
+.stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper:focus-within { border-color: var(--accent); }
+.dream-course .goal-saved { min-height: 1.1em; margin: 0; font-size: 12px; color: var(--text-secondary); }
+.dream-grades-host .btn,
+.goals-block .btn { margin-top: 6px; }
+
+/* Goals */
+.seg { display: inline-flex; padding: 3px; margin-bottom: 12px; border-radius: 12px; background: var(--glass); border: 1px solid var(--card-border); }
+.seg label { cursor: pointer; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: block; padding: 8px 16px; border-radius: 9px; font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+.seg input:checked + span { background: var(--accent); color: var(--card-solid); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.goal-items { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; }
+.goal-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--glass); border: 1px solid var(--card-border); }
+.goal-item .goal-text { flex: 1; min-width: 0; }
+.goal-item b { display: block; overflow-wrap: anywhere; }
+.goal-item p { margin: 2px 0 0; }
+.goal-item.is-done b { text-decoration: line-through; color: var(--text-secondary); }
+.goal-item.is-overdue p { color: #ff8a7a; }
+.goal-check { position: relative; flex: none; display: block; width: 28px; height: 28px; cursor: pointer; }
+.goal-check input { position: absolute; inset: -8px; opacity: 0; width: 44px; height: 44px; margin: 0; cursor: pointer; }
+.goal-check .box { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--text-faint); color: transparent; }
+.goal-check input:checked + .box { background: var(--accent); border-color: var(--accent); color: var(--card-solid); }
+.goal-check input:focus-visible + .box { outline: 2px solid var(--accent); outline-offset: 2px; }
+.goal-empty { list-style: none; padding: 6px 2px; }
+
+/* Create-your-dream nudge on Courses */
+.dream-nudge { border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); }
+
+/* Guidance: big myBlueprint button */
+.blueprint-cta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0 14px;
+  padding: 18px;
+  min-height: 76px;
+  border-radius: 22px;
+  text-decoration: none;
+  color: var(--card-solid);
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 78%, #ffffff));
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.blueprint-cta .bp-icon { flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; background: rgba(255, 255, 255, 0.22); color: inherit; }
+.blueprint-cta .bp-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.blueprint-cta b { font-size: 18px; letter-spacing: -0.01em; }
+.blueprint-cta small { font-size: 13px; opacity: 0.85; }
+.blueprint-cta .bp-go { font-size: 22px; font-weight: 700; }
+.blueprint-cta:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+
+@media (max-width: 420px) {
+  .dream-steps li { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .dream-course { grid-template-columns: 1fr; }
+  .dc-target { justify-items: start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stepper button, .blueprint-cta, .seg label span, .goal-check .box, .chip { transition: none; }
+  .stepper button:active, .blueprint-cta:active, .chip:active { transform: none; }
+}
+
+/* A single Guidance tile spans the row instead of sitting in a third of it. */
+.tile-grid > .tile:only-child { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; text-align: left; }
+
+/* Chat composer: one pill, not a box inside a box. */
+.composer textarea { border: 0 !important; background: transparent !important; box-shadow: none !important; }
+.composer:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border)); }

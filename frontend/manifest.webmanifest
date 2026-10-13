@@ -1,7 +1,7 @@
 {
   "name": "TeachAssist Dashboard",
   "short_name": "TeachAssist",
-  "description": "Your YRDSB TeachAssist marks, school info, diploma tracker and volunteer hours in a fast mobile app.",
+  "description": "Your YRDSB TeachAssist marks, dreams, school info and an AI study mentor in a fast mobile app.",
   "start_url": "app.html#courses",
   "scope": "./",
   "display": "standalone",
@@ -39,12 +39,12 @@
       "url": "app.html#courses"
     },
     {
-      "name": "Volunteer hours",
-      "url": "app.html#guidance/volunteer"
-    },
-    {
       "name": "School map",
       "url": "app.html#guidance/map"
+    },
+    {
+      "name": "Dreams",
+      "url": "app.html#dreams"
     }
   ]
 }

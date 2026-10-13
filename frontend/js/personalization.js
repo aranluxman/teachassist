@@ -13,6 +13,12 @@ const defaults = {
   // Show only the courses running this semester (dates come from TeachAssist).
   currentTermOnly: true,
   goals: {},
+  // Dreams: set once the student has finished each step (drives the collapsed view).
+  dreamDone: false,
+  gradesDone: false,
+  goalsList: [],
+  updatedAt: 0,
+  goalsAt: 0,
 };
 function key() {
   return `ta-personal:${isDemo() ? "demo" : studentNumber() || "guest"}`;
@@ -24,6 +30,7 @@ export function preferences() {
       ...defaults,
       ...p,
       goals: p.goals && typeof p.goals === "object" ? p.goals : {},
+      goalsList: Array.isArray(p.goalsList) ? p.goalsList : [],
     };
   } catch {
     return { ...defaults, goals: {} };

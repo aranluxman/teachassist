@@ -2,6 +2,7 @@
 // a frontend release cannot depend on an out-of-date standalone Worker.
 import worker from './index.js';
 import { handleChat } from './chat.js';
+import { handleStore, withSavedMarks, storeConfigured } from './store.js';
 
 function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -19,7 +20,8 @@ export default {
       return json({
         service: 'TeachAssist', studentSignIn: true, version: 1,
         tutor: !!(env.OPENAI_API_KEY && env.API_KEY),
-        setup: { OPENAI_API_KEY: !!env.OPENAI_API_KEY, API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS },
+        setup: { OPENAI_API_KEY: !!env.OPENAI_API_KEY, API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS, SUPABASE_URL: !!(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL), SUPABASE_KEY: !!(env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) },
+        cloudSave: storeConfigured(env),
       });
     }
     // School-focused AI tutor (OpenAI). Same-origin was checked above.
@@ -27,6 +29,8 @@ export default {
       if (request.method !== 'POST') return json({ error: 'Use POST.' }, 405);
       return handleChat(request, env);
     }
+    // Dreams + goals saved to Supabase (per student, token-authenticated).
+    if (url.pathname === '/api/store' && !url.search) return handleStore(request, env);
     // The website exposes only student operations, never owner/cache/debug APIs.
     if (!['/api/marks', '/api/assistant'].includes(url.pathname) || url.search) {
       return json({ error: 'Not found.' }, 404);
@@ -53,6 +57,8 @@ export default {
       if (name.startsWith('access-control-')) result.headers.delete(name);
     }
     result.headers.set('Cache-Control', 'no-store');
-    return result;
+    // Keep each student's last recorded marks in Supabase and fall back to them
+    // when TeachAssist comes back empty.
+    return url.pathname === '/api/marks' ? withSavedMarks(result, env, ctx) : result;
   },
 };

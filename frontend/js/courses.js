@@ -1,4 +1,5 @@
 import { preferences } from "./personalization.js";
+import { syncFromCloud } from "./cloud-store.js";
 import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct } from "./ui-kit.js";
 import { fmtDay, fullCode, scheduleOf, subjectBadge, subjectStyle } from "./subjects.js";
 // ============================================================================
@@ -30,6 +31,7 @@ import {
   getUpdates,
   getSnapshots,
   lastSyncedAt,
+  showingSavedCopy,
   isDemo,
 } from "./ta-client.js";
 
@@ -236,7 +238,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
 
   // ── Header: schedule · TeachAssist / Updated… (tap to refresh) · updates ──
   const top = el(header("", changes.length > 0));
-  const status = isDemo() ? "Demo · bundled snapshot" : relativeUpdated(lastSyncedAt());
+  const status = isDemo() ? "Demo · bundled snapshot" : showingSavedCopy() ? `Last saved marks · ${relativeUpdated(lastSyncedAt()).replace(/^Updated\s*/i, "")}` : relativeUpdated(lastSyncedAt());
   const sub = top.querySelector(".g-header-title");
   sub.insertAdjacentHTML(
     "beforeend",
@@ -322,12 +324,31 @@ export async function renderCourses(container, { refresh = false } = {}) {
   });
   container.appendChild(list);
 
-  const p = preferences();
-  const dream = el(
-    `<div class="card dream-preview"><div><div class="eyebrow">THE BIG PICTURE</div><h2>${escapeHtml(p.career || "What’s your next chapter?")}</h2><p class="muted">${escapeHtml(p.school || "Give your grades a little direction. Set a dream, make a plan.")} </p><button class="btn secondary" style="width:auto">${p.career ? "View my dreams" : "Set a dream"} ↗</button></div><div class="dream-orbit" aria-hidden="true">✧</div></div>`,
-  );
-  dream.querySelector("button").addEventListener("click", () => window.AppNav.toDreams());
-  container.append(dream);
+  // Until the student has filled in their dream, nudge them from the top of
+  // the list; once it's done this becomes a quiet summary at the bottom.
+  const dreamCard = () => {
+    const p = preferences();
+    const card = p.dreamDone
+      ? el(`<div class="card dream-preview"><div><div class="eyebrow">THE BIG PICTURE</div><h2></h2><p class="muted"></p><button class="btn secondary" style="width:auto">View my dreams ↗</button></div><div class="dream-orbit" aria-hidden="true">✧</div></div>`)
+      : el(`<div class="card dream-preview dream-nudge"><div><div class="eyebrow">YOUR DREAM</div><h2>Create your dream</h2><p class="muted">Tell us where you're headed and we'll turn your marks into a plan. It takes two minutes.</p><button class="btn" style="width:auto">Create your dream ↗</button></div><div class="dream-orbit" aria-hidden="true">✧</div></div>`);
+    if (p.dreamDone) {
+      card.querySelector("h2").textContent = p.career;
+      card.querySelector("p").textContent = [p.school, `aiming for ${p.target}%`].filter(Boolean).join(" · ");
+    }
+    card.querySelector("button").addEventListener("click", () => window.AppNav.toDreams());
+    return card;
+  };
+  let dream = dreamCard();
+  const place = (card) => (preferences().dreamDone ? container.append(card) : list.before(card));
+  place(dream);
+  // A new phone or cleared browser: pull the saved dream, then refresh the card.
+  syncFromCloud().then((changed) => {
+    if (!changed || !container.isConnected) return;
+    const next = dreamCard();
+    dream.remove();
+    dream = next;
+    place(dream);
+  });
   orbitSparkles(dream.querySelector(".dream-orbit"), 4);
 }
 

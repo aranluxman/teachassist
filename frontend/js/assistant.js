@@ -52,6 +52,7 @@ async function loadContext() {
     ossd: ossdProgress(courses),
     volunteerHours: Math.round(volunteerTotal() * 100) / 100,
     demo: isDemo(),
+    name: preferences().name,
     tutor: await tutorAvailable(),
   };
 }
@@ -93,13 +94,13 @@ function sharedMarks(courses) {
   return shown.slice(0, 12).map((c) => ({ course: `${courseTitle(c)} (${courseLabel(c)})`, mark: displayMark(c) }));
 }
 
-async function askTutor(messages, marks, signal) {
+async function askTutor(messages, marks, signal, name = "") {
   let response;
   try {
     response = await fetch(workerUrl() + "/api/chat", {
       method: "POST",
       headers: { "content-type": "application/json", Authorization: `Bearer ${sessionToken()}` },
-      body: JSON.stringify(marks.length ? { messages, marks } : { messages }),
+      body: JSON.stringify({ messages, ...(marks.length ? { marks } : {}), ...(name ? { name } : {}) }),
       signal: AbortSignal.any ? AbortSignal.any([signal, AbortSignal.timeout(35000)]) : signal,
     });
   } catch (err) {
@@ -150,7 +151,7 @@ async function send(text, { retryId = null } = {}) {
         .filter((m) => m.via === "chat" && m.status === "done")
         .map((m) => ({ role: m.role, content: m.text }))
         .slice(-12);
-      const data = await askTutor(history, convo.shareMarks ? sharedMarks(ctx.courses) : [], signal);
+      const data = await askTutor(history, convo.shareMarks ? sharedMarks(ctx.courses) : [], signal, preferences().name);
       const left = Number.isFinite(data.remaining) && data.remaining <= 5 ? ` · ${data.remaining} left today` : "";
       message = { badge: `AI tutor${left}`, text: data.reply, via: "chat", tutor: true, suggestions: [] };
     } else {
@@ -253,7 +254,7 @@ function emptyNode() {
     <span class="chat-empty-mark" aria-hidden="true">✦</span>
     <h2>${name ? `Hey ${escapeHtml(name)}, what can I help with?` : "What can I help with?"}</h2>
     <p class="muted">${tutorOn
-      ? "Ask me anything: any subject, raising your grades, study plans, university and college, careers. I'll follow along."
+      ? "Your school mentor: I teach any subject step by step, help with homework and studying, and explain university and college. School topics only."
       : "Marks, finals, study plans, school info and graduation. Ask in your own words — I'll follow along."}</p>
     <div class="chat-starters" role="group" aria-label="Starter questions"></div>
     <p class="small muted chat-privacy">${tutorOn
@@ -262,7 +263,7 @@ function emptyNode() {
   </div>`);
   const row = node.querySelector(".chat-starters");
   const starters = tutorOn
-    ? [STARTERS[0], "What average do I need for university engineering?", "Explain photosynthesis simply"]
+    ? [STARTERS[0], "Help me understand physics", "What average do I need for university engineering?"]
     : STARTERS;
   for (const s of starters) {
     const b = el(`<button type="button" class="suggest-chip"></button>`);

@@ -24,7 +24,7 @@ export const COURSE_COLORS = [
 // Default rows for the Links (Student Tools) tab. Stored/edited locally.
 export const DEFAULT_LINKS = [
   { label: "TeachAssist Website", url: "https://ta.yrdsb.ca", category: "Student Tools" },
-  { label: "My Pathway Planner", url: "https://www.myblueprint.ca", category: "Student Tools" },
+  { label: "myBlueprint", url: "https://myblueprint.ca", category: "Student Tools" },
   { label: "Brightspace / D2L", url: "https://yrdsb.elearningontario.ca", category: "Student Tools" },
   { label: "Google Classroom", url: "https://classroom.google.com", category: "School" },
   { label: "YRDSB Threads", url: "https://threads.yrdsb.ca", category: "School" },
