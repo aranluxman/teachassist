@@ -139,6 +139,14 @@ export function respond(text, state = emptyState(), ctx = {}) {
   const brain = (q, extra = {}) => answer(q, { ...base, defaultCourse: topicCourse, minutes, ...extra });
   const named = findCourse(t, courses);
 
+  // "What is my name?" is answered on this device from the profile.
+  if (/^\s*(what('?s| is)|who am i|do you (know|remember)).{0,12}\b(my name|me)\b/i.test(t) && /\bname\b|who am i/i.test(t)) {
+    const who = String(ctx.name || "").trim();
+    return reply(state, who
+      ? { title: "That's you", text: `Your name is ${who}. Want to keep going with your marks, a study plan, or a tough topic?`, suggestions: STARTERS }
+      : { title: "I don't have your name yet", text: "Add it in Profile → Edit profile and I'll use it from now on.", actions: [{ label: "Open profile", route: "profile" }] });
+  }
+
   // A. Answering "Which course?": re-run the original question for that course.
   if (state.pending?.kind === "course" && named && words(t) <= 6) {
     const meta = state.pending.meta || {};

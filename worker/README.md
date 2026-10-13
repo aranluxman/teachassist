@@ -254,3 +254,17 @@ your selector/constant tweaks before deploying.
 | `.dev.vars.example` | Template for local secrets (copy to `.dev.vars`). |
 | `package.json`    | `dev` / `deploy` / `tail` / `test` scripts.        |
 | `test/`           | Miniflare-based parser tests (sample HTML).        |
+
+## Cloud saving (Supabase) and the AI tutor
+
+Pages project settings (Settings → Environment variables):
+
+| Name | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key. The table is locked; only the `ta_load`/`ta_save` functions in `supabase/schema.sql` are callable |
+| `OPENAI_API_KEY` | AI tutor key (secret) |
+| `OPENAI_MODEL` | Optional, defaults to `gpt-4.1-mini` |
+| `API_KEY` | Signs student sessions (secret) |
+
+`GET /api/status` shows which settings are present (never their values). Each sign-in saves the student's latest marks; if TeachAssist later returns no marks, the last saved ones are shown and labelled "Last saved marks". Dreams and goals sync through `/api/store`.

@@ -10,3 +10,9 @@ API_KEY = "some-long-random-string"
 
 # Optional: AI tutor (Pages project secret). Never commit a real key.
 OPENAI_API_KEY = "sk-your-key-here"
+
+# Cloud saving (dreams, goals, last-known marks). Pages secrets; never commit real values.
+NEXT_PUBLIC_SUPABASE_URL = "https://hcvjiveloioftozvnbhe.supabase.co"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_..."
+# Optional: chat model (default gpt-4.1-mini)
+OPENAI_MODEL = "gpt-4.1-mini"

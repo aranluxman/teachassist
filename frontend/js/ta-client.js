@@ -25,10 +25,15 @@ const LS = {
 let cacheAccount = null;
 let cache = null; // last fetched courses (this page load)
 let cachedAt = null; // ISO time of the active student’s successful refresh
+let savedCopyAt = null; // set when TeachAssist had no marks and the last saved copy is shown
 
 /** When the marks currently on screen were scraped (ISO string), or null. */
 export function lastSyncedAt() {
   return cachedAt;
+}
+/** True when TeachAssist returned nothing and these are the last saved marks. */
+export function showingSavedCopy() {
+  return !!savedCopyAt;
 }
 
 // ---- per-device settings ---------------------------------------------------
@@ -138,6 +143,7 @@ async function postMarks(username, pass) {
   }
   if (!res.ok) throw new Error((body && body.error) || `Worker returned HTTP ${res.status}`);
   if (!Array.isArray(body)) throw new Error("Unexpected response from the Worker.");
+  savedCopyAt = res.headers.get("X-TeachAssist-Saved-At") || null;
   const token = res.headers.get("X-TeachAssist-Session");
   if (token) sessionStorage.setItem(`ta-session:${url}:${username}`, token);
   return body;
@@ -159,8 +165,8 @@ export async function login(num, pass) {
   localStorage.removeItem(LS.demo);
   cache = courses;
   cacheAccount = `${workerUrl()}:${studentNumber()}`;
-  cachedAt = new Date().toISOString();
-  saveSnapshot(courses);
+  cachedAt = savedCopyAt || new Date().toISOString();
+  if (!savedCopyAt) saveSnapshot(courses);
   return courses;
 }
 
@@ -180,8 +186,8 @@ export async function getCourses({ refresh = false } = {}) {
   if (isDemo() || account !== `${workerUrl()}:${studentNumber()}`) throw new Error("Your account changed. Open your courses again.");
   cache = courses;
   cacheAccount = account;
-  cachedAt = new Date().toISOString();
-  saveSnapshot(cache, { checked: refresh });
+  cachedAt = savedCopyAt || new Date().toISOString();
+  if (!savedCopyAt) saveSnapshot(cache, { checked: refresh });
   return cache;
 }
 

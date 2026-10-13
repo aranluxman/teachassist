@@ -2,7 +2,7 @@
 // Guidance tab
 // ----------------------------------------------------------------------------
 // My school (from YRDSB school profiles) · school map & boundaries · OSSD
-// tracker · volunteer hours · my counsellor · appointment reminders ·
+// tracker (hidden) · my counsellor · appointment reminders ·
 // verified resource links with icons that say where each one goes.
 // ============================================================================
 
@@ -12,7 +12,6 @@ import { getCourses } from "./ta-client.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
 import { mySchool, schoolCard, icon } from "./schools.js";
 import { ossdProgress, saveOssd, ossdState, TOTAL_CREDITS } from "./ossd.js";
-import { volunteerTotal, GOAL, ring } from "./volunteer.js";
 
 // Link icon per destination type, so students know where a tap takes them.
 const KIND = {
@@ -79,21 +78,23 @@ export function linkRow(item) {
 /** Render the Guidance screen. */
 export async function renderGuidance(container) {
   container.innerHTML = "";
-  container.append(el(`<div class="screen-header v5-header"><div><h1>Guidance</h1><p>Your school, your diploma, and the people who can help.</p></div></div>`));
+  container.append(el(`<div class="screen-header v5-header"><div><h1>Guidance</h1><p>Your school, your plans, and the people who can help.</p></div></div>`));
 
-  const [school, courses] = await Promise.all([mySchool(), getCourses().catch(() => [])]);
+  const school = await mySchool();
 
-  // Quick actions first: the three things students open most.
-  const p = ossdProgress(courses);
-  const hours = volunteerTotal();
+  // myBlueprint is used constantly (course selection, pathway planning), so it
+  // is the first thing on this page.
+  const blueprint = el(`<a class="blueprint-cta" href="https://myblueprint.ca" target="_blank" rel="noopener">
+    <span class="bp-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${KIND.plan.svg}</svg></span>
+    <span class="bp-text"><b>Open myBlueprint</b><small>Plan your courses, pathway and post-secondary goals</small></span>
+    <span class="bp-go" aria-hidden="true">↗</span>
+  </a>`);
+  container.append(blueprint);
+
   const tiles = el(`<div class="tile-grid">
-    <button class="tile" data-go="volunteer"><span class="tile-ring">${ring(hours, GOAL, { size: 56, stroke: 6, label: `${hours} of ${GOAL} volunteer hours` })}</span><span><b>${Math.round(hours * 10) / 10}<small>/${GOAL}</small></b><span>Volunteer hours</span></span></button>
-    <button class="tile" data-go="ossd"><span class="tile-ring">${ring(p.credits, TOTAL_CREDITS, { size: 56, stroke: 6, label: `${p.credits} of 30 credits on track` })}</span><span><b>${p.credits}<small>/${TOTAL_CREDITS}</small></b><span>Credits on track</span></span></button>
     <button class="tile" data-go="map"><span class="tile-icon">${icon("map", 24)}</span><span><b>School map</b><span>Boundaries & info</span></span></button>
   </div>`);
-  tiles.querySelector('[data-go="volunteer"]').onclick = () => window.AppNav.toGuidance("volunteer");
   tiles.querySelector('[data-go="map"]').onclick = () => window.AppNav.toGuidance("map");
-  tiles.querySelector('[data-go="ossd"]').onclick = () => container.querySelector(".ossd-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
   container.append(tiles);
 
   // School
@@ -111,9 +112,7 @@ export async function renderGuidance(container) {
   }
   container.append(schoolSection);
 
-  // Diploma
-  container.append(el(`<h2 class="section-title">Diploma progress</h2>`));
-  container.append(ossdCard(courses, () => renderGuidance(container)));
+  // The diploma/credits tracker (ossdCard) is hidden for now.
 
   // People & appointments
   container.append(el(`<h2 class="section-title">People & appointments</h2>`));

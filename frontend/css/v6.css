@@ -1175,11 +1175,11 @@ html[data-glass="false"][data-mode] .sheet {
   }
 }
 
-/* ── Sign-in logo: the app icon itself, with a soft blue glow ─────────── */
+/* ── Sign-in logo: the app icon itself, with a soft green glow ─────────── */
 html[data-mode] .auth-logo .mark {
   width: 88px;
   height: 88px;
   border-radius: 22.5%;
   background: none;
-  box-shadow: 0 10px 36px rgba(64, 120, 255, 0.35);
+  box-shadow: 0 10px 36px rgba(34, 197, 94, 0.35);
 }
