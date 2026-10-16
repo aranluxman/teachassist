@@ -821,7 +821,7 @@ async function scrapeMarks(env, creds) {
         try {
           const reportUrl = `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(c.subjectId)}&student_id=${encodeURIComponent(c.studentId)}`;
           const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL);
-          c.evaluations = await parseEvaluations(reportHtml);
+          c.evaluations = parseAssignments(reportHtml);
           const cm = parseReportCourseMark(reportHtml);
           if (cm != null && c.currentMark == null) c.currentMark = cm;
           if (!c.evaluations.length) {
@@ -835,6 +835,7 @@ async function scrapeMarks(env, creds) {
             } catch {
             }
           }
+          if (!c.evaluations.length) c.evaluations = await parseEvaluations(reportHtml);
         } catch (err) {
           c.evaluations = [];
           c.reportError = safeMessage(err);
@@ -1017,6 +1018,55 @@ function flushCategoryRow(rowState, out) {
     percent: pcts[pcts.length - 1],
     weight: pcts.length > 1 ? pcts[0] : null
   });
+}
+var EXTRA_STRAND_COLOURS = { ffdddd: "Attendance and Participation" };
+function parseAssignments(html) {
+  const out = [];
+  const nameRe = /<td[^>]*rowspan=["']?2["']?[^>]*>([\s\S]*?)<\/td>/gi;
+  const starts = [...html.matchAll(nameRe)];
+  starts.forEach((m, i) => {
+    const name = cellText(m[1]);
+    const from = m.index + m[0].length;
+    const to = i + 1 < starts.length ? starts[i + 1].index : html.indexOf("</table>", from);
+    const block = html.slice(from, to < 0 ? void 0 : to);
+    const rowEnd = block.search(/<\/tr>/i);
+    const markRow = rowEnd < 0 ? block : block.slice(0, rowEnd);
+    const rest = rowEnd < 0 ? "" : block.slice(rowEnd);
+    const strands = [];
+    for (const c of markRow.matchAll(/<td([^>]*)>([\s\S]*?)<\/td>/gi)) {
+      const text2 = cellText(c[2]);
+      const mm = text2.match(/([\d.]+)\s*\/\s*([\d.]+)/);
+      if (!mm) continue;
+      const got = parseFloat(mm[1]);
+      const max = parseFloat(mm[2]);
+      if (!(max > 0)) continue;
+      const colour = normaliseHex((c[1].match(/bgcolor=["']?#?([0-9a-fA-F]{6})/) || [])[1] || "");
+      const wm = text2.match(/weight\s*=\s*([\d.]+)/i);
+      strands.push({
+        category: colour && (STRAND_COLOURS[colour] || EXTRA_STRAND_COLOURS[colour]) || "Other",
+        percent: round1(got / max * 100),
+        weight: wm ? parseFloat(wm[1]) : 1,
+        mark: got,
+        outOf: max
+      });
+    }
+    if (!name || !strands.length) return;
+    const total = strands.reduce((a, s) => a + s.weight, 0);
+    const percent2 = total > 0 ? strands.reduce((a, s) => a + s.percent * s.weight, 0) / total : strands.reduce((a, s) => a + s.percent, 0) / strands.length;
+    const fb = rest.match(/<td[^>]*colspan[^>]*>([\s\S]*?)<\/td>/i);
+    const feedback = fb ? cellText(fb[1]) : "";
+    const same = strands.every((s) => s.mark === strands[0].mark && s.outOf === strands[0].outOf);
+    out.push({
+      name,
+      category: strands.length === 1 ? strands[0].category : strands.map((s) => s.category[0]).join("/"),
+      percent: round1(percent2),
+      weight: total,
+      ...same ? { mark: strands[0].mark, outOf: strands[0].outOf } : {},
+      strands,
+      ...feedback ? { feedback } : {}
+    });
+  });
+  return out;
 }
 function parseOEEvaluations(html) {
   const start = html.search(/<h2>\s*Assessment Tasks\s*<\/h2>/i);

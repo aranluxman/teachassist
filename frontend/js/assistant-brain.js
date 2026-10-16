@@ -179,7 +179,7 @@ const TIPS = {
 };
 
 function lowStrand(c) {
-  const strands = strandBreakdown((c.evaluations || []).filter((e) => typeof e.percent === "number")).filter((s) => s.key !== "f");
+  const strands = strandBreakdown((c.evaluations || []).filter((e) => typeof e.percent === "number")).filter((s) => ["k", "t", "c", "a"].includes(s.key));
   return [...strands].sort((a, b) => a.average - b.average)[0] || null;
 }
 
