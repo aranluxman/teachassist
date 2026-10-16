@@ -44,6 +44,10 @@ const COURSE_LIST_URL = `${TA_ORIGIN}/live/students/listReports.php`;
 // relative href in the HTML does not matter — only this base path matters.
 const REPORT_URL_BASE = `${TA_ORIGIN}/live/students/viewReport.php`;
 
+// Courses marked by Overall Expectation (e.g. SNC2D) leave viewReport.php empty
+// and list their tasks on this page instead, under "Assessment Tasks".
+const OE_REPORT_URL_BASE = `${TA_ORIGIN}/live/students/viewReportOE.php`;
+
 // --- Login form field names -------------------------------------------------
 // The EXACT form field names submitted by the login <form>. `extra` holds the
 // constant hidden/submit fields in the page.
@@ -225,6 +229,7 @@ export default {
     //   /api/marks?debug=login            -> login status/redirect metadata
     //   /api/marks?debug=courses          -> raw HTML of the marks-list page
     //   /api/marks?debug=report&subject_id=NNN -> raw HTML of one report page
+//     (add &oe=1 for the Overall Expectation page, viewReportOE.php)
     const debug = url.searchParams.get("debug");
 
     try {
@@ -278,8 +283,9 @@ export default {
             400
           );
         }
+        const base = url.searchParams.get("oe") ? OE_REPORT_URL_BASE : REPORT_URL_BASE;
         const html = await fetchWithSession(
-          `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(sid)}&student_id=${encodeURIComponent(session.studentId)}`,
+          `${base}?subject_id=${encodeURIComponent(sid)}&student_id=${encodeURIComponent(session.studentId)}`,
           session,
           listUrl
         );
@@ -368,6 +374,19 @@ async function scrapeMarks(env, creds) {
           // page only says "please see teacher". Use it as currentMark.
           const cm = parseReportCourseMark(reportHtml);
           if (cm != null && c.currentMark == null) c.currentMark = cm;
+          // Overall-Expectation courses keep their tasks on a second page.
+          if (!c.evaluations.length) {
+            try {
+              const oeHtml = await fetchWithSession(
+                reportUrl.replace(REPORT_URL_BASE, OE_REPORT_URL_BASE),
+                session,
+                COURSE_LIST_URL
+              );
+              c.evaluations = parseOEEvaluations(oeHtml);
+            } catch {
+              // Not an OE course (or the page failed): keep the empty list.
+            }
+          }
         } catch (err) {
           // One bad report should not sink the whole response.
           c.evaluations = [];
@@ -709,6 +728,70 @@ function flushCategoryRow(rowState, out) {
 }
 
 // ============================================================================
+// HTML PARSING — OVERALL EXPECTATION TASKS  (viewReportOE.php)
+// ----------------------------------------------------------------------------
+// OE courses list one row per task per expectation under "Assessment Tasks":
+//
+//   <tr><td><a name="Quest # 1"></a> Quest # 1</a></td>
+//       <td>C2.</td> <td>24</td><td>/&nbsp;24</td> <td>2</td> <td>feedback</td></tr>
+//
+// Rows for the same task are merged into one Evaluation (one strand per
+// expectation). Rows with a blank mark are not graded yet and are skipped.
+// ============================================================================
+
+/**
+ * @param {string} html  a viewReportOE.php page
+ * @returns {Evaluation[]}
+ */
+function parseOEEvaluations(html) {
+  const start = html.search(/<h2>\s*Assessment Tasks\s*<\/h2>/i);
+  if (start < 0) return [];
+  const end = html.indexOf("</table>", start);
+  const section = html.slice(start, end < 0 ? undefined : end);
+
+  /** @type {Map<string, {name: string, got: number, max: number, weight: number, feedback: string, strands: any[]}>} */
+  const tasks = new Map();
+  for (const tr of section.match(/<tr[\s\S]*?<\/tr>/gi) || []) {
+    const cells = [...tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => cellText(m[1]));
+    if (cells.length < 5) continue; // header row (<th>) or malformed
+    const [name, expectation, markText, outOfText, weightText, feedback = ""] = cells;
+    const got = parseFloat(markText);
+    const max = parseFloat(outOfText.replace(/^\//, ""));
+    if (!name || !Number.isFinite(got) || !(max > 0)) continue; // not marked yet
+    const weight = parseFloat(weightText) || 0;
+    const category = expectation.replace(/\.$/, "");
+
+    let t = tasks.get(name);
+    if (!t) tasks.set(name, (t = { name, got: 0, max: 0, weight: 0, feedback: "", strands: [] }));
+    t.got += got;
+    t.max += max;
+    t.weight += weight;
+    if (feedback && !t.feedback) t.feedback = feedback;
+    t.strands.push({ category, percent: round1((got / max) * 100), weight, mark: got, outOf: max });
+  }
+
+  return [...tasks.values()].map((t) => ({
+    name: t.name,
+    category: t.strands.map((s) => s.category).join(", "),
+    percent: round1((t.got / t.max) * 100),
+    weight: t.weight,
+    mark: t.got,
+    outOf: t.max,
+    strands: t.strands,
+    ...(t.feedback ? { feedback: t.feedback } : {}),
+  }));
+}
+
+/** Strip tags, decode entities and collapse whitespace in one table cell. */
+function cellText(html) {
+  return collapseWhitespace(decodeEntities(html.replace(/<[^>]*>/g, " "))).trim();
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
+// ============================================================================
 // SHARED HELPERS
 // ============================================================================
 
@@ -800,6 +883,7 @@ function timingSafeEqual(a, b) {
 export {
   parseCourseList,
   parseEvaluations,
+  parseOEEvaluations,
   extractCourseCode,
   extractCurrentMark,
   storeMarks,

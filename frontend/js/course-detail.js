@@ -55,11 +55,11 @@ function strandBadge(category) {
 }
 const strandColor = (category) => `var(--strand-${strandKey(category) || "f"}-bar)`;
 
-/** Weighted mean of evaluations (weight 1 when missing). */
+/** Weighted mean of evaluations (weight 1 when missing; weight 0 = formative, not counted). */
 function weightedMean(list) {
   let sum = 0, w = 0;
   for (const e of list) {
-    const wt = typeof e.weight === "number" && e.weight > 0 ? e.weight : 1;
+    const wt = typeof e.weight === "number" && e.weight >= 0 ? e.weight : 1;
     sum += e.percent * wt;
     w += wt;
   }

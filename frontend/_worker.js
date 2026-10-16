@@ -590,6 +590,7 @@ var TA_ORIGIN = "https://ta.yrdsb.ca";
 var LOGIN_URL = `${TA_ORIGIN}/yrdsb/index.php`;
 var COURSE_LIST_URL = `${TA_ORIGIN}/live/students/listReports.php`;
 var REPORT_URL_BASE = `${TA_ORIGIN}/live/students/viewReport.php`;
+var OE_REPORT_URL_BASE = `${TA_ORIGIN}/live/students/viewReportOE.php`;
 var LOGIN_FIELDS = {
   username: "username",
   password: "password",
@@ -767,8 +768,9 @@ var index_default = {
             400
           );
         }
+        const base = url.searchParams.get("oe") ? OE_REPORT_URL_BASE : REPORT_URL_BASE;
         const html = await fetchWithSession(
-          `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(sid)}&student_id=${encodeURIComponent(session2.studentId)}`,
+          `${base}?subject_id=${encodeURIComponent(sid)}&student_id=${encodeURIComponent(session2.studentId)}`,
           session2,
           listUrl
         );
@@ -822,6 +824,17 @@ async function scrapeMarks(env, creds) {
           c.evaluations = await parseEvaluations(reportHtml);
           const cm = parseReportCourseMark(reportHtml);
           if (cm != null && c.currentMark == null) c.currentMark = cm;
+          if (!c.evaluations.length) {
+            try {
+              const oeHtml = await fetchWithSession(
+                reportUrl.replace(REPORT_URL_BASE, OE_REPORT_URL_BASE),
+                session,
+                COURSE_LIST_URL
+              );
+              c.evaluations = parseOEEvaluations(oeHtml);
+            } catch {
+            }
+          }
         } catch (err) {
           c.evaluations = [];
           c.reportError = safeMessage(err);
@@ -1004,6 +1017,46 @@ function flushCategoryRow(rowState, out) {
     percent: pcts[pcts.length - 1],
     weight: pcts.length > 1 ? pcts[0] : null
   });
+}
+function parseOEEvaluations(html) {
+  const start = html.search(/<h2>\s*Assessment Tasks\s*<\/h2>/i);
+  if (start < 0) return [];
+  const end = html.indexOf("</table>", start);
+  const section = html.slice(start, end < 0 ? void 0 : end);
+  const tasks = /* @__PURE__ */ new Map();
+  for (const tr of section.match(/<tr[\s\S]*?<\/tr>/gi) || []) {
+    const cells = [...tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => cellText(m[1]));
+    if (cells.length < 5) continue;
+    const [name, expectation, markText, outOfText, weightText, feedback = ""] = cells;
+    const got = parseFloat(markText);
+    const max = parseFloat(outOfText.replace(/^\//, ""));
+    if (!name || !Number.isFinite(got) || !(max > 0)) continue;
+    const weight = parseFloat(weightText) || 0;
+    const category = expectation.replace(/\.$/, "");
+    let t = tasks.get(name);
+    if (!t) tasks.set(name, t = { name, got: 0, max: 0, weight: 0, feedback: "", strands: [] });
+    t.got += got;
+    t.max += max;
+    t.weight += weight;
+    if (feedback && !t.feedback) t.feedback = feedback;
+    t.strands.push({ category, percent: round1(got / max * 100), weight, mark: got, outOf: max });
+  }
+  return [...tasks.values()].map((t) => ({
+    name: t.name,
+    category: t.strands.map((s) => s.category).join(", "),
+    percent: round1(t.got / t.max * 100),
+    weight: t.weight,
+    mark: t.got,
+    outOf: t.max,
+    strands: t.strands,
+    ...t.feedback ? { feedback: t.feedback } : {}
+  }));
+}
+function cellText(html) {
+  return collapseWhitespace(decodeEntities(html.replace(/<[^>]*>/g, " "))).trim();
+}
+function round1(n) {
+  return Math.round(n * 10) / 10;
 }
 function decodeEntities(s) {
   return s.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&apos;|&#0*39;/gi, "'").replace(/&#x([0-9a-f]+);/gi, (_, h) => codePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => codePoint(parseInt(d, 10)));
