@@ -2,10 +2,10 @@
 // Hash routes — every screen has its own address, so refresh, Back and
 // bookmarks keep you where you were:
 //   #courses  #course/MTH1W1  #guidance  #guidance/map  #guidance/volunteer
-//   #dreams   #assistant      #settings  #settings/theme  #profile
+//   #dreams   #settings  #settings/theme  #profile
 // ============================================================================
 
-const SCREENS = ["courses", "course", "guidance", "dreams", "assistant", "settings", "profile"];
+const SCREENS = ["courses", "course", "guidance", "dreams", "settings", "profile"];
 const GUIDANCE_VIEWS = ["map", "volunteer"];
 const SETTINGS_VIEWS = ["theme"];
 

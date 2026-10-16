@@ -290,7 +290,7 @@ export function mountTabIndicator(tabbar) {
 
 // ─────────────────────────── screens & chrome ──────────────────────────────
 
-const TAB_ORDER = ["courses", "guidance", "dreams", "assistant", "settings"];
+const TAB_ORDER = ["courses", "guidance", "dreams", "settings"];
 
 /** Which way a move between two screens should travel: 1 right, -1 left. */
 export function screenDirection(from, to) {

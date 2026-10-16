@@ -37,7 +37,6 @@
       <main id="screen-detail" class="screen hidden"></main>
       <main id="screen-guidance" class="screen hidden"></main>
       <main id="screen-dreams" class="screen hidden"></main>
-      <main id="screen-assistant" class="screen hidden"></main>
       <main id="screen-settings" class="screen hidden"></main>
 
       <nav class="tabbar" id="tabbar">
@@ -57,7 +56,6 @@
           Guidance
         </button>
         <button data-tab="dreams"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z"/></svg>Dreams</button>
-        <button data-tab="assistant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg>Assistant</button>
         <button data-tab="settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3" />
@@ -73,6 +71,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.js"></script>
     <script type="module">
+      import { registerServiceWorker } from "./js/install.js";
       import { renderProfile } from "./js/profile.js";
       import { startNotificationChecks } from "./js/notifications.js";
       import { requireLogin, getCourses } from "./js/ta-client.js";
@@ -83,7 +82,6 @@
       import { openCourseDetail } from "./js/course-detail.js";
       import { renderGuidance } from "./js/guidance.js";
       import { renderDreams } from "./js/dreams.js";
-      import { renderAssistant } from "./js/assistant.js";
       import { renderSettings, renderThemeSettings, applyStoredTheme } from "./js/settings.js";
       import {
         initMotion,
@@ -98,7 +96,6 @@
         detail: document.getElementById("screen-detail"),
         guidance: document.getElementById("screen-guidance"),
         dreams: document.getElementById("screen-dreams"),
-        assistant: document.getElementById("screen-assistant"),
         settings: document.getElementById("screen-settings"),
       };
       const tabbar = document.getElementById("tabbar");
@@ -113,7 +110,7 @@
         tabbar.querySelectorAll("button").forEach((b) =>
           (b.classList.toggle("active", b.dataset.tab === name), b.setAttribute("aria-current", b.dataset.tab === name ? "page" : "false"))
         );
-        const tabbed = ["courses", "guidance", "dreams", "assistant", "settings"].includes(name);
+        const tabbed = ["courses", "guidance", "dreams", "settings"].includes(name);
         tabbar.classList.toggle("hidden", !tabbed);
         if (tabbed) moveTabIndicator(tabbar.querySelector("button.active"));
         window.scrollTo(0, 0);
@@ -145,7 +142,7 @@
           return renderGuidance(target);
         }
         if (screen === "settings" && arg === "theme") return renderThemeSettings(target);
-        return ({ courses: renderCourses, profile: renderProfile, dreams: renderDreams, assistant: renderAssistant, settings: renderSettings })[screen](target);
+        return ({ courses: renderCourses, profile: renderProfile, dreams: renderDreams, settings: renderSettings })[screen](target);
       }
       const navigate = (screen, arg = "") => { if (!go(screen, arg)) return render({ screen, arg }); };
       window.addEventListener("hashchange", () => render(parseRoute(location.hash)));
@@ -156,7 +153,6 @@
         toCourses: () => navigate("courses"),
         toGuidance: (view = "") => navigate("guidance", typeof view === "string" ? view : ""),
         toDreams: () => navigate("dreams"),
-        toAssistant: () => navigate("assistant"),
         toSettings: () => navigate("settings"),
         toDetail: (course) => { pendingCourse = course; return navigate("course", courseLabel(course)); },
       };
@@ -168,7 +164,6 @@
           courses: window.AppNav.toCourses,
           guidance: window.AppNav.toGuidance,
           dreams: window.AppNav.toDreams,
-          assistant: window.AppNav.toAssistant,
           settings: window.AppNav.toSettings,
         })[btn.dataset.tab]();
       });
@@ -193,9 +188,7 @@
         applyStoredTheme();
         initMotion();
         startNotificationChecks();
-        if ('serviceWorker' in navigator && window.isSecureContext) {
-          navigator.serviceWorker.register('./notifications-sw.js').catch(() => {});
-        }
+        registerServiceWorker();
         if (!location.hash) history.replaceState(null, "", "#courses");
         await render(parseRoute(location.hash));
         requestAnimationFrame(() =>

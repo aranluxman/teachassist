@@ -13,7 +13,6 @@ import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct, segBar } from ".
 import { fmtDay, fullCode, letterBadge, scheduleOf, subjectBadge } from "./subjects.js";
 import { courseMeta } from "./course-names.js";
 import { teacherFor, editTeacher } from "./teachers.js";
-import { askAboutCourse } from "./assistant-session.js";
 import { preferences } from "./personalization.js";
 import { displayMark, markKind } from "./ta-client.js";
 import { animateGauge, countUp, mountThumb, previousValue, rememberValue } from "./motion.js";
@@ -87,18 +86,9 @@ export async function openCourseDetail(container, course) {
       title: fullCode(course) || courseLabel(course),
       subtitle: escapeHtml(courseTitle(course)),
       left: glassButton("back", "Back to courses", "data-back"),
-      right: glassButton("wand", "Ask the assistant about this course", "data-ask"),
     }),
   );
   nav.querySelector("[data-back]").addEventListener("click", () => window.AppNav.toCourses());
-  nav.querySelector("[data-ask]").addEventListener("click", () => {
-    askAboutCourse({
-      code: courseLabel(course),
-      title: courseTitle(course),
-      markText: mark != null && !preferences().hideMarks ? fmtPercent(mark) : "",
-    });
-    window.AppNav.toAssistant();
-  });
   container.appendChild(nav);
 
   // ── Pager: mark gauge · progression · course info ──
