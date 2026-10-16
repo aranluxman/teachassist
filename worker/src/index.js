@@ -369,7 +369,9 @@ async function scrapeMarks(env, creds) {
             `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(c.subjectId)}` +
             `&student_id=${encodeURIComponent(c.studentId)}`;
           const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL);
-          c.evaluations = await parseEvaluations(reportHtml);
+          // Prefer the per-assignment table; fall back to category rows only
+          // if there are no assignments and no OE tasks (below).
+          c.evaluations = parseAssignments(reportHtml);
           // The report carries the calculated "Course" mark even when the list
           // page only says "please see teacher". Use it as currentMark.
           const cm = parseReportCourseMark(reportHtml);
@@ -387,6 +389,7 @@ async function scrapeMarks(env, creds) {
               // Not an OE course (or the page failed): keep the empty list.
             }
           }
+          if (!c.evaluations.length) c.evaluations = await parseEvaluations(reportHtml);
         } catch (err) {
           // One bad report should not sink the whole response.
           c.evaluations = [];
@@ -728,6 +731,80 @@ function flushCategoryRow(rowState, out) {
 }
 
 // ============================================================================
+// HTML PARSING — ASSIGNMENTS  (viewReport.php, K/T/C/A courses)
+// ----------------------------------------------------------------------------
+// Each assignment is a name cell spanning two rows, followed by one cell per
+// strand coloured like the header, then a feedback row:
+//
+//   <tr><td rowspan="2">Freehand Drawing</td>
+//       <td bgcolor="#ffffaa" ...>19 / 20 : 95% <br><font>weight=1</font></td>
+//       ... <td bgcolor="#cccccc">&nbsp;</td></tr>
+//   <tr><td colspan="6" bgcolor="white">feedback</td></tr>
+//
+// Strand cells without a "x / y" mark are blank (not assessed) and skipped.
+// ============================================================================
+
+const EXTRA_STRAND_COLOURS = { ffdddd: "Attendance and Participation" };
+
+/**
+ * @param {string} html  a viewReport.php page
+ * @returns {Evaluation[]}
+ */
+function parseAssignments(html) {
+  /** @type {Evaluation[]} */
+  const out = [];
+  const nameRe = /<td[^>]*rowspan=["']?2["']?[^>]*>([\s\S]*?)<\/td>/gi;
+  const starts = [...html.matchAll(nameRe)];
+  starts.forEach((m, i) => {
+    const name = cellText(m[1]);
+    const from = m.index + m[0].length;
+    const to = i + 1 < starts.length ? starts[i + 1].index : html.indexOf("</table>", from);
+    const block = html.slice(from, to < 0 ? undefined : to);
+    const rowEnd = block.search(/<\/tr>/i);
+    const markRow = rowEnd < 0 ? block : block.slice(0, rowEnd);
+    const rest = rowEnd < 0 ? "" : block.slice(rowEnd);
+
+    const strands = [];
+    for (const c of markRow.matchAll(/<td([^>]*)>([\s\S]*?)<\/td>/gi)) {
+      const text = cellText(c[2]);
+      const mm = text.match(/([\d.]+)\s*\/\s*([\d.]+)/);
+      if (!mm) continue;
+      const got = parseFloat(mm[1]);
+      const max = parseFloat(mm[2]);
+      if (!(max > 0)) continue;
+      const colour = normaliseHex((c[1].match(/bgcolor=["']?#?([0-9a-fA-F]{6})/) || [])[1] || "");
+      const wm = text.match(/weight\s*=\s*([\d.]+)/i);
+      strands.push({
+        category: (colour && (STRAND_COLOURS[colour] || EXTRA_STRAND_COLOURS[colour])) || "Other",
+        percent: round1((got / max) * 100),
+        weight: wm ? parseFloat(wm[1]) : 1,
+        mark: got,
+        outOf: max,
+      });
+    }
+    if (!name || !strands.length) return;
+
+    const total = strands.reduce((a, s) => a + s.weight, 0);
+    const percent = total > 0
+      ? strands.reduce((a, s) => a + s.percent * s.weight, 0) / total
+      : strands.reduce((a, s) => a + s.percent, 0) / strands.length;
+    const fb = rest.match(/<td[^>]*colspan[^>]*>([\s\S]*?)<\/td>/i);
+    const feedback = fb ? cellText(fb[1]) : "";
+    const same = strands.every((s) => s.mark === strands[0].mark && s.outOf === strands[0].outOf);
+    out.push({
+      name,
+      category: strands.length === 1 ? strands[0].category : strands.map((s) => s.category[0]).join("/"),
+      percent: round1(percent),
+      weight: total,
+      ...(same ? { mark: strands[0].mark, outOf: strands[0].outOf } : {}),
+      strands,
+      ...(feedback ? { feedback } : {}),
+    });
+  });
+  return out;
+}
+
+// ============================================================================
 // HTML PARSING — OVERALL EXPECTATION TASKS  (viewReportOE.php)
 // ----------------------------------------------------------------------------
 // OE courses list one row per task per expectation under "Assessment Tasks":
@@ -884,6 +961,7 @@ export {
   parseCourseList,
   parseEvaluations,
   parseOEEvaluations,
+  parseAssignments,
   extractCourseCode,
   extractCurrentMark,
   storeMarks,

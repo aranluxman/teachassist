@@ -55,6 +55,9 @@ function strandBadge(category) {
 }
 const strandColor = (category) => `var(--strand-${strandKey(category) || "f"}-bar)`;
 
+/** "24 / 24" when TeachAssist gave raw marks, else "". */
+const rawMark = (x) => (typeof x?.mark === "number" && typeof x?.outOf === "number" ? `${x.mark} / ${x.outOf}` : "");
+
 /** Weighted mean of evaluations (weight 1 when missing; weight 0 = formative, not counted). */
 function weightedMean(list) {
   let sum = 0, w = 0;
@@ -229,7 +232,7 @@ function buildEvals(evals, kind) {
     return frag;
   }
   evals.forEach((e, i) => {
-    const sub = [e.weight != null ? `Weight: <span class="g-mono">${escapeHtml(String(e.weight))}</span>` : "", fmtDate(e.date)].filter(Boolean).join(" · ");
+    const sub = [rawMark(e) ? `<span class="g-mono private-mark">${escapeHtml(rawMark(e))}</span>` : "", e.weight != null ? `Weight: <span class="g-mono">${escapeHtml(String(e.weight))}</span>` : "", fmtDate(e.date)].filter(Boolean).join(" · ");
     const row = el(`
       <button type="button" class="g-row eval-row" aria-haspopup="dialog">
         ${strandBadge(e.category || e.name)}
@@ -259,14 +262,14 @@ function openEvaluation(e, evals) {
         ${subjectBadge("ENG", "g-badge-lg")}
         <h3>${escapeHtml(e.name || e.category || "Assessment")}</h3>
         <div class="g-hero-num private-mark">${pct(e.percent)}</div>
-        <p class="g-caption">Overall${e.date ? ` · ${escapeHtml(fmtDate(e.date))}` : ""}</p>
+        <p class="g-caption">Overall${rawMark(e) ? ` · ${escapeHtml(rawMark(e))}` : ""}${e.date ? ` · ${escapeHtml(fmtDate(e.date))}` : ""}</p>
       </div>
       <div class="eval-strands">
         ${strands
           .map(
             (s) => `<div class="eval-strand">
               <div class="eval-strand-top"><b>${escapeHtml(s.category || "Mark")}</b><span class="private-mark">${pct(s.percent)}</span></div>
-              <div class="eval-strand-sub"><span>${s.weight != null ? `Weight: <span class="g-mono">${escapeHtml(String(s.weight))}</span>` : ""}</span></div>
+              <div class="eval-strand-sub"><span>${s.weight != null ? `Weight: <span class="g-mono">${escapeHtml(String(s.weight))}</span>` : ""}</span>${rawMark(s) ? `<span class="g-mono private-mark">${escapeHtml(rawMark(s))}</span>` : ""}</div>
               ${segBar(s.percent, strandColor(s.category))}
             </div>`,
           )
@@ -282,7 +285,12 @@ function openEvaluation(e, evals) {
   openSheet(" ", body, { className: "sheet-eval" });
 }
 
-/** Weighted average per achievement category, in TeachAssist strand order. */
+/**
+ * Weighted average per category, in TeachAssist strand order. Uses each
+ * evaluation's strands when present (K/T/C/A marks, or expectations like "C2"
+ * for Overall Expectation courses); labels that aren't K/T/C/A/F get their own
+ * row after the standard strands.
+ */
 export function strandBreakdown(evals) {
   const order = ["k", "t", "c", "a", "f"];
   const names = {
@@ -292,24 +300,33 @@ export function strandBreakdown(evals) {
     a: "Application",
     f: "Final/Culminating",
   };
-  const acc = {};
+  const acc = new Map();
   for (const e of evals) {
-    if (typeof e.percent !== "number") continue;
-    const key = strandKey(e.category) || "f";
-    const w = typeof e.weight === "number" && e.weight > 0 ? e.weight : 1;
-    acc[key] ||= { sum: 0, weight: 0, count: 0 };
-    acc[key].sum += e.percent * w;
-    acc[key].weight += w;
-    acc[key].count += 1;
+    const parts = Array.isArray(e.strands) && e.strands.length ? e.strands : [e];
+    for (const p of parts) {
+      if (typeof p.percent !== "number") continue;
+      const label = String(p.category || "").trim();
+      const known = strandKey(label) || (label ? "" : "f");
+      const key = known || `x:${label}`;
+      const w = typeof p.weight === "number" && p.weight >= 0 ? p.weight : 1;
+      if (!acc.has(key)) acc.set(key, { key, name: known ? names[known] : label, sum: 0, weight: 0, plain: 0, count: 0 });
+      const a = acc.get(key);
+      a.sum += p.percent * w;
+      a.weight += w;
+      a.plain += p.percent;
+      a.count += 1;
+    }
   }
-  return order
-    .filter((key) => acc[key])
-    .map((key) => ({
-      key,
-      name: names[key],
-      average: acc[key].sum / acc[key].weight,
-      weight: acc[key].weight,
-      count: acc[key].count,
+  const rank = (k) => (order.includes(k) ? order.indexOf(k) : order.length);
+  return [...acc.values()]
+    .sort((x, y) => rank(x.key) - rank(y.key) || x.name.localeCompare(y.name, undefined, { numeric: true }))
+    .map((a) => ({
+      key: a.key,
+      name: a.name,
+      // Weight-0 (formative) entries only count when nothing else is weighted.
+      average: a.weight > 0 ? a.sum / a.weight : a.plain / a.count,
+      weight: a.weight,
+      count: a.count,
     }));
 }
 
@@ -330,7 +347,7 @@ function buildBreakdown(evals) {
       <div class="eval-strand strand-row">
         <div class="eval-strand-top"><span class="eval-strand-name">${strandBadge(s.name)}<b>${escapeHtml(s.name)}</b></span><span class="strand-value private-mark">${pct(s.average)}</span></div>
         <div class="eval-strand-sub"><span>Weight: <span class="g-mono">${Math.round(s.weight * 10) / 10}</span></span><span class="g-mono">${s.count} ${s.count === 1 ? "entry" : "entries"}</span></div>
-        ${segBar(s.average, `var(--strand-${s.key}-bar)`, 10)}
+        ${segBar(s.average, strandColor(s.name), 10)}
       </div>`);
     row.style.setProperty("--m-i", String(i));
     card.appendChild(row);

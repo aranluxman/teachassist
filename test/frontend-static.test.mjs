@@ -139,6 +139,31 @@ test("strand breakdown aggregates weighted averages per category", () => {
   assert.equal(rows[1].average, 70);
 });
 
+test("strand breakdown reads each evaluation's strands", () => {
+  // K/T/C/A course: one row per strand across all assignments.
+  const ktca = strandBreakdown([
+    { name: "Drawing", percent: 95, weight: 4, strands: [
+      { category: "Knowledge/Understanding", percent: 95, weight: 1 },
+      { category: "Thinking", percent: 90, weight: 1 },
+    ] },
+    { name: "Keychain", percent: 100, weight: 2, strands: [
+      { category: "Knowledge/Understanding", percent: 100, weight: 1 },
+    ] },
+  ]);
+  assert.deepEqual(ktca.map((r) => [r.key, r.average]), [["k", 97.5], ["t", 90]]);
+
+  // Overall Expectation course: rows per expectation; weight-0 formative work
+  // doesn't pull the weighted average.
+  const oe = strandBreakdown([
+    { name: "Quest", percent: 100, weight: 4, strands: [
+      { category: "C3", percent: 100, weight: 2 },
+      { category: "C2", percent: 100, weight: 2 },
+    ] },
+    { name: "Formative", percent: 50, weight: 0, strands: [{ category: "C3", percent: 50, weight: 0 }] },
+  ]);
+  assert.deepEqual(oe.map((r) => [r.name, r.average, r.count]), [["C2", 100, 1], ["C3", 100, 2]]);
+});
+
 test("courses and detail screens render live marks analytics", () => {
   assert.match(coursesJs, /getCourses/);
   assert.match(coursesJs, /Overall Average/);
