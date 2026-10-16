@@ -1187,3 +1187,44 @@ html[data-mode] .auth-logo .mark {
 /* Install-as-app (PWA) — sign-in page slot and Settings card. */
 .install-slot { display: grid; justify-items: center; gap: 8px; margin-top: 18px; text-align: center; }
 .install-card .btn { margin-top: 4px; }
+
+/* Slide-to-inspect grade charts (courses + overall average). Horizontal drags
+   belong to the chart; vertical ones still scroll the page. */
+html[data-mode] .g-trend {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  padding-top: 52px;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+html[data-mode] .g-trend:focus-visible { box-shadow: 0 0 0 2px var(--accent); border-radius: 12px; }
+html[data-mode] .g-trend .g-chart { max-width: none; cursor: crosshair; }
+html[data-mode] .g-chart .g-cursor { stroke: var(--text-secondary); stroke-width: 1; stroke-dasharray: 3 3; }
+html[data-mode] .g-chart .g-dot { transition: r 0.15s ease; }
+html[data-mode] .g-chart .g-dot.is-active { r: 6.5; stroke: var(--bg, #000); stroke-width: 2; }
+html[data-mode] .g-tip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  max-width: 100%;
+  padding: 7px 11px;
+  border-radius: 12px;
+  background: var(--text, #fff);
+  color: var(--bg, #000);
+  font-size: 12.5px;
+  line-height: 1.35;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+html[data-mode] .g-tip-num { font: 800 15px var(--font-num); }
+html[data-mode] .g-chg.up { color: #0a8a5c; }
+html[data-mode] .g-chg.down { color: #c62828; }
+@media (prefers-reduced-motion: reduce) { html[data-mode] .g-chart .g-dot { transition: none; } }

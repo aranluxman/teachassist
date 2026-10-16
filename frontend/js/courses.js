@@ -358,7 +358,12 @@ function trendPage(codes) {
   const rows = getSnapshots()
     .map((s) => {
       const marks = codes.map((code) => s.marks[code]).filter(Number.isFinite);
-      return { date: Date.parse(s.date), value: marks.length ? marks.reduce((a, b) => a + b, 0) / marks.length : null };
+      const date = Date.parse(s.date);
+      return {
+        date,
+        value: marks.length ? marks.reduce((a, b) => a + b, 0) / marks.length : null,
+        label: Number.isFinite(date) ? new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "",
+      };
     })
     .filter((r) => r.value != null && Number.isFinite(r.date));
   if (marksHidden()) {
@@ -366,13 +371,17 @@ function trendPage(codes) {
   } else if (!rows.length) {
     page.append(el(`<p class="g-empty-note">Your average over time appears after your first refresh.</p>`));
   } else {
-    page.insertAdjacentHTML("beforeend", trendChart(rows));
+    page.append(trendChartEl(rows));
   }
   page.append(el(`<p class="g-caption">Overall Average Over Time</p>`));
   return page;
 }
 
-/** Mono-labelled line chart with dashed verticals, like the TeachAssist app. */
+/**
+ * Mono-labelled line chart with dashed verticals, like the TeachAssist app.
+ * Rows: { date, value, label?, detail? }. `label` names the point (a test or a
+ * day) and `detail` adds a second line (e.g. "11 / 13 (84.6%)").
+ */
 export function trendChart(rows) {
   const W = 300, H = 170, L = 52, R = 14, T = 10, B = 26;
   const values = rows.map((r) => r.value);
@@ -392,9 +401,92 @@ export function trendChart(rows) {
   const xs = rows.length === 1 ? [L, x(start), W - R] : [L, (L + W - R) / 2, W - R];
   const verticals = xs.map((vx) => `<line x1="${vx}" x2="${vx}" y1="${T}" y2="${H - B}" class="g-grid g-dash"/>`).join("");
   const path = rows.map((r, i) => `${i ? "L" : "M"}${x(r.date).toFixed(1)},${y(r.value).toFixed(1)}`).join(" ");
-  const dots = rows.map((r) => `<circle cx="${x(r.date).toFixed(1)}" cy="${y(r.value).toFixed(1)}" r="4" class="g-dot"/>`).join("");
-  const label = `From ${fmtPercent(rows[0].value)} to ${fmtPercent(rows.at(-1).value)} over ${rows.length} snapshot${rows.length === 1 ? "" : "s"}`;
-  return `<svg class="g-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">${grid}${verticals}${rows.length > 1 ? `<path d="${path}" class="g-line"/>` : ""}${dots}</svg>`;
+  const dots = rows.map((r, i) => `<circle cx="${x(r.date).toFixed(1)}" cy="${y(r.value).toFixed(1)}" r="4" class="g-dot" data-i="${i}"/>`).join("");
+  const label = `From ${fmtPercent(rows[0].value)} to ${fmtPercent(rows.at(-1).value)} over ${rows.length} point${rows.length === 1 ? "" : "s"}`;
+  const cursor = `<line class="g-cursor" x1="-99" x2="-99" y1="${T}" y2="${H - B}"/>`;
+  return `<svg class="g-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">${grid}${verticals}${cursor}${rows.length > 1 ? `<path d="${path}" class="g-line"/>` : ""}${dots}</svg>`;
+}
+
+/**
+ * The same chart as an element you can slide a finger across: it snaps to the
+ * nearest dot and shows the exact mark, the change since the previous dot, and
+ * the point's label/detail. Arrow keys move between dots too.
+ */
+export function trendChartEl(rows) {
+  const wrap = el(`<div class="g-trend" tabindex="0" aria-label="Grade history. Slide or use arrow keys to see each point.">${trendChart(rows)}<div class="g-tip" role="status" hidden></div></div>`);
+  const svg = wrap.querySelector("svg");
+  const tip = wrap.querySelector(".g-tip");
+  const cursor = wrap.querySelector(".g-cursor");
+  const dots = [...wrap.querySelectorAll(".g-dot")];
+  let current = -1, hideTimer = 0;
+
+  const show = (i) => {
+    clearTimeout(hideTimer);
+    current = i;
+    const r = rows[i], prev = rows[i - 1];
+    const diff = prev ? r.value - prev.value : 0;
+    const change = !prev
+      ? "Start"
+      : Math.abs(diff) < 0.05
+        ? "No change"
+        : `<span class="g-chg ${diff > 0 ? "up" : "down"}">${diff > 0 ? "▲" : "▼"} ${Math.abs(diff).toFixed(1)}%</span>`;
+    tip.innerHTML = `<b class="g-tip-num">${escapeHtml(fmtPercent(r.value))}</b> · ${change}${
+      r.label || r.detail ? `<br>${escapeHtml([r.label, r.detail].filter(Boolean).join(": "))}` : ""
+    }`;
+    tip.hidden = false;
+    const dot = dots[i];
+    const cx = Number(dot.getAttribute("cx"));
+    cursor.setAttribute("x1", cx);
+    cursor.setAttribute("x2", cx);
+    dots.forEach((d) => d.classList.toggle("is-active", d === dot));
+    // Keep the popup inside the card.
+    const box = svg.getBoundingClientRect(), outer = wrap.getBoundingClientRect();
+    const px = box.left - outer.left + (cx / 300) * box.width;
+    const half = Math.min(tip.offsetWidth / 2, outer.width / 2);
+    tip.style.left = `${Math.min(Math.max(px, half), outer.width - half)}px`;
+  };
+  const hide = () => {
+    current = -1;
+    tip.hidden = true;
+    cursor.setAttribute("x1", -99);
+    cursor.setAttribute("x2", -99);
+    dots.forEach((d) => d.classList.remove("is-active"));
+  };
+  const nearest = (e) => {
+    const box = svg.getBoundingClientRect();
+    const sx = ((e.clientX - box.left) / box.width) * 300;
+    let best = 0;
+    dots.forEach((d, i) => {
+      if (Math.abs(Number(d.getAttribute("cx")) - sx) < Math.abs(Number(dots[best].getAttribute("cx")) - sx)) best = i;
+    });
+    return best;
+  };
+
+  let dragging = false;
+  svg.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    svg.setPointerCapture?.(e.pointerId);
+    show(nearest(e));
+    e.stopPropagation();
+  });
+  svg.addEventListener("pointermove", (e) => {
+    if (dragging || e.pointerType === "mouse") show(nearest(e));
+  });
+  const release = () => {
+    dragging = false;
+    hideTimer = setTimeout(hide, 2500);
+  };
+  svg.addEventListener("pointerup", release);
+  svg.addEventListener("pointercancel", release);
+  svg.addEventListener("pointerleave", (e) => e.pointerType === "mouse" && hide());
+  wrap.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const next = current < 0 ? rows.length - 1 : current + (e.key === "ArrowRight" ? 1 : -1);
+    show(Math.min(Math.max(next, 0), rows.length - 1));
+  });
+  wrap.addEventListener("blur", hide);
+  return wrap;
 }
 
 /** The Class Schedule sheet: one tinted card per period. */
