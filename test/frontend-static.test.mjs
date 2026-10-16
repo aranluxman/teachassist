@@ -32,11 +32,12 @@ test("app exposes PWA metadata and mobile app chrome", () => {
   assert.match(manifest.description, /TeachAssist/);
 });
 
-test("app shell includes courses, guidance, dreams, assistant, and settings tabs", () => {
-  for (const tab of ["courses", "guidance", "dreams", "assistant", "settings"]) {
+test("app shell includes courses, guidance, dreams, and settings tabs (no AI assistant)", () => {
+  for (const tab of ["courses", "guidance", "dreams", "settings"]) {
     assert.match(appHtml, new RegExp(`data-tab="${tab}"`));
   }
   assert.doesNotMatch(appHtml, /screen-science|data-tab="science"|renderScienceAnalytics|toScience/);
+  assert.doesNotMatch(appHtml, /data-tab="assistant"|screen-assistant|renderAssistant/);
   assert.match(appHtml, /renderGuidance/);
   assert.match(appHtml, /applyStoredTheme/);
 });
@@ -162,6 +163,23 @@ test("strand breakdown reads each evaluation's strands", () => {
     { name: "Formative", percent: 50, weight: 0, strands: [{ category: "C3", percent: 50, weight: 0 }] },
   ]);
   assert.deepEqual(oe.map((r) => [r.name, r.average, r.count]), [["C2", 100, 1], ["C3", 100, 2]]);
+});
+
+test("app is installable: manifest, service worker with offline shell, install UI", async () => {
+  const sw = readFileSync(new URL("../frontend/notifications-sw.js", import.meta.url), "utf8");
+  const indexHtml = readFileSync(new URL("../frontend/index.html", import.meta.url), "utf8");
+  assert.equal(manifest.display, "standalone");
+  assert.ok(manifest.icons.some((i) => i.sizes === "512x512" && i.purpose === "maskable"));
+  assert.match(sw, /addEventListener\('fetch'/);
+  assert.match(sw, /PRECACHE[\s\S]*'app\.html'/);
+  assert.match(sw, /startsWith\('\/api\/'\)/); // marks are never cached
+  for (const html of [appHtml, indexHtml]) {
+    assert.match(html, /rel="manifest"/);
+    assert.match(html, /registerServiceWorker\(\)/);
+  }
+  assert.match(indexHtml, /install-btn/);
+  const { parseRoute } = await import("../frontend/js/router.js");
+  assert.deepEqual(parseRoute("#assistant"), { screen: "courses", arg: "" });
 });
 
 test("courses and detail screens render live marks analytics", () => {

@@ -1,3 +1,4 @@
+import { installCard } from "./install.js";
 import { notificationSettings, debugCard } from "./notification-settings.js";
 import { WORKER_URL } from "./config.js";
 import {
@@ -132,6 +133,10 @@ export async function renderSettings(container) {
   ]);
   [appearance, access, courseView].forEach(bindSwitches);
   container.append(access, courseView);
+
+  // Install as an app (hidden once installed).
+  const install = installCard();
+  if (install) container.append(install);
 
   // Notifications (existing card, unchanged behaviour).
   const notes = notificationSettings();

@@ -7,6 +7,9 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="TeachAssist" />
     <meta name="description" content="Sign in with your YRDSB TeachAssist student number to see your marks, evaluations, and achievement-category breakdowns." />
     <title>TeachAssist — Sign in</title>
     <link rel="manifest" href="manifest.webmanifest" />
@@ -95,10 +98,15 @@
         to the sign-in service and saved in this browser until you sign out.
         Sign out when using a shared phone or computer.
       </p>
+      <div id="install-slot" class="install-slot hidden">
+        <button type="button" class="btn secondary" id="install-btn">Install app</button>
+        <p class="small muted" id="install-steps"></p>
+      </div>
     </div>
 
     <script type="module">
       import { applyTheme } from "./js/theme.js";
+      import { registerServiceWorker, installMode, promptInstall, onInstallChange } from "./js/install.js";
       import {
         login,
         isLoggedIn,
@@ -112,6 +120,21 @@
       } from "./js/motion.js";
       import { applyPreferences } from "./js/personalization.js";
       applyTheme();
+      registerServiceWorker();
+
+      // Offer "Install app" (or the iPhone steps) on the sign-in page too.
+      const installSlot = document.getElementById("install-slot");
+      const installBtn = document.getElementById("install-btn");
+      const installSteps = document.getElementById("install-steps");
+      const drawInstall = () => {
+        const mode = installMode();
+        installSlot.classList.toggle("hidden", mode === "installed" || mode === "manual");
+        installBtn.classList.toggle("hidden", mode !== "prompt");
+        installSteps.innerHTML = mode === "ios" ? "Install: tap <b>Share</b>, then <b>Add to Home Screen</b>." : "";
+      };
+      installBtn.addEventListener("click", promptInstall);
+      onInstallChange(drawInstall);
+      drawInstall();
 
       // Motion follows the same Settings toggle the app uses.
       applyPreferences();

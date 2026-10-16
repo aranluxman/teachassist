@@ -1183,3 +1183,7 @@ html[data-mode] .auth-logo .mark {
   background: none;
   box-shadow: 0 10px 36px rgba(34, 197, 94, 0.35);
 }
+
+/* Install-as-app (PWA) — sign-in page slot and Settings card. */
+.install-slot { display: grid; justify-items: center; gap: 8px; margin-top: 18px; text-align: center; }
+.install-card .btn { margin-top: 4px; }
