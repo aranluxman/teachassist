@@ -8,7 +8,7 @@
 // tab aggregates a weighted average per category as segmented bars.
 // ============================================================================
 
-import { achievementLevel, courseLabel, courseTitle, el, escapeHtml, fmtPercent, openSheet, trendChart } from "./courses.js";
+import { achievementLevel, courseLabel, courseTitle, el, escapeHtml, fmtPercent, openSheet, trendChartEl } from "./courses.js";
 import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct, segBar } from "./ui-kit.js";
 import { fmtDay, fullCode, letterBadge, scheduleOf, subjectBadge } from "./subjects.js";
 import { courseMeta } from "./course-names.js";
@@ -108,10 +108,16 @@ export async function openCourseDetail(container, course) {
 
   const labels = ["Mark"];
   if (evals.length) {
-    let sum = 0;
-    const rows = evals.map((e, i) => ((sum += e.percent), { date: i, value: sum / (i + 1) }));
+    // One dot per test: the course mark right after it (weighted like the
+    // course), labelled with that test's own score.
+    const rows = evals.map((e, i) => {
+      const sofar = evals.slice(0, i + 1);
+      const value = weightedMean(sofar) ?? sofar.reduce((a, x) => a + x.percent, 0) / sofar.length;
+      return { date: i, value, label: e.name || e.category || "Assessment", detail: rawMark(e) ? `${rawMark(e)} (${fmtPercent(e.percent)})` : fmtPercent(e.percent) };
+    });
     const page = el(`<section class="g-page g-hero" aria-label="Grade progression"></section>`);
-    page.insertAdjacentHTML("beforeend", preferences().hideMarks ? `<p class="g-empty-note">Hidden while “Hide grades” is on.</p>` : trendChart(rows));
+    if (preferences().hideMarks) page.insertAdjacentHTML("beforeend", `<p class="g-empty-note">Hidden while “Hide grades” is on.</p>`);
+    else page.append(trendChartEl(rows));
     page.append(el(`<p class="g-caption">Grade Progression</p>`));
     track.appendChild(page);
     labels.push("Grade progression");

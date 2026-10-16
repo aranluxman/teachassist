@@ -187,7 +187,7 @@ test("courses and detail screens render live marks analytics", () => {
   assert.match(coursesJs, /Overall Average/);
   assert.match(coursesJs, /Recent updates/);
   assert.match(courseDetailJs, /Grade Progression/);
-  assert.match(courseDetailJs, /trendChart\(/);
+  assert.match(courseDetailJs, /trendChartEl\(/);
   assert.match(courseDetailJs, /strandBadge\(/);
   assert.match(courseDetailJs, /openEvaluation\(/);
   assert.match(courseDetailJs, /strandBreakdown/);
