@@ -13,7 +13,7 @@ import {
 // a refresh action, the Worker connection settings, and Sign Out.
 // ============================================================================
 
-import { el, escapeHtml } from "./courses.js";
+import { el, escapeHtml, openSheet } from "./courses.js";
 import {
   studentNumber,
   signOut,
@@ -191,6 +191,7 @@ export async function renderSettings(container) {
       signOut();
   });
   container.append(account);
+  container.append(legalCard());
 
   container.appendChild(el(`<h2 class="section-title">Advanced</h2>`));
   // Optional custom server; regular student sign-in needs no setup or API key.
@@ -223,6 +224,31 @@ export async function renderSettings(container) {
       `<div class="muted small" style="text-align:center;margin-top:18px">TeachAssist Dashboard · v${APP_VERSION}</div>`,
     ),
   );
+  container.appendChild(el(MADE_BY));
 
   stagger(container.children);
+}
+
+// ── Legal: policies and credits, so students (and parents) know who runs this.
+const EXTERNAL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>`;
+export const MADE_BY = `<p class="made-by">Built by <a href="https://intelligentautomations.ca" target="_blank" rel="noopener">Intelligent Automations</a></p>`;
+
+function legalCard() {
+  const card = el(`
+    <section class="card settings-group"><h2>Legal</h2>
+      <p class="group-note">See our policies and who made this app.</p>
+      <div class="legal-links">
+        <a href="legal/privacy.html" target="_blank" rel="noopener">Privacy Policy ${EXTERNAL}</a>
+        <a href="legal/terms.html" target="_blank" rel="noopener">Terms of Service ${EXTERNAL}</a>
+        <button type="button" data-credits>Credits <span class="chevron"></span></button>
+      </div>
+    </section>`);
+  card.querySelector("[data-credits]").onclick = () =>
+    openSheet("Credits", el(`<div class="credits">
+      <p><b>Built by Aran Luxman</b> at <a href="https://intelligentautomations.ca" target="_blank" rel="noopener">Intelligent Automations</a>, Markham, Ontario.</p>
+      <p class="muted small">An independent student project. Not affiliated with or endorsed by the York Region District School Board or the TeachAssist Foundation. Your official marks are always on TeachAssist.</p>
+      <p class="muted small">Made with Chart.js, the Inter and JetBrains Mono fonts, and hosted on Cloudflare.</p>
+      <p class="muted small">Questions: info@intelligentautomations.ca</p>
+    </div>`));
+  return card;
 }

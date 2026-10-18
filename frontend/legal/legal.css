@@ -1,0 +1,17 @@
+/* Shared style for the public Privacy Policy and Terms pages. */
+:root { --bg: #f6f4f1; --fg: #17130f; --muted: #5f5850; --card: #ffffff; --line: #e6e1da; --accent: #b4561b; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0b0908; --fg: #f3eee8; --muted: #a59b90; --card: #171310; --line: #2b241e; --accent: #ff9a4d; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.65 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 48px max(18px, env(safe-area-inset-left)); }
+main { max-width: 680px; margin: 0 auto; }
+.back { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 650; text-decoration: none; min-height: 44px; }
+h1 { font-size: 34px; line-height: 1.15; margin: 8px 0 4px; letter-spacing: -0.02em; text-wrap: balance; }
+.updated { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+.summary { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; margin-bottom: 28px; }
+.summary ul { margin: 6px 0 0; padding-left: 20px; }
+h2 { font-size: 20px; margin: 30px 0 6px; }
+p, li { color: var(--fg); }
+li { margin: 4px 0; }
+a { color: var(--accent); }
+footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }

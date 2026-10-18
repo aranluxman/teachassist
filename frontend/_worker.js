@@ -17,6 +17,9 @@ var rejection = () => new TeachAssistError(
   { status: 401 }
 );
 var UNREACHABLE = "TeachAssist isn't answering the sign-in server right now. The official site may still work. Please try again in a few minutes.";
+var SLOW = "TeachAssist is very slow right now, so sign-in timed out. Please try again in a minute.";
+var REQUEST_MS = 15e3;
+var LOGIN_MS = 35e3;
 var TRANSPORT_CODES = /* @__PURE__ */ new Set([
   "TA_CONNECTION_FAILED",
   "TA_TIMEOUT",
@@ -113,21 +116,21 @@ function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, use
     url.hash = "";
     return url;
   }
-  async function request(url, options, deadline = Date.now() + 1e4, trace) {
+  async function request(url, options, deadline = Date.now() + REQUEST_MS, trace) {
     const remaining = deadline - Date.now();
-    if (remaining <= 0) throw failure("TA_TIMEOUT", UNREACHABLE);
+    if (remaining <= 0) throw failure("TA_TIMEOUT", SLOW);
     let response;
     try {
       response = await fetch(url, {
         ...options,
         redirect: "manual",
-        signal: AbortSignal.timeout(Math.min(1e4, remaining)),
+        signal: AbortSignal.timeout(Math.min(REQUEST_MS, remaining)),
         headers: { "user-agent": userAgent, accept: "text/html,application/xhtml+xml", ...options.headers }
       });
     } catch (err) {
       const timedOut = err?.name === "TimeoutError" || err?.name === "AbortError";
       note(trace, `${options.method} ${describe(new URL(url))} \u2192 ${timedOut ? "timeout" : "connection failed"}`);
-      throw failure(timedOut ? "TA_TIMEOUT" : "TA_CONNECTION_FAILED", UNREACHABLE);
+      throw timedOut ? failure("TA_TIMEOUT", SLOW) : failure("TA_CONNECTION_FAILED", UNREACHABLE);
     }
     const location = response.headers.get("location");
     let next = "";
@@ -230,7 +233,7 @@ function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, use
     }, body: formBody(env, creds) });
   }
   async function login2(env, creds) {
-    const deadline = Date.now() + 2e4;
+    const deadline = Date.now() + LOGIN_MS;
     const trace = [];
     async function submit(action, body, jar, headers) {
       const response = await request(action.href, { method: "POST", body, headers: {
@@ -282,7 +285,13 @@ function createTeachAssistSession({ origin, loginUrl, courseListUrl, fields, use
     try {
       try {
         note(trace, "attempt 1: direct sign-in");
-        return await submit(new URL(loginUrl), formBody(env, creds), /* @__PURE__ */ Object.create(null), { referer: loginUrl });
+        try {
+          return await submit(new URL(loginUrl), formBody(env, creds), /* @__PURE__ */ Object.create(null), { referer: loginUrl });
+        } catch (err) {
+          if (!(err instanceof TeachAssistError) || err.code !== "TA_TIMEOUT" || deadline - Date.now() < 8e3) throw err;
+          note(trace, "attempt 1 timed out; retrying once");
+          return await submit(new URL(loginUrl), formBody(env, creds), /* @__PURE__ */ Object.create(null), { referer: loginUrl });
+        }
       } catch (err) {
         if (!(err instanceof TeachAssistError) || TRANSPORT_CODES.has(err.code) || Date.now() + 1e3 >= deadline) throw err;
         firstError = err;

@@ -12,6 +12,11 @@ const failure = (code, message, retryable = false) => new TeachAssistError(code,
 const rejection = () => new TeachAssistError('TA_LOGIN_REJECTED',
   "TeachAssist didn't accept that student number and password. Check them and try again; they're the same ones you use on ta.yrdsb.ca.", { status: 401 });
 const UNREACHABLE = "TeachAssist isn't answering the sign-in server right now. The official site may still work. Please try again in a few minutes.";
+const SLOW = "TeachAssist is very slow right now, so sign-in timed out. Please try again in a minute.";
+// Per-request and whole-sign-in limits. TeachAssist is slow at busy times
+// (mornings, report-card days), so a single request gets 15 s.
+const REQUEST_MS = 15000;
+const LOGIN_MS = 35000;
 // Network-level failures end a sign-in at once: retrying only makes students
 // wait longer and adds load to TeachAssist.
 const TRANSPORT_CODES = new Set(['TA_CONNECTION_FAILED', 'TA_TIMEOUT', 'TA_RATE_LIMITED',
@@ -109,17 +114,17 @@ export function createTeachAssistSession({ origin, loginUrl, courseListUrl, fiel
     url.hash = '';
     return url;
   }
-  async function request(url, options, deadline = Date.now() + 10000, trace) {
+  async function request(url, options, deadline = Date.now() + REQUEST_MS, trace) {
     const remaining = deadline - Date.now();
-    if (remaining <= 0) throw failure('TA_TIMEOUT', UNREACHABLE);
+    if (remaining <= 0) throw failure('TA_TIMEOUT', SLOW);
     let response;
     try {
-      response = await fetch(url, { ...options, redirect: 'manual', signal: AbortSignal.timeout(Math.min(10000, remaining)),
+      response = await fetch(url, { ...options, redirect: 'manual', signal: AbortSignal.timeout(Math.min(REQUEST_MS, remaining)),
         headers: { 'user-agent': userAgent, accept: 'text/html,application/xhtml+xml', ...options.headers } });
     } catch (err) {
       const timedOut = err?.name === 'TimeoutError' || err?.name === 'AbortError';
       note(trace, `${options.method} ${describe(new URL(url))} → ${timedOut ? 'timeout' : 'connection failed'}`);
-      throw failure(timedOut ? 'TA_TIMEOUT' : 'TA_CONNECTION_FAILED', UNREACHABLE);
+      throw timedOut ? failure('TA_TIMEOUT', SLOW) : failure('TA_CONNECTION_FAILED', UNREACHABLE);
     }
     const location = response.headers.get('location');
     let next = '';
@@ -207,7 +212,7 @@ export function createTeachAssistSession({ origin, loginUrl, courseListUrl, fiel
     }, body: formBody(env, creds) });
   }
   async function login(env, creds) {
-    const deadline = Date.now() + 20000;
+    const deadline = Date.now() + LOGIN_MS;
     const trace = [];
     // One submitted sign-in: POST the form, then open the marks list the way
     // the original working client did, falling back to the redirect chain.
@@ -253,7 +258,14 @@ export function createTeachAssistSession({ origin, loginUrl, courseListUrl, fiel
       try {
         // The original working route: a direct form POST, no login-page GET.
         note(trace, 'attempt 1: direct sign-in');
-        return await submit(new URL(loginUrl), formBody(env, creds), Object.create(null), { referer: loginUrl });
+        try {
+          return await submit(new URL(loginUrl), formBody(env, creds), Object.create(null), { referer: loginUrl });
+        } catch (err) {
+          // A slow (not unreachable) TeachAssist gets one more try while time remains.
+          if (!(err instanceof TeachAssistError) || err.code !== 'TA_TIMEOUT' || deadline - Date.now() < 8000) throw err;
+          note(trace, 'attempt 1 timed out; retrying once');
+          return await submit(new URL(loginUrl), formBody(env, creds), Object.create(null), { referer: loginUrl });
+        }
       } catch (err) {
         if (!(err instanceof TeachAssistError) || TRANSPORT_CODES.has(err.code) || Date.now() + 1000 >= deadline) throw err;
         firstError = err;

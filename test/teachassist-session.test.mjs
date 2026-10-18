@@ -198,6 +198,19 @@ test('an unreachable TeachAssist fails once, quickly, with a clear message', asy
     assert.equal(calls,1);
   });
 });
+test('a slow TeachAssist (timeout) is retried once and can still sign in', async()=>{
+  let posts=0;
+  await mocked(async(url,options)=>{
+    if(options.method==='POST'&&++posts===1){const e=new Error('slow');e.name='TimeoutError';throw e;}
+    if(options.method==='POST')return redirect('/live/students/listReports.php?student_id=567',['session_token=s; Path=/']);
+    return new Response('<h1>Courses</h1><a href="viewReport.php?subject_id=1&student_id=567">x</a>');
+  },async()=>{
+    const session=await client.login({},creds);
+    assert.equal(session.studentId,'567');
+    assert.equal(posts,2);
+    assert.ok(session.trace.some(l=>/retrying once/.test(l)));
+  });
+});
 test('a timeout on the form retry still reports the first, real rejection', async()=>{
   await mocked(async(url,options)=>{
     if(options.method==='GET')throw new TypeError('network');
