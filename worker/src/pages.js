@@ -7,9 +7,20 @@ import { handleStore, withSavedMarks, storeConfigured } from './store.js';
 function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 }
+// Google Search Console ownership file. Served here (not as a static asset)
+// because Pages redirects any "*.html" URL to its extension-less form and
+// Google wants the exact file with a 200. Keep this, or verification lapses.
+const GOOGLE_SITE_VERIFICATION = 'googlecca61e9d43d944ee';
+const VERIFICATION_PATHS = new Set([`/${GOOGLE_SITE_VERIFICATION}.html`, `/app/${GOOGLE_SITE_VERIFICATION}.html`]);
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (VERIFICATION_PATHS.has(url.pathname)) {
+      return new Response(`google-site-verification: ${GOOGLE_SITE_VERIFICATION}.html`, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     const origin = request.headers.get('Origin');
     if (origin && origin !== url.origin) return json({ error: 'Origin not allowed.' }, 403);
