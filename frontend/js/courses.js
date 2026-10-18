@@ -403,7 +403,7 @@ export function trendChart(rows) {
   const path = rows.map((r, i) => `${i ? "L" : "M"}${x(r.date).toFixed(1)},${y(r.value).toFixed(1)}`).join(" ");
   const dots = rows.map((r, i) => `<circle cx="${x(r.date).toFixed(1)}" cy="${y(r.value).toFixed(1)}" r="4" class="g-dot" data-i="${i}"/>`).join("");
   const label = `From ${fmtPercent(rows[0].value)} to ${fmtPercent(rows.at(-1).value)} over ${rows.length} point${rows.length === 1 ? "" : "s"}`;
-  const cursor = `<line class="g-cursor" x1="-99" x2="-99" y1="${T}" y2="${H - B}"/>`;
+  const cursor = `<line class="g-cursor" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}" visibility="hidden"/>`;
   return `<svg class="g-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">${grid}${verticals}${cursor}${rows.length > 1 ? `<path d="${path}" class="g-line"/>` : ""}${dots}</svg>`;
 }
 
@@ -438,6 +438,7 @@ export function trendChartEl(rows) {
     const cx = Number(dot.getAttribute("cx"));
     cursor.setAttribute("x1", cx);
     cursor.setAttribute("x2", cx);
+    cursor.setAttribute("visibility", "visible");
     dots.forEach((d) => d.classList.toggle("is-active", d === dot));
     // Keep the popup inside the card.
     const box = svg.getBoundingClientRect(), outer = wrap.getBoundingClientRect();
@@ -448,8 +449,7 @@ export function trendChartEl(rows) {
   const hide = () => {
     current = -1;
     tip.hidden = true;
-    cursor.setAttribute("x1", -99);
-    cursor.setAttribute("x2", -99);
+    cursor.setAttribute("visibility", "hidden");
     dots.forEach((d) => d.classList.remove("is-active"));
   };
   const nearest = (e) => {
