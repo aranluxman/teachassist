@@ -56,6 +56,12 @@ try {
   }
   assert.match(await (await mf.dispatchFetch('https://teachassist.pages.dev/app.html')).text(), /static asset/);
   const routes = JSON.parse(await readFile(new URL('../../frontend/_routes.json', import.meta.url), 'utf8'));
-  assert.deepEqual(routes.include, ['/api/*']);
+  assert.deepEqual(routes.include, ['/api/*', '/googlecca61e9d43d944ee.html', '/app/googlecca61e9d43d944ee.html']);
+  // Google Search Console file: exact text with a 200, no redirect.
+  for (const path of routes.include.slice(1)) {
+    const res = await mf.dispatchFetch('https://teachassist.pages.dev' + path, { redirect: 'manual' });
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), 'google-site-verification: googlecca61e9d43d944ee.html');
+  }
   console.log('Bundled Pages backend: production/preview sign-in, two-student isolation, no-secret operation, protected owner routes, CORS, static assets, and missing-AI fallback passed.');
 } finally { await mf.dispose(); }
