@@ -568,7 +568,7 @@ html[data-tab-hidden="true"] .m-loop::after {
 }
 .m-on .m-thumb {
   transition:
-    transform 300ms var(--m-ease),
+    translate 300ms var(--m-ease),
     width 300ms var(--m-ease),
     opacity var(--m-fast) ease;
 }
@@ -817,7 +817,7 @@ html[data-tab-hidden="true"] .m-loop::after {
 }
 .m-on .m-tab-indicator {
   transition:
-    transform 350ms var(--m-ease),
+    translate 350ms var(--m-ease),
     width 350ms var(--m-ease),
     opacity var(--m-fast) ease;
 }

@@ -248,12 +248,14 @@ export function mountThumb(host, options = {}) {
   if (radius) thumb.style.borderRadius = radius;
   host.classList.add("m-has-thumb");
 
+  // Positioned with `translate` (not `transform`) so the liquid stretch's
+  // `scale` never scales the offset as well.
   const move = (button) => {
     if (!button || !button.offsetParent) return;
-    const transform = `translateX(${button.offsetLeft + inset}px)`;
-    const travelled = thumb.classList.contains("m-thumb-ready") && thumb.style.transform !== transform;
+    const x = `${button.offsetLeft + inset}px 0px`;
+    const travelled = thumb.classList.contains("m-thumb-ready") && thumb.style.translate !== x;
     thumb.style.width = `${button.offsetWidth - inset * 2}px`;
-    thumb.style.transform = transform;
+    thumb.style.translate = x;
     thumb.classList.add("m-thumb-ready");
     // Stretch like a drop of liquid while it travels (css/glass.css).
     if (travelled && motionEnabled()) replay(thumb, "g-liquid");
@@ -284,9 +286,11 @@ export function mountTabIndicator(tabbar) {
     pill.style.width = `${w}px`;
     pill.style.height = `${h}px`;
     if (isFinite(top)) pill.style.top = `${top}px`;
-    const transform = `translateX(${button.offsetLeft + (button.offsetWidth - w) / 2}px)`;
-    const travelled = pill.classList.contains("m-thumb-ready") && pill.style.transform !== transform;
-    pill.style.transform = transform;
+    // `translate`, not `transform`: the lens and the liquid stretch scale the
+    // pill, and scale would otherwise multiply this offset too.
+    const x = `${button.offsetLeft + (button.offsetWidth - w) / 2}px 0px`;
+    const travelled = pill.classList.contains("m-thumb-ready") && pill.style.translate !== x;
+    pill.style.translate = x;
     pill.classList.add("m-thumb-ready");
     if (travelled && motionEnabled()) replay(pill, "g-liquid");
     replay(button, "m-bounce");
