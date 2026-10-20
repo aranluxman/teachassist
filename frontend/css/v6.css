@@ -1201,14 +1201,8 @@ html[data-mode] .g-chg.down { color: #c62828; }
 }
 .preference-row input:checked::after,
 .share-toggle input:checked::after { transform: translateX(20px); }
-/* While pressed the knob stretches like a drop of glass. */
-.preference-row input:active::after { width: 32px; }
-.preference-row input:checked:active::after { transform: translateX(14px); }
+/* While pressed the knob becomes a glass lens: see glass.css. */
 .preference-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-@media (prefers-reduced-motion: reduce) {
-  .preference-row input:active::after { width: 26px; }
-  .preference-row input:checked:active::after { transform: translateX(20px); }
-}
 
 /* ── Theme tiles: each colour shown as a Liquid Glass swatch ──────────── */
 html[data-mode] .theme-tile {

@@ -179,3 +179,16 @@ test("glass motion is scoped to the motion switch and Hide grades", () => {
   // The chart never draws itself while marks are hidden.
   assert.match(glass, /html\[data-hide-marks="true"\] \.g-chart \.g-line/);
 });
+
+test("sliding thumbs are positioned with `translate`, so the lens's `scale` can't shift them", () => {
+  const motion = read("frontend/js/motion.js");
+  const js = read("frontend/js/glass.js");
+  assert.match(motion, /thumb\.style\.translate = x;/);
+  assert.match(motion, /pill\.style\.translate = x;/);
+  assert.doesNotMatch(motion + js, /(thumb|pill)\.style\.transform\s*=/);
+  // The lens and the toggle knob both exist, and dragging is wired.
+  assert.match(glass, /\.tabbar\.g-lens \.m-tab-indicator \{[^}]*scale:/);
+  assert.match(glass, /input:is\(:active, \.g-lens\)::after/);
+  assert.match(js, /initTabLens\(\);/);
+  assert.match(js, /initToggleLens\(\);/);
+});

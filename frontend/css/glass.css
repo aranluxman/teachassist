@@ -79,6 +79,10 @@ html[data-mode] {
   --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 52%);
   --glass-spot: radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 42%);
   --glass-text-2: color-mix(in srgb, var(--text) 90%, var(--glass-surface));
+  /* The lens a pressed control lifts into: clear glass with a bright rim. */
+  --glass-lens: radial-gradient(120% 90% at 35% 18%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.12) 58%, rgba(255, 255, 255, 0.06));
+  --glass-lens-rim: inset 0 0 0 1px rgba(255, 255, 255, 0.75), inset 0 2px 2px rgba(255, 255, 255, 0.7), inset 0 -3px 6px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.24);
+  --glass-lens-filter: saturate(180%) brightness(1.08);
   --glass-radius: 26px;
   --glass-ease: cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -102,6 +106,8 @@ html[data-mode="light"] {
 /* Solid fallback: one token swap, so nothing moves when it toggles. */
 html[data-mode][data-glass="false"] {
   --glass-bg: var(--glass-bg-solid);
+  --glass-lens: var(--glass-tint-strong);
+  --glass-lens-filter: none;
   --glass-bg-thick: var(--glass-bg-solid);
   --glass-bg-clear: var(--glass-bg-solid);
   --glass-tint: var(--glass-tint-strong);
@@ -116,6 +122,8 @@ html[data-mode][data-glass="false"] {
 @media (prefers-reduced-transparency: reduce) {
   html[data-mode] {
     --glass-bg: var(--glass-bg-solid);
+    --glass-lens: var(--glass-tint-strong);
+    --glass-lens-filter: none;
     --glass-bg-thick: var(--glass-bg-solid);
     --glass-bg-clear: var(--glass-bg-solid);
     --glass-tint: var(--glass-tint-strong);
@@ -131,6 +139,8 @@ html[data-mode][data-glass="false"] {
 @media (prefers-contrast: more) {
   html[data-mode] {
     --glass-bg: var(--glass-surface);
+    --glass-lens: var(--glass-tint-strong);
+    --glass-lens-filter: none;
     --glass-bg-thick: var(--glass-surface);
     --glass-bg-clear: var(--glass-surface);
     --glass-tint: var(--glass-tint-strong);
@@ -332,6 +342,40 @@ html[data-mode] .g-status {
 html[data-mode] .tabbar {
   bottom: calc(12px + env(safe-area-inset-bottom));
   border-radius: 999px;
+  /* The lens lifts out past the bar's edge, so no paint containment here;
+     dragging along the bar never scrolls the page. */
+  contain: none;
+  touch-action: none;
+}
+/* Press and drag: the thumb lifts into a lens that follows the finger and
+   magnifies the tab beneath it (js/glass.js), then settles on release. */
+html[data-mode] .tabbar.g-lens .m-tab-indicator {
+  scale: 1.14 1.22;
+  background: var(--glass-lens), color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: var(--glass-lens-rim);
+  -webkit-backdrop-filter: var(--glass-lens-filter);
+  backdrop-filter: var(--glass-lens-filter);
+}
+html[data-mode].m-on .tabbar .m-tab-indicator {
+  transition:
+    translate 400ms var(--glass-ease),
+    width 400ms var(--glass-ease),
+    scale 260ms var(--glass-ease),
+    box-shadow 260ms ease,
+    opacity 150ms ease;
+}
+html[data-mode].m-on .tabbar.g-dragging .m-tab-indicator {
+  transition:
+    scale 260ms var(--glass-ease),
+    box-shadow 260ms ease;
+}
+html[data-mode] .tabbar button.g-under svg {
+  scale: 1.2;
+}
+html[data-mode].m-on .tabbar button svg {
+  transition:
+    translate 300ms var(--glass-ease),
+    scale 200ms var(--glass-ease);
 }
 html[data-mode] .tabbar button {
   color: var(--text);
@@ -351,7 +395,7 @@ html[data-mode].m-on .tabbar.m-has-indicator button.active::before {
 }
 html[data-mode].m-on .m-tab-indicator {
   transition:
-    transform 400ms var(--glass-ease),
+    translate 400ms var(--glass-ease),
     width 400ms var(--glass-ease),
     opacity 150ms ease;
 }
@@ -395,7 +439,7 @@ html[data-mode].m-on .segmented.m-has-thumb .m-thumb {
 }
 html[data-mode].m-on .segmented.m-has-thumb .m-thumb {
   transition:
-    transform 300ms var(--glass-ease),
+    translate 300ms var(--glass-ease),
     width 300ms var(--glass-ease),
     opacity 150ms ease;
 }
@@ -436,6 +480,49 @@ html[data-mode] .msg-actions .chip {
 /* ── Sign-in card ───────────────────────────────────────────────────────── */
 html[data-mode] .auth-card {
   border-radius: 30px;
+}
+
+/* ── Toggles: the knob lifts into a glass lens ──────────────────────────── */
+/* --g-k is the knob's position (0 off, 1 on); js/glass.js sets it while the
+   knob is dragged. Pressed or dragged, the knob swells into clear glass that
+   shows the track through it, then shrinks back to a solid knob. */
+html[data-mode] :is(.preference-row, .share-toggle) input {
+  --g-k: 0;
+  overflow: visible;
+  touch-action: none;
+}
+html[data-mode] :is(.preference-row, .share-toggle) input:checked {
+  --g-k: 1;
+}
+html[data-mode] :is(.preference-row, .share-toggle) input::after {
+  transform: translateX(calc(var(--g-k) * 20px));
+}
+html[data-mode] :is(.preference-row, .share-toggle) input:is(:active, .g-lens)::after {
+  left: -4px;
+  top: -2px;
+  width: 40px;
+  height: 36px;
+  background: var(--glass-lens);
+  box-shadow: var(--glass-lens-rim);
+  -webkit-backdrop-filter: var(--glass-lens-filter);
+  backdrop-filter: var(--glass-lens-filter);
+}
+html[data-mode].m-on :is(.preference-row, .share-toggle) input::after {
+  transition:
+    transform 320ms cubic-bezier(0.34, 1.42, 0.64, 1),
+    left 240ms var(--glass-ease),
+    top 240ms var(--glass-ease),
+    width 240ms var(--glass-ease),
+    height 240ms var(--glass-ease),
+    background 200ms ease,
+    box-shadow 200ms ease;
+}
+html[data-mode].m-on :is(.preference-row, .share-toggle) input.g-dragging::after {
+  transition:
+    left 240ms var(--glass-ease),
+    top 240ms var(--glass-ease),
+    width 240ms var(--glass-ease),
+    height 240ms var(--glass-ease);
 }
 
 /* ── C6 · Interactive glass press ───────────────────────────────────────── */
