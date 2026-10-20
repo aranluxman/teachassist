@@ -66,7 +66,7 @@ html[data-mode] {
   --glass-bg-solid: color-mix(in srgb, var(--accent) 5%, var(--glass-surface));
   --glass-blur: blur(20px) saturate(180%);
   --glass-blur-clear: blur(30px) saturate(180%);
-  --glass-blur-edge: blur(6px);
+  --glass-blur-scrim: blur(6px);
   /* Tinted glass: the active tab / segment thumb and prominent capsules. */
   --glass-tint: color-mix(in srgb, var(--accent) 16%, color-mix(in srgb, var(--glass-surface) 100%, transparent));
   /* An accent label on a tinted thumb, nudged toward --text for 4.5:1. */
@@ -75,7 +75,7 @@ html[data-mode] {
   /* The specular edge. */
   --glass-border: rgba(255, 255, 255, 0.18);
   --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.08);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.42);
+  --glass-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 52%);
   --glass-spot: radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 42%);
   --glass-text-2: color-mix(in srgb, var(--text) 90%, var(--glass-surface));
@@ -91,7 +91,7 @@ html[data-mode="light"] {
   --glass-alpha: 70%;
   --glass-border: rgba(255, 255, 255, 0.6);
   --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(0, 0, 0, 0.05), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --glass-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
   --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 55%);
   --glass-spot: radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 42%);
   --amb-1: 100%;
@@ -107,7 +107,7 @@ html[data-mode][data-glass="false"] {
   --glass-tint: var(--glass-tint-strong);
   --glass-blur: none;
   --glass-blur-clear: none;
-  --glass-blur-edge: none;
+  --glass-blur-scrim: none;
   --glass-sheen: linear-gradient(transparent, transparent);
   --glass-spot: linear-gradient(transparent, transparent);
   --glass-border: var(--card-border);
@@ -121,7 +121,7 @@ html[data-mode][data-glass="false"] {
     --glass-tint: var(--glass-tint-strong);
     --glass-blur: none;
     --glass-blur-clear: none;
-    --glass-blur-edge: none;
+    --glass-blur-scrim: none;
     --glass-sheen: linear-gradient(transparent, transparent);
     --glass-spot: linear-gradient(transparent, transparent);
     --glass-border: var(--card-border);
@@ -136,7 +136,7 @@ html[data-mode][data-glass="false"] {
     --glass-tint: var(--glass-tint-strong);
     --glass-blur: none;
     --glass-blur-clear: none;
-    --glass-blur-edge: none;
+    --glass-blur-scrim: none;
     --glass-sheen: linear-gradient(transparent, transparent);
     --glass-spot: linear-gradient(transparent, transparent);
     --glass-border: color-mix(in srgb, var(--text) 55%, transparent);
@@ -167,7 +167,7 @@ html[data-mode] body {
 html[data-mode] body::before {
   content: "";
   position: fixed;
-  inset: -12%;
+  inset: -6%;
   z-index: -1;
   pointer-events: none;
   background:
@@ -176,11 +176,15 @@ html[data-mode] body::before {
     radial-gradient(65% 42% at 28% 92%, color-mix(in srgb, var(--gauge-from) var(--amb-3), transparent), transparent 72%),
     var(--bg);
 }
-/* A very slow drift. Paused off-screen, off with motion off. */
+/* A very slow drift. Every time it moves, every glass surface has to
+   re-blur what is behind it, so it advances in tiny steps (~5 a second,
+   each well under a pixel) instead of every frame, and pauses while the
+   page scrolls, in a background tab, and with motion off. */
 html[data-mode].m-on body::before {
-  animation: glass-ambient 90s ease-in-out infinite alternate;
+  animation: glass-ambient 120s steps(600) infinite alternate;
 }
-html[data-tab-hidden="true"] body::before {
+html[data-tab-hidden="true"] body::before,
+html.g-scrolling body::before {
   animation-play-state: paused;
 }
 @keyframes glass-ambient {
@@ -188,10 +192,10 @@ html[data-tab-hidden="true"] body::before {
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate3d(-3%, 2%, 0) scale(1.05);
+    transform: translate3d(-3%, 2%, 0) scale(1.03);
   }
   100% {
-    transform: translate3d(2%, -2%, 0) scale(1.02);
+    transform: translate3d(2%, -2%, 0) scale(1.01);
   }
 }
 
@@ -216,8 +220,17 @@ html[data-mode] .auth-card {
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-highlight), var(--glass-shadow);
+  box-shadow: var(--glass-highlight);
   contain: paint;
+}
+/* Only surfaces that float above the page cast a shadow; the header and the
+   segmented control sit in the flow (and a big blurred shadow on a sticky
+   bar costs frames while scrolling). */
+html[data-mode] .tabbar,
+html[data-mode] .app-notice,
+html[data-mode] .composer,
+html[data-mode] .auth-card {
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
 }
 /* Thick: surfaces that carry paragraphs (sheets) sit over a dark scrim. */
 html[data-mode] .sheet {
@@ -289,29 +302,22 @@ html[data-mode] .screen .g-header:not(.sheet-header) {
 html[data-mode] .screen .g-header.g-stuck {
   border-radius: 32px;
 }
-/* Scroll edge: once the page scrolls, a soft progressive blur at the very
-   top so content never peeks sharply above the floating header (iOS 26's
-   .soft scroll-edge effect). */
+/* Scroll edge: once the page scrolls, a soft fade at the very top so content
+   never peeks sharply above the floating header (iOS 26's scroll-edge
+   effect). A plain gradient, not a blur: it costs nothing while scrolling. */
 html[data-mode] .shell::before {
   content: "";
   position: fixed;
   inset: 0 0 auto;
-  height: calc(env(safe-area-inset-top) + 22px);
+  height: calc(env(safe-area-inset-top) + 24px);
   z-index: 29;
   pointer-events: none;
   opacity: 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 70%, transparent), transparent);
-  -webkit-backdrop-filter: var(--glass-blur-edge);
-  backdrop-filter: var(--glass-blur-edge);
-  -webkit-mask-image: linear-gradient(180deg, #000 30%, transparent);
-  mask-image: linear-gradient(180deg, #000 30%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--glow) 45%, var(--bg)) 35%, transparent);
   transition: opacity 200ms ease;
 }
 html[data-mode].g-scrolled .shell::before {
   opacity: 1;
-}
-html[data-mode][data-glass="false"] .shell::before {
-  background: linear-gradient(180deg, var(--bg) 40%, transparent);
 }
 /* The Demo / "Updated" status: its own small tinted capsule (no blur, so it
    is never glass-in-glass). */
@@ -406,8 +412,8 @@ html[data-mode] .detail-nav .back-btn {
 /* ── B5 · Sheets, scrims and the chat composer ──────────────────────────── */
 html[data-mode] .sheet-backdrop {
   background: color-mix(in srgb, var(--bg) 40%, rgba(0, 0, 0, 0.42));
-  -webkit-backdrop-filter: var(--glass-blur-edge);
-  backdrop-filter: var(--glass-blur-edge);
+  -webkit-backdrop-filter: var(--glass-blur-scrim);
+  backdrop-filter: var(--glass-blur-scrim);
 }
 html[data-mode] .composer {
   border-radius: var(--glass-radius);

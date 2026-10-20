@@ -157,7 +157,7 @@ test("glass is a navigation material only and every switch turns it off", () => 
     glass.match(/@media \(prefers-reduced-transparency: reduce\) \{([\s\S]*?)\n\}/)[1],
     glass.match(/@media \(prefers-contrast: more\) \{([\s\S]*?)\n\}/)[1],
   ]) {
-    for (const token of ["--glass-blur", "--glass-blur-clear", "--glass-blur-edge"]) {
+    for (const token of ["--glass-blur", "--glass-blur-clear", "--glass-blur-scrim"]) {
       assert.match(fallback, new RegExp(`${token}: none;`), `${token} is switched off`);
     }
     assert.match(fallback, /--glass-bg: var\(--glass-(bg-solid|surface)\);/);
