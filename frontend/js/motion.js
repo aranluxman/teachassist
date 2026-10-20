@@ -250,9 +250,13 @@ export function mountThumb(host, options = {}) {
 
   const move = (button) => {
     if (!button || !button.offsetParent) return;
+    const transform = `translateX(${button.offsetLeft + inset}px)`;
+    const travelled = thumb.classList.contains("m-thumb-ready") && thumb.style.transform !== transform;
     thumb.style.width = `${button.offsetWidth - inset * 2}px`;
-    thumb.style.transform = `translateX(${button.offsetLeft + inset}px)`;
+    thumb.style.transform = transform;
     thumb.classList.add("m-thumb-ready");
+    // Stretch like a drop of liquid while it travels (css/glass.css).
+    if (travelled && motionEnabled()) replay(thumb, "g-liquid");
   };
   return move;
 }
@@ -280,10 +284,11 @@ export function mountTabIndicator(tabbar) {
     pill.style.width = `${w}px`;
     pill.style.height = `${h}px`;
     if (isFinite(top)) pill.style.top = `${top}px`;
-    pill.style.transform = `translateX(${
-      button.offsetLeft + (button.offsetWidth - w) / 2
-    }px)`;
+    const transform = `translateX(${button.offsetLeft + (button.offsetWidth - w) / 2}px)`;
+    const travelled = pill.classList.contains("m-thumb-ready") && pill.style.transform !== transform;
+    pill.style.transform = transform;
     pill.classList.add("m-thumb-ready");
+    if (travelled && motionEnabled()) replay(pill, "g-liquid");
     replay(button, "m-bounce");
   };
 }

@@ -1,0 +1,629 @@
+/* ==========================================================================
+   Liquid Glass — the one material system (loaded last on every page).
+   --------------------------------------------------------------------------
+   Apple's Liquid Glass (.glassEffect, GlassEffectContainer) doesn't exist on
+   the web, so this file rebuilds its rules in CSS. Four layers:
+
+     1. Ambient   a soft, theme-coloured gradient fixed behind everything,
+                  so the glass has something to refract.
+     2. Content   cards, rows, marks, charts. OPAQUE. Never glass behind a
+                  grade.
+     3. Glass     navigation only: the sticky header, tab bar, segmented
+                  controls, round buttons, sheets, toasts, chat chips.
+     4. Overlay   sheet scrims.
+
+   Three materials, matching Apple's styles:
+     .glass-regular  default navigation glass (≈72% surface + 20px blur)
+     .glass-clear    more see-through (≈40% + 30px), only over the ambient
+                     layer where legibility is guaranteed
+     .glass-solid    opaque fallback, same size and border
+
+   Everything is driven by --glass-* tokens resolved from the theme's own
+   variables (--card-solid, --accent, --text…), so all twelve theme
+   combinations get their own glass. The solid fallback is a token swap, so
+   turning glass off never moves anything:
+     • Settings → Translucent surfaces off   (html[data-glass="false"])
+     • prefers-reduced-transparency: reduce
+     • prefers-contrast: more                (plus stronger borders)
+     • browsers without backdrop-filter      (@supports)
+
+   Rules that keep it fast and legible:
+     • Glass never sits inside glass. A button inside a glass bar or sheet
+       drops its own blur and becomes a tinted capsule instead (Apple's
+       "glass can't sample glass"; also avoids a double blur).
+     • At most ~4 blurred surfaces on screen: header, tab bar, one control
+       row, and a sheet or toast.
+     • Secondary text on glass is pulled toward --text (--glass-text-2) so it
+       passes WCAG AA over the lightest and darkest content that can scroll
+       behind it (checked in test/glass.test.mjs).
+   ========================================================================== */
+
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+@property --mx {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 50%;
+}
+@property --my {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: -60%;
+}
+
+html[data-mode] {
+  /* Content is opaque: the card colour IS the solid card colour. */
+  --card: var(--card-solid);
+
+  --glass-surface: var(--card-solid);
+  /* 78% in dark (above Apple's ~70%) so grey labels keep 4.5:1 even over
+     white content; light glass is 70%. */
+  --glass-alpha: 78%;
+  --glass-alpha-thick: 88%;
+  --glass-alpha-clear: 40%;
+  --glass-bg: color-mix(in srgb, var(--accent) 5%, color-mix(in srgb, var(--glass-surface) var(--glass-alpha), transparent));
+  --glass-bg-thick: color-mix(in srgb, var(--accent) 4%, color-mix(in srgb, var(--glass-surface) var(--glass-alpha-thick), transparent));
+  --glass-bg-clear: color-mix(in srgb, var(--accent) 6%, color-mix(in srgb, var(--glass-surface) var(--glass-alpha-clear), transparent));
+  --glass-bg-solid: color-mix(in srgb, var(--accent) 5%, var(--glass-surface));
+  --glass-blur: blur(20px) saturate(180%);
+  --glass-blur-clear: blur(30px) saturate(180%);
+  --glass-blur-scrim: blur(6px);
+  /* Tinted glass: the active tab / segment thumb and prominent capsules. */
+  --glass-tint: color-mix(in srgb, var(--accent) 16%, color-mix(in srgb, var(--glass-surface) 100%, transparent));
+  /* An accent label on a tinted thumb, nudged toward --text for 4.5:1. */
+  --glass-accent-text: color-mix(in srgb, var(--accent) 85%, var(--text));
+  --glass-tint-strong: color-mix(in srgb, var(--accent) 22%, var(--glass-surface));
+  /* The specular edge. */
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 52%);
+  --glass-spot: radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 42%);
+  --glass-text-2: color-mix(in srgb, var(--text) 90%, var(--glass-surface));
+  --glass-radius: 26px;
+  --glass-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* The ambient layer's strength. */
+  --amb-1: 100%;
+  --amb-2: 14%;
+  --amb-3: 18%;
+}
+html[data-mode="light"] {
+  --glass-alpha: 70%;
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(0, 0, 0, 0.05), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  --glass-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 55%);
+  --glass-spot: radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 42%);
+  --amb-1: 100%;
+  --amb-2: 22%;
+  --amb-3: 30%;
+}
+
+/* Solid fallback: one token swap, so nothing moves when it toggles. */
+html[data-mode][data-glass="false"] {
+  --glass-bg: var(--glass-bg-solid);
+  --glass-bg-thick: var(--glass-bg-solid);
+  --glass-bg-clear: var(--glass-bg-solid);
+  --glass-tint: var(--glass-tint-strong);
+  --glass-blur: none;
+  --glass-blur-clear: none;
+  --glass-blur-scrim: none;
+  --glass-sheen: linear-gradient(transparent, transparent);
+  --glass-spot: linear-gradient(transparent, transparent);
+  --glass-border: var(--card-border);
+  --glass-text-2: var(--text-secondary);
+}
+@media (prefers-reduced-transparency: reduce) {
+  html[data-mode] {
+    --glass-bg: var(--glass-bg-solid);
+    --glass-bg-thick: var(--glass-bg-solid);
+    --glass-bg-clear: var(--glass-bg-solid);
+    --glass-tint: var(--glass-tint-strong);
+    --glass-blur: none;
+    --glass-blur-clear: none;
+    --glass-blur-scrim: none;
+    --glass-sheen: linear-gradient(transparent, transparent);
+    --glass-spot: linear-gradient(transparent, transparent);
+    --glass-border: var(--card-border);
+    --glass-text-2: var(--text-secondary);
+  }
+}
+@media (prefers-contrast: more) {
+  html[data-mode] {
+    --glass-bg: var(--glass-surface);
+    --glass-bg-thick: var(--glass-surface);
+    --glass-bg-clear: var(--glass-surface);
+    --glass-tint: var(--glass-tint-strong);
+    --glass-blur: none;
+    --glass-blur-clear: none;
+    --glass-blur-scrim: none;
+    --glass-sheen: linear-gradient(transparent, transparent);
+    --glass-spot: linear-gradient(transparent, transparent);
+    --glass-border: color-mix(in srgb, var(--text) 55%, transparent);
+    --glass-highlight: none;
+    --glass-text-2: var(--text);
+    --amb-1: 0%;
+    --amb-2: 0%;
+    --amb-3: 0%;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-mode] {
+    --glass-bg: var(--glass-bg-solid);
+    --glass-bg-thick: var(--glass-bg-solid);
+    --glass-bg-clear: var(--glass-bg-solid);
+    --glass-tint: var(--glass-tint-strong);
+    --glass-sheen: linear-gradient(transparent, transparent);
+    --glass-spot: linear-gradient(transparent, transparent);
+    --glass-border: var(--card-border);
+    --glass-text-2: var(--text-secondary);
+  }
+}
+
+/* ── Layer 1 · Ambient ──────────────────────────────────────────────────── */
+html[data-mode] body {
+  background: var(--bg);
+}
+html[data-mode] body::before {
+  content: "";
+  position: fixed;
+  inset: -6%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 45% at 14% 6%, color-mix(in srgb, var(--glow) var(--amb-1), transparent), transparent 74%),
+    radial-gradient(50% 38% at 90% 34%, color-mix(in srgb, var(--accent) var(--amb-2), transparent), transparent 72%),
+    radial-gradient(65% 42% at 28% 92%, color-mix(in srgb, var(--gauge-from) var(--amb-3), transparent), transparent 72%),
+    var(--bg);
+}
+/* A very slow drift. Every time it moves, every glass surface has to
+   re-blur what is behind it, so it advances in tiny steps (~5 a second,
+   each well under a pixel) instead of every frame, and pauses while the
+   page scrolls, in a background tab, and with motion off. */
+html[data-mode].m-on body::before {
+  animation: glass-ambient 120s steps(600) infinite alternate;
+}
+html[data-tab-hidden="true"] body::before,
+html.g-scrolling body::before {
+  animation-play-state: paused;
+}
+@keyframes glass-ambient {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-3%, 2%, 0) scale(1.03);
+  }
+  100% {
+    transform: translate3d(2%, -2%, 0) scale(1.01);
+  }
+}
+
+/* ── Layer 2 · Content stays opaque ─────────────────────────────────────── */
+html[data-mode] .card,
+html[data-mode] .g-row,
+html[data-mode] .disclosure {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── Layer 3 · The three materials ──────────────────────────────────────── */
+/* Regular */
+.glass-regular,
+html[data-mode] .tabbar,
+html[data-mode] .screen .g-header.g-stuck,
+html[data-mode] .segmented,
+html[data-mode] .app-notice,
+html[data-mode] .composer,
+html[data-mode] .auth-card {
+  background: var(--glass-spot), var(--glass-sheen), var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight);
+  contain: paint;
+}
+/* Only surfaces that float above the page cast a shadow; the header and the
+   segmented control sit in the flow (and a big blurred shadow on a sticky
+   bar costs frames while scrolling). */
+html[data-mode] .tabbar,
+html[data-mode] .app-notice,
+html[data-mode] .composer,
+html[data-mode] .auth-card {
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+}
+/* Thick: surfaces that carry paragraphs (sheets) sit over a dark scrim. */
+html[data-mode] .sheet {
+  background: var(--glass-sheen), var(--glass-bg-thick);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+}
+/* Clear: round buttons resting on the ambient layer. */
+.glass-clear,
+html[data-mode] .g-btn,
+html[data-mode] .detail-nav .back-btn,
+html[data-mode] .suggest-chip,
+html[data-mode] .msg-actions .chip {
+  background: var(--glass-spot), var(--glass-sheen), var(--glass-bg-clear);
+  -webkit-backdrop-filter: var(--glass-blur-clear);
+  backdrop-filter: var(--glass-blur-clear);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight);
+}
+/* Solid */
+.glass-solid {
+  background: var(--glass-bg-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Glass never sits inside glass: inner controls become tinted capsules. */
+html[data-mode] .sheet .g-btn,
+html[data-mode] .sheet .segmented,
+html[data-mode] .g-header.g-stuck .g-btn,
+html[data-mode] .auth-card .btn.secondary {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Secondary text that sits on glass. */
+html[data-mode] .screen .g-header.g-stuck .g-header-title p,
+html[data-mode] .screen .g-header.g-stuck .g-status,
+html[data-mode] .sheet .muted,
+html[data-mode] .sheet .g-header-title p,
+html[data-mode] .app-notice p,
+html[data-mode] .tabbar button:not(.active) {
+  color: var(--glass-text-2);
+}
+
+/* ── B1 · Header: transparent at rest, glass once scrolled ──────────────── */
+/* Padding is constant and the border always present, so the bar can turn to
+   glass (or back) without moving a pixel. */
+html[data-mode] .screen .g-header:not(.sheet-header) {
+  position: sticky;
+  top: max(6px, env(safe-area-inset-top));
+  z-index: 30;
+  padding: 6px;
+  margin: -4px -6px 12px;
+  border: 1px solid transparent;
+  border-radius: 32px;
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+html[data-mode] .screen .g-header.g-stuck {
+  border-radius: 32px;
+}
+/* Scroll edge: once the page scrolls, a soft fade at the very top so content
+   never peeks sharply above the floating header (iOS 26's scroll-edge
+   effect). A plain gradient, not a blur: it costs nothing while scrolling. */
+html[data-mode] .shell::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: calc(env(safe-area-inset-top) + 24px);
+  z-index: 29;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--glow) 45%, var(--bg)) 35%, transparent);
+  transition: opacity 200ms ease;
+}
+html[data-mode].g-scrolled .shell::before {
+  opacity: 1;
+}
+/* The Demo / "Updated" status: its own small tinted capsule (no blur, so it
+   is never glass-in-glass). */
+html[data-mode] .g-status {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--glass-text-2);
+}
+
+/* ── B2 · Tab bar: one surface, a tinted thumb that slides ──────────────── */
+html[data-mode] .tabbar {
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  border-radius: 999px;
+}
+html[data-mode] .tabbar button {
+  color: var(--text);
+  transition: color 240ms ease;
+}
+html[data-mode] .tabbar button.active {
+  color: var(--glass-accent-text);
+}
+html[data-mode] .tabbar button.active::before,
+html[data-mode] .m-tab-indicator {
+  background: var(--glass-sheen), var(--glass-tint);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+}
+html[data-mode].m-on .tabbar.m-has-indicator button.active::before {
+  background: transparent;
+  box-shadow: none;
+}
+html[data-mode].m-on .m-tab-indicator {
+  transition:
+    transform 400ms var(--glass-ease),
+    width 400ms var(--glass-ease),
+    opacity 150ms ease;
+}
+/* Liquid: the thumb stretches mid-flight, then settles. */
+html[data-mode].m-on .m-tab-indicator.g-liquid,
+html[data-mode].m-on .segmented .m-thumb.g-liquid {
+  animation: glass-liquid 400ms var(--glass-ease);
+}
+@keyframes glass-liquid {
+  0% {
+    scale: 1 1;
+  }
+  45% {
+    scale: 1.1 0.94;
+  }
+  100% {
+    scale: 1 1;
+  }
+}
+/* The selected icon lifts. */
+html[data-mode] .tabbar button svg {
+  transition: translate 300ms var(--glass-ease);
+}
+html[data-mode] .tabbar button.active svg {
+  translate: 0 -2px;
+}
+
+/* ── B3 · Segmented: glass track, tinted glass thumb ────────────────────── */
+html[data-mode] .segmented button {
+  color: var(--glass-text-2);
+  transition: color 300ms ease;
+}
+html[data-mode] .segmented button.active {
+  color: var(--text);
+  background: var(--glass-tint);
+}
+html[data-mode] .segmented .m-thumb,
+html[data-mode].m-on .segmented.m-has-thumb .m-thumb {
+  background: var(--glass-sheen), var(--glass-tint);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+html[data-mode].m-on .segmented.m-has-thumb .m-thumb {
+  transition:
+    transform 300ms var(--glass-ease),
+    width 300ms var(--glass-ease),
+    opacity 150ms ease;
+}
+html[data-mode].m-on .segmented.m-has-thumb button.active {
+  background: transparent;
+}
+
+/* ── B4 · Round glass buttons ───────────────────────────────────────────── */
+html[data-mode] .g-btn,
+html[data-mode] .detail-nav .back-btn {
+  color: var(--text);
+}
+
+/* ── B5 · Sheets, scrims and the chat composer ──────────────────────────── */
+html[data-mode] .sheet-backdrop {
+  background: color-mix(in srgb, var(--bg) 40%, rgba(0, 0, 0, 0.42));
+  -webkit-backdrop-filter: var(--glass-blur-scrim);
+  backdrop-filter: var(--glass-blur-scrim);
+}
+html[data-mode] .composer {
+  border-radius: var(--glass-radius);
+}
+
+/* ── B6 · Toasts and "Saved ✓" ──────────────────────────────────────────── */
+/* The pop-up carries a paragraph over anything, so it uses thick glass. */
+html[data-mode] .app-notice {
+  border-radius: 22px;
+  background: var(--glass-sheen), var(--glass-bg-thick);
+}
+
+/* ── B7 · Assistant prompt chips ────────────────────────────────────────── */
+html[data-mode] .suggest-chip,
+html[data-mode] .msg-actions .chip {
+  border-radius: 999px;
+  color: var(--text);
+}
+
+/* ── Sign-in card ───────────────────────────────────────────────────────── */
+html[data-mode] .auth-card {
+  border-radius: 30px;
+}
+
+/* ── C6 · Interactive glass press ───────────────────────────────────────── */
+/* The ripple lives in its own clipping wrapper, so the button keeps its
+   overflow (the unread dot on the inbox button sits on its edge). */
+html[data-mode] .suggest-chip,
+html[data-mode] .msg-actions .chip {
+  position: relative;
+}
+.glass-ripple-wrap {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+html[data-mode].m-on .g-btn,
+html[data-mode].m-on .suggest-chip,
+html[data-mode].m-on .msg-actions .chip {
+  transition:
+    transform 250ms var(--glass-ease),
+    background-color 200ms ease;
+}
+html[data-mode].m-on .g-btn:active,
+html[data-mode].m-on .suggest-chip:active,
+html[data-mode].m-on .msg-actions .chip:active,
+html[data-mode].m-on .tabbar button:active {
+  transform: scale(0.97);
+}
+.glass-ripple {
+  position: absolute;
+  left: var(--rx, 50%);
+  top: var(--ry, 50%);
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 70%);
+  pointer-events: none;
+  animation: glass-ripple 250ms ease-out forwards;
+}
+@keyframes glass-ripple {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(9);
+    opacity: 0;
+  }
+}
+
+/* ── C4 · Glass condenses into place ────────────────────────────────────── */
+/* Sheets: blur 0 → full with the slide. Reversed on dismiss because the
+   same transition runs when .show is removed. */
+html[data-mode].m-on .sheet {
+  opacity: 0;
+  -webkit-backdrop-filter: blur(0) saturate(100%);
+  backdrop-filter: blur(0) saturate(100%);
+  transition:
+    transform 420ms var(--ease-spring),
+    opacity 350ms ease,
+    -webkit-backdrop-filter 350ms ease,
+    backdrop-filter 350ms ease;
+}
+html[data-mode].m-on .sheet-backdrop.show .sheet {
+  opacity: 1;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+html[data-mode].m-on .app-notice:not(.hidden) {
+  animation: glass-condense 350ms ease both;
+}
+@keyframes glass-condense {
+  from {
+    opacity: 0;
+    -webkit-backdrop-filter: blur(0) saturate(100%);
+    backdrop-filter: blur(0) saturate(100%);
+  }
+}
+
+/* ── A4 · Light catches the glass ───────────────────────────────────────── */
+/* Pointer devices: js/glass.js moves --mx/--my under the cursor.
+   Touch devices: a slow drift along the tab bar instead. */
+@media (hover: none) {
+  html[data-mode].m-on .tabbar {
+    --my: 0%;
+    animation: glass-spot-drift 14s ease-in-out infinite alternate;
+  }
+}
+html[data-tab-hidden="true"] .tabbar {
+  animation-play-state: paused;
+}
+@keyframes glass-spot-drift {
+  from {
+    --mx: 15%;
+  }
+  to {
+    --mx: 85%;
+  }
+}
+
+/* ── C10 · Theme switches re-tint the glass instead of flashing ─────────── */
+html[data-mode].m-on.m-theming .tabbar,
+html[data-mode].m-on.m-theming .g-header,
+html[data-mode].m-on.m-theming .segmented,
+html[data-mode].m-on.m-theming .g-btn,
+html[data-mode].m-on.m-theming .card,
+html[data-mode].m-on.m-theming .g-row {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    color 300ms ease;
+}
+
+/* ── C11 · Scroll reveal ────────────────────────────────────────────────── */
+html[data-mode].m-on .g-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+}
+html[data-mode].m-on .g-reveal.g-revealed {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 420ms var(--glass-ease),
+    transform 420ms var(--glass-ease);
+  transition-delay: calc(var(--g-i, 0) * 40ms);
+}
+
+/* ── C7 · The grade chart draws left to right ───────────────────────────── */
+/* The chart is 300 units wide, so 1000 always covers the whole line. */
+html[data-mode].m-on .g-chart .g-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: glass-draw 900ms ease-out 120ms forwards;
+}
+html[data-mode].m-on .g-chart .g-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: m-pop-soft 280ms ease-out both;
+  animation-delay: calc(140ms + var(--g-i, 0) * 60ms);
+}
+@keyframes glass-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* Hide grades: the chart never draws itself in. */
+html[data-hide-marks="true"] .g-chart .g-line,
+html[data-hide-marks="true"] .g-chart .g-dot {
+  animation: none !important;
+  stroke-dashoffset: 0 !important;
+}
+
+/* ── D3 · Focus rings stay visible on glass ─────────────────────────────── */
+html[data-mode] .tabbar button:focus-visible,
+html[data-mode] .segmented button:focus-visible,
+html[data-mode] .g-btn:focus-visible,
+html[data-mode] .suggest-chip:focus-visible,
+html[data-mode] .msg-actions .chip:focus-visible,
+html[data-mode] .g-status:focus-visible {
+  outline: 2.5px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--glass-surface);
+}
+/* Tabs and segments fill their bar, which clips paint: draw the ring inside. */
+html[data-mode] .tabbar button:focus-visible,
+html[data-mode] .segmented button:focus-visible {
+  outline-offset: -5px;
+  box-shadow: none;
+}
+
+/* ── Motion off: everything above is static ─────────────────────────────── */
+html.no-motion body::before,
+html.no-motion .tabbar,
+html.no-motion .glass-ripple,
+html.no-motion .m-tab-indicator,
+html.no-motion .m-thumb {
+  animation: none !important;
+}
+html.no-motion .g-reveal {
+  opacity: 1 !important;
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-mode] body::before,
+  html[data-mode] .tabbar,
+  .glass-ripple {
+    animation: none !important;
+  }
+}

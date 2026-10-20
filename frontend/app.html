@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" data-mode="dark" data-accent="ember" data-theme="dark">
+<html lang="en" data-mode="light" data-accent="ember" data-theme="indigo">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#f4f2f0" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="css/v5.css" />
     <link rel="stylesheet" href="css/v6.css" />
     <link rel="stylesheet" href="css/v7.css" />
-    <link rel="stylesheet" href="css/v8.css" />
+    <link rel="stylesheet" href="css/glass.css" />
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4274511406033312"
       crossorigin="anonymous"></script>
   </head>
@@ -92,6 +92,7 @@
         screenDirection,
         mountTabIndicator,
       } from "./js/motion.js";
+      import { initGlass } from "./js/glass.js";
 
       const screens = {
         profile: document.getElementById("screen-profile"),
@@ -190,6 +191,7 @@
         if (!requireLogin()) return;
         applyStoredTheme();
         initMotion();
+        initGlass();
         startNotificationChecks();
         registerServiceWorker();
         if (!location.hash) history.replaceState(null, "", "#courses");

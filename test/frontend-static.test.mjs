@@ -272,7 +272,7 @@ test("six colours × dark/light exist in CSS and the Theme page", () => {
     for (const mode of ["dark", "light"]) assert.ok(modeBlock(mode, id), `${mode} × ${id} is defined in v6.css`);
   }
   for (const id of ["system", "dark", "light"]) assert.match(themeJs, new RegExp(`id: "${id}"`));
-  assert.match(themeJs, /\["dark", "ember"\]/); // first-run default
+  assert.match(themeJs, /\["light", "ember"\]/); // first-run default
   assert.match(appHtml, /css\/v6\.css/);
 });
 
