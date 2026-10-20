@@ -8,7 +8,7 @@
 // They land on <html> as data-mode / data-accent; css/v6.css turns each pair
 // into a full token set. data-theme is still set to "dark" / "indigo" so the
 // older stylesheet layers pick the matching light or dark base.
-// First run: Ember on Dark.
+// First run: Ember on Light.
 // ============================================================================
 
 export const APPEARANCES = [
@@ -71,11 +71,11 @@ export function themeChoice() {
   let color = read(COLOR_KEY);
   if (!appearance && !color) {
     const legacy = LEGACY[read(LEGACY_KEY)];
-    [appearance, color] = legacy || ["dark", "ember"];
+    [appearance, color] = legacy || ["light", "ember"];
     write(APPEARANCE_KEY, appearance);
     write(COLOR_KEY, color);
   }
-  if (!APPEARANCES.some((a) => a.id === appearance)) appearance = "dark";
+  if (!APPEARANCES.some((a) => a.id === appearance)) appearance = "light";
   if (!COLORS.some((c) => c.id === color)) color = "ember";
   return { appearance, color };
 }
