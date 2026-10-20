@@ -69,9 +69,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  background: var(--bg);
   border-bottom: 1px solid color-mix(in srgb, var(--separator) 70%, transparent);
   padding-top: max(14px, env(safe-area-inset-top));
   padding-bottom: 12px;
@@ -81,9 +79,7 @@ body {
   border-radius: 10px;
 }
 .tabbar {
-  background: color-mix(in srgb, var(--card) 82%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(22px);
-  backdrop-filter: saturate(180%) blur(22px);
+  background: var(--card);
   border: var(--hairline);
   box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
 }

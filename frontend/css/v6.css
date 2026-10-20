@@ -28,8 +28,6 @@ html[data-mode="dark"] {
   --border: rgba(255, 255, 255, 0.09);
   --glass: rgba(255, 255, 255, 0.075);
   --glass-hi: rgba(255, 255, 255, 0.13);
-  --sheet-bg: rgba(40, 40, 44, 0.86);
-  --tabbar-bg: rgba(38, 34, 32, 0.62);
   --accent-contrast: #111111;
   --good: #34d399;
   --danger: #ff6b6b;
@@ -60,8 +58,6 @@ html[data-mode="light"] {
   --border: rgba(0, 0, 0, 0.08);
   --glass: rgba(255, 255, 255, 0.72);
   --glass-hi: rgba(0, 0, 0, 0.06);
-  --sheet-bg: rgba(250, 249, 248, 0.9);
-  --tabbar-bg: rgba(255, 255, 255, 0.7);
   --accent-contrast: #ffffff;
   --good: #11804f;
   --danger: #c0262d;
@@ -162,21 +158,11 @@ html[data-mode] {
   --tabbar-h: 72px;
 }
 
-/* ── Canvas: black with the theme's glow from the top ─────────────────── */
+/* ── Canvas (the ambient gradient behind it lives in glass.css) ────────── */
 html[data-mode] body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-}
-html[data-mode] body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(130% 60% at 50% -8%, var(--glow) 0%, transparent 70%),
-    linear-gradient(180deg, color-mix(in srgb, var(--glow) 55%, var(--bg)) 0%, var(--bg) 78%);
 }
 html[data-mode] .shell {
   background: transparent;
@@ -261,12 +247,7 @@ html[data-mode] .detail-nav .back-btn {
   display: inline-grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid var(--glass-border);
-  background: var(--glass);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
   color: var(--text);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   cursor: pointer;
   transition: transform 140ms var(--ease-spring), background 160ms ease;
 }
@@ -682,9 +663,6 @@ html[data-mode] .segmented {
   padding: 5px;
   margin: 4px 0 18px;
   border-radius: 999px;
-  border: 1px solid var(--card-border);
-  background: var(--card);
-  box-shadow: none;
 }
 html[data-mode] .segmented button {
   flex: 1;
@@ -697,27 +675,11 @@ html[data-mode] .segmented button {
   box-shadow: none;
   cursor: pointer;
 }
-html[data-mode] .segmented button.active {
-  color: var(--text);
-  background: var(--glass-hi);
-}
 html[data-mode] .segmented .m-thumb,
 html[data-mode].m-on .segmented.m-has-thumb .m-thumb {
   top: 5px;
   height: calc(100% - 10px);
   border-radius: 999px;
-  background: var(--glass-hi);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-html[data-mode="light"] .segmented .m-thumb,
-html[data-mode="light"].m-on .segmented.m-has-thumb .m-thumb,
-html[data-mode="light"] .segmented button.active {
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-html[data-mode].m-on .segmented.m-has-thumb button.active {
-  background: transparent;
-  box-shadow: none;
 }
 
 /* ── Course info page ─────────────────────────────────────────────────── */
@@ -935,23 +897,13 @@ html[data-mode] .schedule-card:active {
 }
 
 /* ── Sheets: floating, frosted, rounded on every corner ───────────────── */
-html[data-mode] .sheet-backdrop {
-  background: rgba(0, 0, 0, 0.55);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-}
 html[data-mode] .sheet {
   width: calc(100% - 16px);
   max-width: calc(var(--max-width) - 16px);
   margin: 0 8px calc(8px + env(safe-area-inset-bottom));
   padding: 6px 18px 22px;
   border-radius: 36px;
-  border: 1px solid var(--card-border);
-  background: var(--sheet-bg);
-  -webkit-backdrop-filter: blur(30px) saturate(170%);
-  backdrop-filter: blur(30px) saturate(170%);
   color: var(--text);
-  box-shadow: var(--shadow-lg);
   max-height: calc(92dvh - env(safe-area-inset-top));
   transform: translateY(110%);
   transition: transform 420ms var(--ease-spring);
@@ -993,14 +945,6 @@ html[data-mode] .tabbar {
   height: var(--tabbar-h);
   padding: 0 6px;
   border-radius: 999px;
-  border: 1px solid var(--glass-border);
-  background: var(--tabbar-bg);
-  -webkit-backdrop-filter: blur(26px) saturate(180%);
-  backdrop-filter: blur(26px) saturate(180%);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.07);
-}
-html[data-mode="light"] .tabbar {
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.12);
 }
 html[data-mode] .tabbar button {
   min-width: 0;
@@ -1026,7 +970,6 @@ html[data-mode] .tabbar button::before {
 }
 html[data-mode] .tabbar button.active::before,
 html[data-mode] .m-tab-indicator {
-  background: var(--glass-hi);
   border-radius: 999px;
 }
 html[data-mode].m-on .tabbar.m-has-indicator button.active::before {
@@ -1143,22 +1086,7 @@ html[data-mode].m-on .schedule-row {
   animation-delay: calc(var(--m-i, 0) * 0.045s);
 }
 
-/* ── Accessibility preferences ────────────────────────────────────────── */
-@media (prefers-reduced-transparency: reduce) {
-  html[data-mode] .tabbar,
-  html[data-mode] .sheet,
-  html[data-mode] .g-btn {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    background: var(--card-solid);
-  }
-}
-html[data-glass="false"][data-mode] .tabbar,
-html[data-glass="false"][data-mode] .sheet {
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  background: var(--card-solid);
-}
+/* ── Accessibility preferences (transparency is handled in glass.css) ─── */
 @media (prefers-contrast: more) {
   html[data-mode] {
     --card-border: color-mix(in srgb, var(--text) 35%, transparent);
@@ -1228,3 +1156,131 @@ html[data-mode] .g-tip-num { font: 800 15px var(--font-num); }
 html[data-mode] .g-chg.up { color: #0a8a5c; }
 html[data-mode] .g-chg.down { color: #c62828; }
 @media (prefers-reduced-motion: reduce) { html[data-mode] .g-chart .g-dot { transition: none; } }
+
+/* ==========================================================================
+   Pop-up position, toggles, theme tiles, footer (formerly v8.css; its glass
+   now lives in glass.css).
+   ========================================================================== */
+
+/* ── Notification pop-up: readable, and always above the tab bar ──────── */
+.app-notice {
+  bottom: calc(var(--tabbar-h, 72px) + 24px + env(safe-area-inset-bottom)) !important;
+  z-index: 120;
+  align-items: flex-start;
+  border-radius: 22px;
+}
+.app-notice b { display: block; font-size: 15px; line-height: 1.3; }
+.app-notice p { color: var(--text-secondary); margin-top: 3px; }
+.app-notice button { margin: -10px -8px -10px 0; }
+
+/* ── Toggles: a glass knob on a tinted track ──────────────────────────── */
+.preference-row input,
+.share-toggle input {
+  width: 52px;
+  min-width: 52px;
+  height: 32px;
+  background: color-mix(in srgb, var(--text) 16%, transparent);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25), inset 0 0 0 1px var(--card-border);
+}
+.preference-row input::after,
+.share-toggle input::after {
+  left: 3px;
+  top: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: radial-gradient(120% 90% at 35% 25%, #ffffff 0%, #f3f3f3 55%, #dcdcdc 100%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28), inset 0 -1px 1px rgba(0, 0, 0, 0.08), inset 0 1px 0 #fff;
+}
+.preference-row input:checked,
+.share-toggle input:checked {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 28%, transparent), transparent 60%),
+    var(--accent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 35%, transparent), 0 0 14px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.preference-row input:checked::after,
+.share-toggle input:checked::after { transform: translateX(20px); }
+/* While pressed the knob stretches like a drop of glass. */
+.preference-row input:active::after { width: 32px; }
+.preference-row input:checked:active::after { transform: translateX(14px); }
+.preference-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .preference-row input:active::after { width: 26px; }
+  .preference-row input:checked:active::after { transform: translateX(20px); }
+}
+
+/* ── Theme tiles: each colour shown as a Liquid Glass swatch ──────────── */
+html[data-mode] .theme-tile {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 10%, transparent), transparent 55%),
+    var(--card);
+  box-shadow: inset 0 1px 0 var(--card-border);
+}
+html[data-mode] .theme-orb {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  box-shadow:
+    inset 0 -6px 10px rgba(0, 0, 0, 0.22),
+    inset 0 4px 6px rgba(255, 255, 255, 0.55),
+    0 6px 16px rgba(0, 0, 0, 0.28);
+}
+/* Specular highlight on the orb: the "glass" look. */
+html[data-mode] .theme-orb::after {
+  content: "";
+  position: absolute;
+  inset: 5px 12px auto 9px;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+}
+html[data-mode] .theme-tile[aria-checked="true"] {
+  box-shadow: inset 0 1px 0 var(--card-border), 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* ── Guidance: text was touching the card edge ────────────────────────── */
+html[data-mode] .disclosure > summary {
+  padding: 16px 18px;
+  gap: 12px;
+}
+html[data-mode] .disclosure > summary > span { min-width: 0; }
+html[data-mode] .disclosure > summary small { margin-top: 3px; }
+html[data-mode] .disclosure > .disclosure-body { padding: 0 12px 14px; }
+
+/* ── Nothing hides behind the tab bar (or a notification) ─────────────── */
+.screen {
+  padding-bottom: calc(var(--tabbar-h, 72px) + 64px + env(safe-area-inset-bottom)) !important;
+}
+
+/* ── Footer credit + legal page ───────────────────────────────────────── */
+.made-by {
+  margin: 22px auto 4px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.made-by a { color: var(--accent); font-weight: 650; text-decoration: none; }
+.made-by a:hover, .made-by a:focus-visible { text-decoration: underline; }
+.legal-links { display: grid; }
+.legal-links a, .legal-links button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--separator, rgba(127, 127, 127, 0.2));
+  background: none;
+  color: var(--text);
+  font: 600 16px var(--font, inherit);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.legal-links > :last-child { border-bottom: 0; }
+.legal-links svg { width: 18px; height: 18px; color: var(--accent); flex: none; }

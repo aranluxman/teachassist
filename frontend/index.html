@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="css/motion.css" />
     <link rel="stylesheet" href="css/refresh.css" />
     <link rel="stylesheet" href="css/v6.css" />
-    <link rel="stylesheet" href="css/v8.css" />
+    <link rel="stylesheet" href="css/glass.css" />
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4274511406033312"
       crossorigin="anonymous"></script>
   </head>
@@ -122,6 +122,7 @@
         shake,
         replay,
       } from "./js/motion.js";
+      import { initGlass } from "./js/glass.js";
       import { applyPreferences } from "./js/personalization.js";
       applyTheme();
       registerServiceWorker();
@@ -143,6 +144,7 @@
       // Motion follows the same Settings toggle the app uses.
       applyPreferences();
       initMotion();
+      initGlass();
 
       // Already signed in? Go straight to the app.
       if (isLoggedIn()) window.location.replace("app.html");

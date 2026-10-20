@@ -259,8 +259,6 @@ a {
   padding: var(--gap);
   border: 1px solid var(--card-border);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
 }
 
 /* Colored circular icon (≥44px tap-friendly visual) */
@@ -357,9 +355,7 @@ a.row {
   justify-content: space-between;
   gap: 12px;
   padding: calc(8px + env(safe-area-inset-top)) var(--gap) 8px;
-  background: color-mix(in srgb, var(--bg-tint-top) 82%, transparent);
-  backdrop-filter: saturate(180%) blur(22px);
-  -webkit-backdrop-filter: saturate(180%) blur(22px);
+  background: var(--bg-tint-top);
   border-bottom: 1px solid var(--card-border);
 }
 .app-brand {
@@ -665,9 +661,7 @@ a.row {
   transform: translateX(-50%);
   width: calc(min(100vw, var(--max-width)) - 28px);
   height: var(--tabbar-h);
-  background: color-mix(in srgb, var(--card-soft) 92%, transparent);
-  backdrop-filter: saturate(180%) blur(22px);
-  -webkit-backdrop-filter: saturate(180%) blur(22px);
+  background: var(--card-soft);
   border: 1px solid var(--card-border);
   border-radius: 26px;
   box-shadow: var(--shadow-lg);
@@ -724,9 +718,7 @@ a.row {
   min-height: 52px;
   position: sticky;
   top: var(--topbar-h);
-  background: color-mix(in srgb, var(--bg-tint-top) 88%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--bg-tint-top);
   z-index: 10;
 }
 .back-btn {
@@ -2026,19 +2018,8 @@ summary {
 [data-motion="false"] .course-card:hover {
   transform: none;
 }
-[data-glass="false"] .tabbar {
-  background: var(--bg);
-  backdrop-filter: none;
-}
-@media (prefers-reduced-transparency: reduce) {
-  .tabbar {
-    background: var(--bg);
-    backdrop-filter: none;
-  }
-}
 @media (prefers-contrast: more) {
-  .card,
-  .tabbar {
+  .card {
     border-color: var(--text-secondary);
     background: var(--bg);
   }
