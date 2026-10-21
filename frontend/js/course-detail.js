@@ -15,7 +15,7 @@ import { courseMeta } from "./course-names.js";
 import { teacherFor, editTeacher } from "./teachers.js";
 import { preferences } from "./personalization.js";
 import { displayMark, markKind } from "./ta-client.js";
-import { animateGauge, countUp, mountThumb, previousValue, rememberValue } from "./motion.js";
+import { animateGauge, countUp, marksHidden, motionEnabled, mountThumb, previousValue, rememberValue, replay } from "./motion.js";
 
 let activeSeg = "evals";
 
@@ -57,7 +57,8 @@ const strandTint = (category) => STRAND_STYLE[strandKey(category) || "f"][1];
 const strandColor = (category) => `var(--strand-${strandKey(category) || "f"}-bar)`;
 
 /** "24 / 24" when TeachAssist gave raw marks, else "". */
-const rawMark = (x) => (typeof x?.mark === "number" && typeof x?.outOf === "number" ? `${x.mark} / ${x.outOf}` : "");
+// "18 / 20" — left out entirely while Hide grades is on.
+const rawMark = (x) => (!marksHidden() && typeof x?.mark === "number" && typeof x?.outOf === "number" ? `${x.mark} / ${x.outOf}` : "");
 
 /** Weighted mean of evaluations (weight 1 when missing; weight 0 = formative, not counted). */
 function weightedMean(list) {
@@ -106,7 +107,7 @@ export async function openCourseDetail(container, course) {
         </div>
       </div>
       <p class="g-caption">${kind === "midterm" ? "Midterm Mark" : "Current Mark"}</p>
-      ${mark != null ? `<p class="g-level private-mark">${achievementLevel(mark)}</p>` : ""}
+      ${mark != null && !marksHidden() ? `<p class="g-level private-mark">${achievementLevel(mark)}</p>` : ""}
     </section>`);
   track.appendChild(gaugePage);
 
@@ -184,9 +185,29 @@ export async function openCourseDetail(container, course) {
       b.setAttribute("aria-selected", String(b.dataset.seg === s));
     });
     moveSegThumb(seg.querySelector("button.active"));
+    const changed = content.childElementCount > 0 && content.dataset.seg !== s;
+    content.dataset.seg = s;
     content.innerHTML = "";
     content.appendChild(s === "evals" ? buildEvals(evals, kind) : buildBreakdown(evals));
+    // The new view slides in from the side it was pulled from.
+    if (changed && motionEnabled()) {
+      content.style.setProperty("--seg-dir", s === "evals" ? "-1" : "1");
+      replay(content, "g-seg-enter");
+    }
   };
+  // Dragging the glass thumb pulls the list with it, so the switch to the
+  // other view is felt before it's committed (js/glass.js initSegmentLens).
+  seg.addEventListener("g-seg-drag", (e) => {
+    const d = e.detail.progress - (activeSeg === "evals" ? 0 : 1);
+    content.classList.add("g-seg-following");
+    content.style.transform = `translateX(${(-d * 36).toFixed(1)}px)`;
+    content.style.opacity = String(1 - Math.min(0.55, Math.abs(d) * 0.55));
+  });
+  seg.addEventListener("g-seg-drag-end", () => {
+    content.classList.remove("g-seg-following");
+    content.style.transform = "";
+    content.style.opacity = "";
+  });
   window.addEventListener("resize", () => moveSegThumb(seg.querySelector("button.active")));
   seg.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => show(b.dataset.seg)));
   show(activeSeg);

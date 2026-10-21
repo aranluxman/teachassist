@@ -1,5 +1,6 @@
 import { readStudentData, writeStudentData } from './student-store.js';
 import { getCourses, isDemo, isLoggedIn } from './ta-client.js';
+import { marksHidden } from './motion.js';
 
 export const notificationDefaults = { marks: false, private: true, unavailable: false, reminders: false, unchanged: false };
 export function notificationPreferences() { return { ...notificationDefaults, ...readStudentData('notifications', {}) }; }
@@ -7,7 +8,7 @@ export function saveNotificationPreferences(patch) { writeStudentData('notificat
 export function notificationMessage(changes, prefs) {
   const selected = changes.filter(c => c.kind === 'changed' ? prefs.marks : prefs.unavailable);
   if (!selected.length) return null;
-  if (prefs.private) return 'Your course information has changed. Open TeachAssist to view it.';
+  if (prefs.private || marksHidden()) return 'Your course information has changed. Open TeachAssist to view it.';
   return selected.map(c => c.kind === 'unavailable' ? `${c.code}: mark is now unavailable.` : `${c.code}: ${c.before == null ? 'new mark' : c.before.toFixed(1) + '%'} → ${c.mark.toFixed(1)}%`).join('\n');
 }
 export async function notify(title, body) {

@@ -175,7 +175,7 @@ test("glass motion is scoped to the motion switch and Hide grades", () => {
     }
   }
   const js = read("frontend/js/glass.js");
-  assert.match(js, /"pointerdown",\s*\(e\) => \{\s*if \(!motionEnabled\(\)\) return;/);
+  assert.match(js, /"pointerdown",\s*\(e\) => \{\s*if \(!motionEnabled\(\)( \|\| [^)]*)?\) return;/);
   // The chart never draws itself while marks are hidden.
   assert.match(glass, /html\[data-hide-marks="true"\] \.g-chart \.g-line/);
 });

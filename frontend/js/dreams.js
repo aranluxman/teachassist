@@ -198,9 +198,11 @@ function courseRow(c, i) {
   const updateGap = (first = false) => {
     const t = Number(input.value);
     const reached = mark != null && mark >= t;
-    const progress = mark == null || !(t > 0) ? 0 : Math.max(0, Math.min(100, (mark / t) * 100));
+    const progress = mark == null || !(t > 0) || marksHidden() ? 0 : Math.max(0, Math.min(100, (mark / t) * 100));
     row.querySelector(".goal-meter > i").style.width = `${progress}%`;
-    if (mark == null) {
+    if (marksHidden()) {
+      gapEl.textContent = "Hidden while “Hide grades” is on";
+    } else if (mark == null) {
       gapEl.textContent = "Awaiting a grade";
     } else if (reached) {
       gapEl.textContent = "Target reached ✧";

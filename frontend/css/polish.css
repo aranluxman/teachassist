@@ -1,0 +1,671 @@
+/* ============================================================================
+   polish — liquid glass drag, tap glow, first-visit intros, school ratings,
+   compact Settings, Hide grades masking, and layout fixes.
+   Loaded last (after glass.css), so it only overrides what it names.
+   ============================================================================ */
+
+/* ── Tap glow: wherever you press, a soft glow in the theme accent ───────── */
+.tap-glow {
+  position: fixed;
+  z-index: 9999;
+  width: 120px;
+  height: 120px;
+  margin: -60px 0 0 -60px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 42%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 16%, transparent) 38%,
+    transparent 70%
+  );
+  animation: tap-glow 560ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+html[data-mode="dark"] .tap-glow {
+  mix-blend-mode: plus-lighter;
+}
+@keyframes tap-glow {
+  from {
+    transform: scale(0.35);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+/* The ripple inside glass buttons takes the accent too. */
+.glass-ripple {
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 55%, white), transparent 70%);
+  animation-duration: 420ms;
+}
+html.no-motion .tap-glow {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tap-glow {
+    display: none;
+  }
+}
+
+/* ── Segmented control: drag the thumb as a liquid glass lens ───────────── */
+html[data-mode] .segmented.m-has-thumb {
+  touch-action: pan-y; /* horizontal drags belong to the lens */
+  user-select: none;
+  -webkit-user-select: none;
+}
+html[data-mode] .segmented.g-lens .m-thumb {
+  scale: 1.08 1.16;
+  background: var(--glass-lens), color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: var(--glass-lens-rim), 0 10px 26px color-mix(in srgb, var(--accent) 22%, transparent);
+  -webkit-backdrop-filter: var(--glass-lens-filter);
+  backdrop-filter: var(--glass-lens-filter);
+}
+html[data-mode].m-on .segmented.m-has-thumb .m-thumb {
+  transition:
+    translate 420ms var(--glass-ease),
+    width 420ms var(--glass-ease),
+    scale 260ms var(--glass-ease),
+    box-shadow 260ms ease,
+    opacity 150ms ease;
+}
+/* While the finger holds it, the thumb is glued to the finger. */
+html[data-mode].m-on .segmented.g-dragging .m-thumb {
+  transition:
+    scale 260ms var(--glass-ease),
+    box-shadow 260ms ease;
+}
+html[data-mode] .segmented button.g-under {
+  color: var(--text);
+}
+html[data-mode].m-on .segmented button {
+  transition:
+    color 200ms ease,
+    scale 200ms var(--glass-ease);
+}
+html[data-mode].m-on .segmented.g-dragging button.g-under {
+  scale: 1.06;
+}
+
+/* The list follows the drag, then the new view slides in from that side. */
+html[data-mode].m-on #seg-content {
+  transition:
+    transform 380ms var(--glass-ease),
+    opacity 280ms ease;
+}
+html[data-mode].m-on #seg-content.g-seg-following {
+  transition: none;
+}
+html[data-mode].m-on #seg-content.g-seg-enter {
+  animation: g-seg-enter 420ms var(--glass-ease) both;
+}
+@keyframes g-seg-enter {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--seg-dir, 1) * 40px));
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* ── Mark details: liquid glass sheet and strand tiles ─────────────────── */
+html[data-mode] .sheet.sheet-eval,
+html[data-mode] .sheet.sheet-glass {
+  background:
+    radial-gradient(120% 60% at var(--mx, 50%) 0%, rgba(255, 255, 255, 0.35), transparent 60%),
+    var(--glass-sheen),
+    var(--glass-bg-thick);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    var(--glass-shadow);
+}
+html[data-mode="dark"] .sheet.sheet-eval,
+html[data-mode="dark"] .sheet.sheet-glass {
+  background:
+    radial-gradient(120% 60% at var(--mx, 50%) 0%, rgba(255, 255, 255, 0.08), transparent 60%),
+    var(--glass-sheen),
+    var(--glass-bg-thick);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    var(--glass-shadow);
+}
+/* Strand tiles inside: a lighter, flat tint — never glass stacked on glass. */
+html[data-mode] .sheet-eval .eval-strand {
+  padding: 14px 16px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  border: 1px solid color-mix(in srgb, white 35%, transparent);
+}
+html[data-mode="dark"] .sheet-eval .eval-strand {
+  border-color: color-mix(in srgb, white 8%, transparent);
+}
+html[data-mode] .sheet-eval .eval-strands {
+  display: grid;
+  gap: 10px;
+}
+html[data-mode] .sheet-eval .eval-sheet-head .g-hero-num {
+  text-shadow: 0 2px 18px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+/* Breakdown panel on the course page: glass card. */
+html[data-mode] #seg-content .g-panel.eval-strands {
+  background: var(--glass-sheen), var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+}
+/* The sheet materialises: blur and scale arrive together. */
+html[data-mode].m-on .sheet-backdrop .sheet.sheet-eval {
+  scale: 0.97;
+  transition:
+    transform 420ms var(--ease-spring),
+    scale 420ms var(--glass-ease),
+    -webkit-backdrop-filter 420ms ease,
+    backdrop-filter 420ms ease;
+}
+html[data-mode].m-on .sheet-backdrop.show .sheet.sheet-eval {
+  scale: 1;
+}
+/* Pull-to-dismiss: glued to the finger while dragging. */
+html[data-mode] .sheet-grabber,
+html[data-mode] .sheet .sheet-header {
+  touch-action: none;
+}
+html[data-mode] .sheet-grabber {
+  cursor: grab;
+}
+html[data-mode] .sheet.g-sheet-dragging {
+  transition: none !important;
+}
+
+/* ── First-visit intro: fireworks + rising stars ───────────────────────── */
+.m-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  overflow: hidden;
+}
+.m-firework {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.m-firework > i {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--accent) 60%, transparent);
+  opacity: 0;
+  animation: m-firework 1200ms cubic-bezier(0.15, 0.7, 0.3, 1) var(--m-d, 0ms) both;
+}
+.m-firework > i:nth-child(3n + 1) {
+  background: color-mix(in srgb, var(--accent) 55%, white);
+}
+.m-firework > i:nth-child(3n + 2) {
+  background: #ffd166;
+  box-shadow: 0 0 10px 2px rgba(255, 209, 102, 0.55);
+}
+@keyframes m-firework {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--m-a)) translateY(0) scale(0.4);
+  }
+  12% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+    transform: rotate(var(--m-a)) translateY(calc(var(--m-r) * -1)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--m-a)) translateY(calc(var(--m-r) * -1.1 + 18px)) scale(0.6);
+  }
+}
+.m-star {
+  position: absolute;
+  bottom: -24px;
+  font-size: calc(var(--m-s, 1) * 18px);
+  color: var(--accent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
+  opacity: 0;
+  animation: m-star-rise 2200ms cubic-bezier(0.2, 0.6, 0.3, 1) var(--m-d, 0ms) both;
+}
+.m-star:nth-child(even) {
+  color: #ffd166;
+}
+@keyframes m-star-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) rotate(0deg) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-62vh) rotate(160deg) scale(1);
+  }
+}
+html.no-motion .m-intro {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-intro {
+    display: none;
+  }
+}
+
+/* ── Hide grades: masked values ─────────────────────────────────────────── */
+html[data-mode] .g-pct.g-masked {
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+html[data-hide-marks="true"] .private-mark {
+  filter: blur(14px);
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* Masked numbers are already gone; don't blur them on top. */
+html[data-hide-marks="true"] .g-pct.g-masked,
+html[data-hide-marks="true"] .private-mark .g-pct.g-masked,
+html[data-hide-marks="true"] .g-row-value .g-pct.g-masked {
+  filter: none;
+}
+html[data-hide-marks="true"] .private-mark:has(.g-masked) {
+  filter: none;
+}
+html[data-mode] .g-seg.g-seg-masked i {
+  opacity: 0.5;
+}
+
+/* ── Settings: compact "You" row once a name is saved ──────────────────── */
+html[data-mode] .you-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 10px 14px;
+}
+html[data-mode] .you-compact .you-row {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+html[data-mode] .you-compact .you-row > span:not(.ui-tile):not(.g-chev) {
+  flex: 1;
+  min-width: 0;
+}
+html[data-mode] .you-compact .you-row b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html[data-mode] .you-compact .you-profile {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* ── Notifications: a small glass button once they're on ───────────────── */
+html[data-mode] .notify-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  background: var(--glass-sheen), var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+}
+html[data-mode].m-on .notify-pill {
+  transition: transform 220ms var(--glass-ease);
+}
+html[data-mode].m-on .notify-pill:active {
+  transform: scale(0.98);
+}
+html[data-mode] .notify-pill-icon {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+html[data-mode] .notify-pill-icon svg {
+  width: 20px;
+  height: 20px;
+}
+html[data-mode] .notify-pill-main {
+  flex: 1;
+  min-width: 0;
+}
+html[data-mode] .notify-pill-main b {
+  display: block;
+  font-size: 16px;
+}
+html[data-mode] .notify-pill-main small {
+  display: block;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html[data-mode] .notify-pill-state {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--accent) 85%, var(--text));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+html[data-mode] .notify-host {
+  margin-bottom: 16px;
+}
+html[data-mode] .notify-sheet details {
+  margin-top: 8px;
+}
+
+/* ── School ratings: number pills instead of dots ──────────────────────── */
+.rating-pill {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font: 800 13px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: -0.01em;
+  color: #fff;
+  background: var(--rate, #8e8e93);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 3px 10px color-mix(in srgb, var(--rate, #000) 35%, transparent);
+}
+.rating-pill[data-tone="high"] { --rate: #1f9d55; }
+.rating-pill[data-tone="good"] { --rate: #65a30d; }
+.rating-pill[data-tone="mid"] { --rate: #d97706; }
+.rating-pill[data-tone="low"] { --rate: #dc2626; }
+.rating-pill[data-tone="none"] { --rate: #8e8e93; }
+.pin-rated {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 24px;
+}
+.pin-rated.pin-mine .rating-pill {
+  outline: 3px solid #ff2d55;
+  outline-offset: 1px;
+}
+.rating-pill.row-rating {
+  flex: 0 0 auto;
+  margin-right: 2px;
+}
+.rating-pill.rating-pill-lg {
+  min-width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  font-size: 20px;
+}
+.school-rating {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0 6px;
+  padding: 12px 14px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+.school-rating b {
+  display: block;
+  font-size: 20px;
+  font-weight: 800;
+}
+.school-rating b span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.school-rating small {
+  display: block;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.rating-stars {
+  display: inline-flex;
+  gap: 1px;
+  font-size: 15px;
+  line-height: 1;
+}
+.rating-stars i {
+  font-style: normal;
+  background: linear-gradient(90deg, #f5b301 calc(var(--f) * 100%), color-mix(in srgb, var(--text) 18%, transparent) 0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ── Layout fixes ──────────────────────────────────────────────────────── */
+
+/* 1 · Course hero: the subject badge sat on the gauge ring. Seat it clear of
+       the arc, top-left, with a glass rim. */
+html[data-mode] .g-hero-badge {
+  right: auto;
+  left: -4%;
+  top: -18%;
+}
+html[data-mode] .g-hero-badge .g-badge {
+  width: 46px;
+  height: 46px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 6px 18px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+html[data-mode] .g-hero-badge .g-badge svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* 2 · School search: one capsule, not a box inside a box. */
+html[data-mode] .search-field {
+  border-radius: 999px;
+  padding: 0 18px;
+  background: var(--glass-sheen), var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight);
+}
+html[data-mode] .search-field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html[data-mode] .search-field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus {
+  flex: 1;
+  min-width: 0;
+  min-height: 50px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+html[data-mode] .search-field:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: var(--glass-highlight), 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* 3 · Dreams summaries: round icon, text gets the room, small "Saved" chip.
+       (A generic summary-span rule was stretching all three.) */
+html[data-mode] .disclosure.dream-block > summary {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+}
+html[data-mode] .disclosure.dream-block > summary > .dream-icon {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  aspect-ratio: 1;
+  font-size: 0;
+}
+html[data-mode] .disclosure.dream-block > summary > .dream-icon svg {
+  width: 24px;
+  height: 24px;
+}
+html[data-mode] .disclosure.dream-block > summary > .dream-sum {
+  min-width: 0;
+  font-size: inherit;
+}
+html[data-mode] .disclosure.dream-block > summary > .dream-sum b {
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+html[data-mode] .disclosure.dream-block > summary > .dream-sum small {
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+html[data-mode] .disclosure.dream-block > summary > .done-pill {
+  flex: none;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+html[data-mode] .disclosure.dream-block > summary > .done-pill svg {
+  width: 13px;
+  height: 13px;
+}
+@media (max-width: 380px) {
+  /* Narrow phones: just the tick. */
+  html[data-mode] .disclosure.dream-block > summary > .done-pill {
+    font-size: 0;
+    padding: 6px;
+  }
+  html[data-mode] .disclosure.dream-block > summary > .done-pill svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* 4 · Dream preview on Courses: breathing room above, stacked content,
+       the orbiting ✧ back on phones too. */
+#screen-courses .dream-preview,
+html[data-mode] #screen-courses .dream-preview {
+  margin-top: 18px;
+}
+@media (max-width: 640px) {
+  html[data-mode] #screen-courses .dream-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+  html[data-mode] .dream-preview > div:first-child {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 4px;
+    flex: 1;
+  }
+  html[data-mode] .dream-preview .eyebrow,
+  html[data-mode] .dream-preview p {
+    display: block;
+  }
+  html[data-mode] .dream-preview p {
+    margin: 0 0 8px;
+    font-size: 14px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  html[data-mode] .dream-preview h2 {
+    flex: none;
+    font-size: 19px;
+  }
+  html[data-mode] .dream-preview .btn {
+    width: auto;
+    margin-top: 2px;
+  }
+  html[data-mode] .dream-preview .dream-orbit {
+    display: grid;
+    flex: none;
+  }
+}
+
+/* 5 · Course names get two lines before the ellipsis on phones. */
+@media (max-width: 640px) {
+  html[data-mode] .course-card .g-row-main b {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.2;
+  }
+}
+
+/* ── Accessibility fallbacks for everything above ───────────────────────── */
+@media (prefers-reduced-transparency: reduce) {
+  html[data-mode] .segmented.g-lens .m-thumb,
+  html[data-mode] .sheet.sheet-eval,
+  html[data-mode] .sheet.sheet-glass,
+  html[data-mode] .notify-pill,
+  html[data-mode] .search-field,
+  html[data-mode] #seg-content .g-panel.eval-strands {
+    background: var(--card-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  html[data-mode] .notify-pill,
+  html[data-mode] .search-field,
+  .rating-pill {
+    border-color: var(--text);
+  }
+}
+html[data-glass="false"] .sheet.sheet-eval,
+html[data-glass="false"] .notify-pill,
+html[data-glass="false"] .search-field {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

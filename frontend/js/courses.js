@@ -95,6 +95,7 @@ export function courseTitle(course) {
 /** Round to one decimal and add "%". Shows "—" when there is no value. */
 export function fmtPercent(v) {
   if (v == null || isNaN(v)) return "—";
+  if (marksHidden()) return "••%"; // Hide grades: never print the number.
   return (Math.round(v * 10) / 10).toFixed(1) + "%";
 }
 
@@ -160,12 +161,63 @@ export function openSheet(title, bodyNode, options = {}) {
     if (e.key === "Escape") closeSheet();
   };
   document.addEventListener("keydown", onKeyDown);
-  activeSheetCleanup = () => document.removeEventListener("keydown", onKeyDown);
+  activeSheetCleanup = () => {
+    document.removeEventListener("keydown", onKeyDown);
+    options.onClose?.();
+  };
   activeSheet = backdrop;
+  dragToDismiss(sheet);
   // Move focus into the dialog (not onto a button, which would draw a ring).
   sheet.tabIndex = -1;
   requestAnimationFrame(() => sheet.focus({ preventScroll: true }));
   return { close: closeSheet, sheet };
+}
+
+/**
+ * Pull a sheet down by its grabber or header to dismiss it. Tracks the finger
+ * 1:1, resists when pulled up, and on release projects the flick's momentum:
+ * far or fast enough closes, otherwise it springs back from where it is.
+ */
+function dragToDismiss(sheet) {
+  let drag = null;
+  const handle = (t) => t.closest?.(".sheet-grabber, .sheet-header") && !t.closest("button, a, input");
+  sheet.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || !handle(e.target)) return;
+    drag = { id: e.pointerId, y0: e.clientY, dy: 0, moved: false, hist: [{ y: e.clientY, t: performance.now() }] };
+  });
+  sheet.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const raw = e.clientY - drag.y0;
+    if (!drag.moved) {
+      if (Math.abs(raw) < 6) return;
+      drag.moved = true;
+      sheet.classList.add("g-sheet-dragging");
+      try { sheet.setPointerCapture(e.pointerId); } catch { /* pointer already gone */ }
+    }
+    // Upward pulls rubber-band; downward pulls follow the finger exactly.
+    drag.dy = raw >= 0 ? raw : -((-raw * 0.55 * 300) / (300 + 0.55 * -raw));
+    drag.hist.push({ y: e.clientY, t: performance.now() });
+    if (drag.hist.length > 5) drag.hist.shift();
+    sheet.style.transform = `translateY(${drag.dy}px)`;
+  });
+  const end = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const { dy, moved, hist } = drag;
+    drag = null;
+    sheet.classList.remove("g-sheet-dragging");
+    if (!moved) return;
+    const a = hist[0], b = hist[hist.length - 1];
+    const v = b.t > a.t ? ((b.y - a.y) / (b.t - a.t)) * 1000 : 0; // px/s
+    const projected = dy + (v / 1000) * 0.998 / (1 - 0.998);
+    if (projected > sheet.offsetHeight * 0.35) {
+      sheet.style.transform = `translateY(${sheet.offsetHeight + 40}px)`;
+      closeSheet();
+    } else {
+      sheet.style.transform = "";
+    }
+  };
+  sheet.addEventListener("pointerup", end);
+  sheet.addEventListener("pointercancel", end);
 }
 
 /** Close the open bottom sheet (if any). */
@@ -267,7 +319,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
         </div>
       </div>
       <p class="g-caption">Overall Average</p>
-      ${overall != null ? `<p class="g-level private-mark">${achievementLevel(overall)} · ${letterGrade(overall)}</p>` : ""}
+      ${overall != null && !marksHidden() ? `<p class="g-level private-mark">${achievementLevel(overall)} · ${letterGrade(overall)}</p>` : ""}
     </section>`);
   track.appendChild(gaugePage);
   track.appendChild(trendPage(courses.map((c) => c.code)));

@@ -13,7 +13,10 @@
 //   • Reveal     cards and rows below the fold fade up once, as they arrive.
 //   • Lens       press the tab bar and its thumb lifts into a glass lens you
 //                can drag between tabs; release snaps to the nearest one.
-//                Settings toggles do the same with their knob.
+//                Settings toggles do the same with their knob, and so do
+//                segmented controls (Evaluations ⇄ Breakdown): their thumb
+//                follows the finger 1:1 and a flick throws it to the other side.
+//   • Glow       wherever you tap, a soft glow in the theme's accent colour.
 //
 // Everything that moves checks motionEnabled(), so Settings → Interface
 // animations off (or prefers-reduced-motion) leaves the app static. Nothing
@@ -39,6 +42,7 @@ export function initGlass() {
   initReveal();
   initTabLens();
   initToggleLens();
+  initSegmentLens();
 }
 
 /** Swallow the browser's own click that follows a drag (programmatic
@@ -140,26 +144,43 @@ function initLight() {
 // ──────────────────────────────── press ─────────────────────────────────────
 
 function initPress() {
+  // One glow per pointer: a drag doesn't leave a trail of them.
+  const live = new Map();
   document.addEventListener(
     "pointerdown",
     (e) => {
-      if (!motionEnabled()) return;
+      if (!motionEnabled() || e.button > 0) return;
+      live.get(e.pointerId)?.remove();
       const host = e.target.closest?.(PRESSABLE);
-      if (!host || host.disabled) return;
-      const r = host.getBoundingClientRect();
-      const wrap = document.createElement("span");
-      wrap.className = "glass-ripple-wrap";
-      wrap.setAttribute("aria-hidden", "true");
-      const ripple = document.createElement("span");
-      ripple.className = "glass-ripple";
-      ripple.style.setProperty("--rx", `${e.clientX - r.left}px`);
-      ripple.style.setProperty("--ry", `${e.clientY - r.top}px`);
-      wrap.appendChild(ripple);
-      if (getComputedStyle(host).position === "static") host.style.position = "relative";
-      host.appendChild(wrap);
-      ripple.addEventListener("animationend", () => wrap.remove(), { once: true });
-      // Belt and braces: never leave one behind if the animation is skipped.
-      setTimeout(() => wrap.remove(), 600);
+      if (host && !host.disabled) {
+        // Inside a glass button: the glow is clipped to the button.
+        const r = host.getBoundingClientRect();
+        const wrap = document.createElement("span");
+        wrap.className = "glass-ripple-wrap";
+        wrap.setAttribute("aria-hidden", "true");
+        const ripple = document.createElement("span");
+        ripple.className = "glass-ripple";
+        ripple.style.setProperty("--rx", `${e.clientX - r.left}px`);
+        ripple.style.setProperty("--ry", `${e.clientY - r.top}px`);
+        wrap.appendChild(ripple);
+        if (getComputedStyle(host).position === "static") host.style.position = "relative";
+        host.appendChild(wrap);
+        setTimeout(() => wrap.remove(), 650);
+      }
+      // Everywhere: a soft accent-coloured glow under the finger.
+      const glow = document.createElement("span");
+      glow.className = "tap-glow";
+      glow.setAttribute("aria-hidden", "true");
+      glow.style.left = `${e.clientX}px`;
+      glow.style.top = `${e.clientY}px`;
+      document.body.appendChild(glow);
+      live.set(e.pointerId, glow);
+      const done = () => {
+        glow.remove();
+        if (live.get(e.pointerId) === glow) live.delete(e.pointerId);
+      };
+      glow.addEventListener("animationend", done, { once: true });
+      setTimeout(done, 900);
     },
     { passive: true },
   );
@@ -341,4 +362,94 @@ function initToggleLens() {
   };
   document.addEventListener("pointerup", (e) => end(e, false));
   document.addEventListener("pointercancel", (e) => end(e, true));
+}
+
+// ───────────────────────────── segment lens ─────────────────────────────────
+
+/** Apple's momentum projection: where a flick at `v` px/s comes to rest. */
+const project = (v, d = 0.998) => ((v / 1000) * d) / (1 - d);
+
+/**
+ * Drag a segmented control's thumb. It lifts into a glass lens, tracks the
+ * finger from where it was grabbed, rubber-bands past the ends, and on release
+ * the flick's momentum picks the option it lands on. While dragging, the
+ * control dispatches `g-seg-drag` ({ progress: 0…1 across the options }) so a
+ * screen can let its content follow; `g-seg-drag-end` when it lets go.
+ */
+function initSegmentLens() {
+  let drag = null;
+  const options = (seg) => [...seg.querySelectorAll(":scope > button")];
+
+  document.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    const seg = e.target.closest?.(".segmented.m-has-thumb");
+    const thumb = seg?.querySelector(":scope > .m-thumb");
+    if (!seg || !thumb || !e.target.closest("button")) return;
+    const x0 = parseFloat(thumb.style.translate) || 0;
+    drag = { id: e.pointerId, seg, thumb, cx: e.clientX, x0, x: x0, moved: false, hist: [{ x: e.clientX, t: performance.now() }] };
+  });
+
+  document.addEventListener(
+    "pointermove",
+    (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.cx;
+      if (!drag.moved) {
+        if (Math.abs(dx) < 6 || !motionEnabled()) return;
+        drag.moved = true;
+        drag.seg.classList.add("g-lens", "g-dragging");
+        try {
+          drag.seg.setPointerCapture(e.pointerId);
+        } catch {
+          /* the pointer already left */
+        }
+      }
+      const btns = options(drag.seg);
+      const first = btns[0], last = btns[btns.length - 1];
+      const min = first.offsetLeft + 5;
+      const max = last.offsetLeft + last.offsetWidth - drag.thumb.offsetWidth - 5;
+      let x = drag.x0 + dx;
+      // Past the ends the thumb resists more the further it goes.
+      if (x < min) x = min - rubberband(min - x, drag.seg.offsetWidth);
+      if (x > max) x = max + rubberband(x - max, drag.seg.offsetWidth);
+      drag.x = x;
+      drag.thumb.style.translate = `${x}px 0px`;
+      drag.hist.push({ x: e.clientX, t: performance.now() });
+      if (drag.hist.length > 5) drag.hist.shift();
+      const progress = max > min ? Math.max(0, Math.min(1, (x - min) / (max - min))) : 0;
+      const centre = x + drag.thumb.offsetWidth / 2;
+      for (const b of btns) b.classList.toggle("g-under", Math.abs(b.offsetLeft + b.offsetWidth / 2 - centre) < b.offsetWidth / 2);
+      drag.seg.dispatchEvent(new CustomEvent("g-seg-drag", { detail: { progress } }));
+    },
+    { passive: true },
+  );
+
+  const end = (e, cancelled) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const { seg, thumb, moved, x, x0, hist } = drag;
+    drag = null;
+    seg.classList.remove("g-lens", "g-dragging");
+    const btns = options(seg);
+    btns.forEach((b) => b.classList.remove("g-under"));
+    if (!moved) return; // a tap: the normal click switches
+    swallowNextClick(seg);
+    const a = hist[0], b = hist[hist.length - 1];
+    const v = b.t > a.t ? ((b.x - a.x) / (b.t - a.t)) * 1000 : 0;
+    // Land where the flick was heading, not where the finger let go.
+    const centre = (cancelled ? x0 : x + project(v)) + thumb.offsetWidth / 2;
+    let target = btns[0];
+    for (const btn of btns) {
+      if (Math.abs(btn.offsetLeft + btn.offsetWidth / 2 - centre) < Math.abs(target.offsetLeft + target.offsetWidth / 2 - centre)) target = btn;
+    }
+    seg.dispatchEvent(new CustomEvent("g-seg-drag-end", { detail: { committed: !target.classList.contains("active") } }));
+    if (!target.classList.contains("active")) target.click();
+    else thumb.style.translate = `${x0}px 0px`; // springs back from where it is
+  };
+  document.addEventListener("pointerup", (e) => end(e, false));
+  document.addEventListener("pointercancel", (e) => end(e, true));
+}
+
+/** Soft boundary (Apple's rubber-band): progressive resistance past an edge. */
+function rubberband(overshoot, dimension, c = 0.55) {
+  return (overshoot * dimension * c) / (dimension + c * Math.abs(overshoot));
 }
