@@ -390,8 +390,8 @@ html[data-mode] .g-hero-icon svg {
   width: 26px;
   height: 26px;
 }
-html[data-mode] .g-hero:has(.g-hero-icon) .g-gauge-center {
-  bottom: -14px;
+html[data-mode] .g-hero:has(.g-hero-icon, .g-hero-badge) .g-gauge-center {
+  bottom: -16px;
 }
 /* The course's own badge floats at the top-right of its gauge. */
 html[data-mode] .g-hero-badge {
