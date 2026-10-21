@@ -19,6 +19,7 @@ import { requiredGrade } from "./grade-math.js";
 import { courseLabel, courseTitle } from "./courses.js";
 import { courseName } from "./course-names.js";
 import { strandBreakdown } from "./course-detail.js";
+import { marksHidden } from "./motion.js";
 
 const FINAL_WEIGHT = 30; // Ontario: final evaluations are usually 30% of the grade.
 
@@ -41,7 +42,8 @@ const mark = (c) => {
   const v = c.currentMark ?? c.midterm;
   return v == null || !isFinite(Number(v)) ? null : Number(v);
 };
-const pct = (v) => `${(Math.round(v * 10) / 10).toFixed(1)}%`;
+// Hide grades masks marks in answers too.
+const pct = (v) => (marksHidden() ? "••%" : `${(Math.round(v * 10) / 10).toFixed(1)}%`);
 const graded = (courses) => courses.filter((c) => mark(c) != null);
 const OVERALL = /\baverage|overall|all (my )?courses|every course\b/i;
 

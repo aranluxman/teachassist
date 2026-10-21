@@ -1,6 +1,5 @@
 import { installCard } from "./install.js";
-import { notificationSettings, debugCard } from "./notification-settings.js";
-import { WORKER_URL } from "./config.js";
+import { notificationSettings } from "./notification-settings.js";
 import {
   preferences,
   savePreferences,
@@ -10,7 +9,7 @@ import {
 // Settings
 // ----------------------------------------------------------------------------
 // Shows the signed-in student number (or demo state), the theme picker,
-// a refresh action, the Worker connection settings, and Sign Out.
+// a refresh action, and Sign Out.
 // ============================================================================
 
 import { el, escapeHtml, openSheet } from "./courses.js";
@@ -18,8 +17,6 @@ import {
   studentNumber,
   signOut,
   getCourses,
-  workerUrl,
-  setWorkerUrl,
   isDemo,
 } from "./ta-client.js";
 import { mountThumb, savedFeedback, stagger } from "./motion.js";
@@ -115,18 +112,8 @@ export async function renderSettings(container) {
     );
 
   // You — the name the app greets you with, plus profile & quick actions.
-  const personal = el(
-    `<form class="card settings-group"><h2>You</h2><div class="field"><label for="profile-name">What should we call you?</label><input id="profile-name" maxlength="50" value="${escapeHtml(prefs.name)}" placeholder="Your first name"></div><div class="tool-buttons"><button class="btn secondary">Save name</button><button type="button" class="btn secondary" data-profile>My profile & quick actions</button></div><p role="status" class="small muted"></p></form>`,
-  );
-  personal.addEventListener("submit", (e) => {
-    e.preventDefault();
-    savePreferences({ name: personal.querySelector("input").value.trim() });
-    personal.querySelector("[role=status]").textContent =
-      "Saved on this device.";
-    savedFeedback(personal.querySelector("button"), "Saved ✓");
-  });
-  personal.querySelector("[data-profile]").onclick = () => window.AppNav.toProfile();
-  container.append(personal);
+  // Once a name is saved it folds into one slim row; tap it to change.
+  container.append(personalCard(prefs.name));
 
   // Appearance — theme page and layout.
   const appearance = group("Appearance", "", [
@@ -213,32 +200,6 @@ export async function renderSettings(container) {
   container.append(account);
   container.append(legalCard());
 
-  container.appendChild(el(`<h2 class="section-title">Advanced</h2>`));
-  // Optional custom server; regular student sign-in needs no setup or API key.
-  const conn = el(`
-    <details class="card"><summary>Custom sign-in server</summary>
-      <h2>Custom server</h2>
-      <p class="muted small">Use the default unless you operate your own TeachAssist-compatible sign-in service. Your login will be sent to the server you choose.</p>
-      <form>
-        <div class="field"><label for="w-url">Server URL</label><input id="w-url" type="url" required autocapitalize="off" spellcheck="false" value="${escapeHtml(workerUrl())}"></div>
-        <p class="small muted" data-current>Currently using ${escapeHtml(workerUrl())}</p>
-        <p role="status"></p>
-        <div class="tool-buttons"><button class="btn secondary">Save server</button><button class="btn secondary" type="button" data-reset>Reset default</button></div>
-      </form>
-    </details>
-  `);
-  const saveConnection = value => {
-    try {
-      setWorkerUrl(value);
-      conn.querySelector('input').value = workerUrl();
-      conn.querySelector('[data-current]').textContent = `Currently using ${workerUrl()}`;
-      conn.querySelector('[role=status]').textContent = 'Saved on this device. Refresh your courses to connect.';
-    } catch (err) { conn.querySelector('[role=status]').textContent = err.message || 'Enter a valid server URL.'; }
-  };
-  conn.querySelector('form').onsubmit = e => { e.preventDefault(); saveConnection(conn.querySelector('input').value); };
-  conn.querySelector('[data-reset]').onclick = () => saveConnection(WORKER_URL);
-  container.append(conn, debugCard());
-
   container.appendChild(
     el(
       `<div class="muted small" style="text-align:center;margin-top:18px">TeachAssist Dashboard · v${APP_VERSION}</div>`,
@@ -248,6 +209,38 @@ export async function renderSettings(container) {
 
   decorateGroups(container);
   stagger(container.children);
+}
+
+/** The "You" card: a name form, or a compact row once a name is saved. */
+function personalCard(name) {
+  if (name) {
+    const row = el(
+      `<section class="card settings-group you-compact"><button type="button" class="preference-row you-row">${iconTile("person")}<span><b>Hi, ${escapeHtml(name)}</b><small>Tap to change your name</small></span><span class="g-chev">${GLYPHS.chevron}</span></button><button type="button" class="btn secondary you-profile" data-profile>My profile & quick actions</button></section>`,
+    );
+    row.querySelector(".you-row").onclick = () => row.replaceWith(personalForm(name, true));
+    row.querySelector("[data-profile]").onclick = () => window.AppNav.toProfile();
+    return row;
+  }
+  return personalForm(name, false);
+}
+
+function personalForm(name, focus) {
+  const form = el(
+    `<form class="card settings-group"><h2>You</h2><div class="field"><label for="profile-name">What should we call you?</label><input id="profile-name" maxlength="50" value="${escapeHtml(name)}" placeholder="Your first name"></div><div class="tool-buttons"><button class="btn secondary">Save name</button><button type="button" class="btn secondary" data-profile>My profile & quick actions</button></div><p role="status" class="small muted"></p></form>`,
+  );
+  form.querySelector("h2").insertAdjacentHTML("afterbegin", `<span class="ui-h-icon" aria-hidden="true">${GLYPHS.person}</span>`);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const next = form.querySelector("input").value.trim();
+    savePreferences({ name: next });
+    savedFeedback(form.querySelector("button"), "Saved ✓");
+    // Fold away once there is a name to keep.
+    setTimeout(() => form.isConnected && next && form.replaceWith(personalCard(next)), 700);
+    if (!next) form.querySelector("[role=status]").textContent = "Saved on this device.";
+  });
+  form.querySelector("[data-profile]").onclick = () => window.AppNav.toProfile();
+  if (focus) requestAnimationFrame(() => form.querySelector("input").focus());
+  return form;
 }
 
 // ── Legal: policies and credits, so students (and parents) know who runs this.

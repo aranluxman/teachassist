@@ -127,8 +127,20 @@ for (const [i, s] of schools.entries()) {
   process.stdout.write(`geocoded ${i + 1}/${schools.length}\r`);
 }
 console.log(`\n${schools.length} schools, ${missing} without coordinates`);
+// Fraser Institute ratings (score out of 10) for secondary schools; kept by
+// hand in fraser-ratings.json since the report is a PDF.
+const fraser = JSON.parse(await readFile(new URL("./fraser-ratings.json", import.meta.url), "utf8"));
+for (const s of schools) {
+  if (s.kind !== "secondary") continue;
+  const r = fraser.ratings[s.id];
+  s.rating = r ? r.rating : null;
+  if (r) s.ratingRank = r.rank;
+}
+// YRDSB's IB page lists Emily Carr S.S. as an IB candidate school; its profile
+// doesn't mention IB yet.
+for (const s of schools) if (s.id === "314") s.ibCandidate = true;
 schools.sort((a, b) => a.name.localeCompare(b.name));
 await writeFile(
   OUT,
-  JSON.stringify({ source: BASE, generated: new Date().toISOString().slice(0, 10), schools }, null, 0).replace(/\},\{/g, "},\n{") + "\n",
+  JSON.stringify({ source: BASE, generated: new Date().toISOString().slice(0, 10), ratings: { source: fraser.source, url: fraser.url, year: fraser.year, of: fraser.of }, schools }, null, 0).replace(/\},\{/g, "},\n{") + "\n",
 );

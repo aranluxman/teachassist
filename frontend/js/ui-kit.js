@@ -11,7 +11,7 @@
 // ============================================================================
 
 import { escapeHtml } from "./courses.js";
-import { motionEnabled } from "./motion.js";
+import { marksHidden, motionEnabled } from "./motion.js";
 
 export const GLYPHS = {
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>',
@@ -77,16 +77,20 @@ export function pageHeader({ title, subtitle = "", left = "", right = "", tag = 
 /** "97.5%" as monospaced digits with a smaller percent sign. */
 export function pct(v, cls = "") {
   if (v == null || isNaN(v)) return `<span class="g-pct g-none ${cls}">No Mark</span>`;
+  // Hide grades: the number never reaches the page (a blur can be read).
+  if (marksHidden()) return `<span class="g-pct g-masked ${cls}" aria-label="Hidden">••<small>%</small></span>`;
   return `<span class="g-pct ${cls}">${(Math.round(v * 10) / 10).toFixed(1)}<small>%</small></span>`;
 }
 
-/** A progress bar split into `segments` pills, filled to `percent`. */
+/** A progress bar split into `segments` pills, filled to `percent`.
+ *  Empty when grades are hidden, since the fill length is the mark. */
 export function segBar(percent, color = "var(--accent)", segments = 6) {
-  const filled = (Math.max(0, Math.min(100, Number(percent) || 0)) / 100) * segments;
+  const hidden = marksHidden();
+  const filled = hidden ? 0 : (Math.max(0, Math.min(100, Number(percent) || 0)) / 100) * segments;
   const pills = Array.from({ length: segments }, (_, i) =>
     `<i style="--f:${Math.max(0, Math.min(1, filled - i)).toFixed(3)}"></i>`,
   ).join("");
-  return `<div class="g-seg" style="--seg-c:${color}" aria-hidden="true">${pills}</div>`;
+  return `<div class="g-seg${hidden ? " g-seg-masked" : ""}" style="--seg-c:${color}" aria-hidden="true">${pills}</div>`;
 }
 
 /**
@@ -96,11 +100,12 @@ export function segBar(percent, color = "var(--accent)", segments = 6) {
  */
 export function arcGauge(percent, { id = "g" } = {}) {
   const cx = 100, cy = 100, r = 80, sw = 15;
-  const value = percent == null ? null : Math.max(0, Math.min(100, percent));
+  // Hidden grades draw an empty track: the arc length would give the mark away.
+  const value = percent == null || marksHidden() ? null : Math.max(0, Math.min(100, percent));
   const len = Math.PI * r;
   const fill = ((value ?? 0) / 100) * len;
   const arc = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
-  return `<svg class="g-gauge" viewBox="0 0 200 112" role="img" data-value="${value ?? ""}" aria-label="${value == null ? "No mark" : `${value.toFixed(1)} percent`}">
+  return `<svg class="g-gauge" viewBox="0 0 200 112" role="img" data-value="${value ?? ""}" aria-label="${value == null ? (marksHidden() && percent != null ? "Mark hidden" : "No mark") : `${value.toFixed(1)} percent`}">
     <defs><linearGradient id="${id}-grad" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="var(--gauge-from)"/><stop offset="1" stop-color="var(--gauge-to)"/>
     </linearGradient></defs>

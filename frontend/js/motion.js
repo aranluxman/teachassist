@@ -129,7 +129,10 @@ export function countUp(node, to, options = {}) {
   };
 
   if (to == null || !isFinite(to)) return;
-  if (!motionEnabled() || (isMark && marksHidden())) {
+  // A hidden mark is never written, not even its final value: the node keeps
+  // the masked text it was rendered with.
+  if (isMark && marksHidden()) return;
+  if (!motionEnabled()) {
     render(to);
     return;
   }
@@ -371,6 +374,55 @@ export function sparkleBurst(host, count = 9) {
   }
   host.appendChild(burst);
   setTimeout(() => burst.remove(), 1100);
+}
+
+/**
+ * The first time a student opens a tab: a few fireworks pop over the header
+ * and ✦ stars drift up the screen. Plays once per tab per device, never with
+ * motion off. Purely decorative — a fixed overlay that ignores the pointer.
+ */
+export function playIntro(key) {
+  if (typeof document === "undefined" || !motionEnabled()) return;
+  const flag = `ta-intro:${key}`;
+  try {
+    if (localStorage.getItem(flag)) return;
+    localStorage.setItem(flag, "1");
+  } catch {
+    return; // no storage: don't replay it on every visit
+  }
+  const layer = document.createElement("div");
+  layer.className = "m-intro";
+  layer.setAttribute("aria-hidden", "true");
+  const w = window.innerWidth;
+  // Fireworks: three bursts, staggered, across the top third.
+  [[0.25, 0.16, 0], [0.72, 0.12, 180], [0.5, 0.26, 360]].forEach(([fx, fy, delay], b) => {
+    const burst = document.createElement("span");
+    burst.className = "m-firework";
+    burst.style.left = `${fx * w}px`;
+    burst.style.top = `${fy * window.innerHeight}px`;
+    burst.style.setProperty("--m-d", `${delay}ms`);
+    const n = 14;
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement("i");
+      p.style.setProperty("--m-a", `${(360 / n) * i + b * 9}deg`);
+      p.style.setProperty("--m-r", `${70 + (i % 3) * 18}px`);
+      p.style.setProperty("--m-h", String(i % 3));
+      burst.appendChild(p);
+    }
+    layer.appendChild(burst);
+  });
+  // Stars: rise and twinkle from the bottom of the screen.
+  for (let i = 0; i < 12; i++) {
+    const star = document.createElement("span");
+    star.className = "m-star";
+    star.textContent = i % 3 ? "✦" : "✧";
+    star.style.left = `${6 + ((i * 37) % 88)}%`;
+    star.style.setProperty("--m-d", `${120 + i * 90}ms`);
+    star.style.setProperty("--m-s", String(0.7 + (i % 4) * 0.25));
+    layer.appendChild(star);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 2800);
 }
 
 // Pause looping animations while they are scrolled out of view.

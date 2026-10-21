@@ -28,6 +28,7 @@
     <link rel="stylesheet" href="css/v7.css" />
     <link rel="stylesheet" href="css/ui.css" />
     <link rel="stylesheet" href="css/glass.css" />
+    <link rel="stylesheet" href="css/polish.css" />
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4274511406033312"
       crossorigin="anonymous"></script>
   </head>
@@ -92,6 +93,7 @@
         enterScreen,
         screenDirection,
         mountTabIndicator,
+        playIntro,
       } from "./js/motion.js";
       import { initGlass } from "./js/glass.js";
 
@@ -141,6 +143,8 @@
         }
         showScreen(screen);
         const target = screens[screen];
+        // First visit to a tab: fireworks and stars, once.
+        if (["courses", "guidance", "dreams", "settings"].includes(screen) && !arg) setTimeout(() => playIntro(screen), 250);
         if (screen === "guidance") {
           if (arg === "map") return renderSchoolMap(target);
           if (arg === "volunteer") return renderVolunteer(target);

@@ -14,12 +14,16 @@ const LEAFLET = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4";
 const LOCATOR = "https://schoollocator.yrdsb.ca/";
 
 let cache = null;
+let ratingsInfo = null;
 /** All YRDSB schools (cached after the first load). */
 export async function loadSchools() {
   if (!cache) {
     cache = fetch(new URL("../data/schools.json", import.meta.url))
       .then((r) => (r.ok ? r.json() : { schools: [] }))
-      .then((d) => d.schools || [])
+      .then((d) => {
+        ratingsInfo = d.ratings || null;
+        return d.schools || [];
+      })
       .catch(() => { cache = null; return []; });
   }
   return cache;
@@ -44,7 +48,27 @@ const directions = (s) =>
   `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${s.name}, ${s.address}, ${s.city}, ON ${s.postal}`)}`;
 
 export function schoolTypeLabel(s) {
-  return [s.kind === "secondary" ? "Secondary" : "Elementary", s.ib ? "IB" : "", s.fi ? "French Immersion" : ""].filter(Boolean).join(" · ");
+  return [s.kind === "secondary" ? "Secondary" : "Elementary", s.ib ? "IB" : s.ibCandidate ? "IB candidate" : "", s.fi ? "French Immersion" : ""].filter(Boolean).join(" · ");
+}
+
+// ── Fraser Institute rating (secondary schools, out of 10) ──
+const ratingTone = (r) => (r == null ? "none" : r >= 7.6 ? "high" : r >= 6 ? "good" : r >= 4.1 ? "mid" : "low");
+/** "8.3" as a small coloured glass pill; "–" when the school isn't rated. */
+export function ratingPill(s, extra = "") {
+  const r = s.rating;
+  return `<span class="rating-pill ${extra}" data-tone="${ratingTone(r)}" aria-label="${r == null ? "Not rated" : `Rated ${r.toFixed(1)} out of 10`}">${r == null ? "–" : r.toFixed(1)}</span>`;
+}
+/** Five stars filled to rating / 2. */
+function stars(r) {
+  const n = r / 2;
+  return `<span class="rating-stars" aria-hidden="true">${[0, 1, 2, 3, 4].map((i) => `<i style="--f:${Math.max(0, Math.min(1, n - i)).toFixed(2)}">★</i>`).join("")}</span>`;
+}
+function ratingBlock(s) {
+  if (s.kind !== "secondary") return "";
+  if (s.rating == null)
+    return `<div class="school-rating is-none">${ratingPill(s, "rating-pill-lg")}<div><b>Not rated yet</b><small>Too new for the Fraser Institute report card.</small></div></div>`;
+  const of = ratingsInfo?.of;
+  return `<div class="school-rating">${ratingPill(s, "rating-pill-lg")}<div><b>${s.rating.toFixed(1)} <span>/ 10</span></b>${stars(s.rating)}<small>Fraser Institute${ratingsInfo?.year ? ` ${escapeHtml(ratingsInfo.year)}` : ""}${s.ratingRank ? ` · #${s.ratingRank}${of ? ` of ${of}` : ""} in Ontario` : ""}</small></div></div>`;
 }
 
 // Small inline icons shared by the school card and Guidance.
@@ -74,6 +98,7 @@ export function schoolCard(s, { compact = false } = {}) {
           <p class="muted small">${escapeHtml([s.address, s.city].filter(Boolean).join(", "))}</p>
         </div>
       </div>
+      ${ratingBlock(s)}
       <dl class="school-facts">
         ${s.bellTimes ? `<div><dt>${icon("clock", 15)} Bell times</dt><dd>${escapeHtml(s.bellTimes)}</dd></div>` : ""}
         ${s.principal ? `<div><dt>${icon("person", 15)} Principal</dt><dd>${escapeHtml(s.principal)}</dd></div>` : ""}
@@ -129,8 +154,9 @@ const FILTERS = [
   ["elementary", "Elementary"],
   ["ib", "IB"],
   ["fi", "French Immersion"],
+  ["top", "Top rated"],
 ];
-const matches = (s, f) => f === "all" || (f === "ib" ? s.ib : f === "fi" ? s.fi : s.kind === f);
+const matches = (s, f) => f === "all" || (f === "ib" ? s.ib || s.ibCandidate : f === "fi" ? s.fi : f === "top" ? s.kind === "secondary" : s.kind === f);
 
 let map = null;
 
@@ -158,7 +184,7 @@ export async function renderSchoolMap(container) {
   container.append(mapBox);
   const list = el(`<div class="school-list rows" aria-label="Schools"></div>`);
   container.append(list);
-  container.append(el(`<p class="small muted map-credit">School details from <a href="https://www2.yrdsb.ca/school-profiles" target="_blank" rel="noopener">YRDSB School Profiles</a>. Map pins are approximate.</p>`));
+  container.append(el(`<p class="small muted map-credit">School details from <a href="https://www2.yrdsb.ca/school-profiles" target="_blank" rel="noopener">YRDSB School Profiles</a>. High-school ratings (out of 10) from the <a href="https://www.compareschoolrankings.org/" target="_blank" rel="noopener">Fraser Institute</a> report card, 2023/24 — one measure based mostly on EQAO and OSSLT results. Map pins are approximate.</p>`));
 
   const [schools, mine] = await Promise.all([loadSchools(), mySchool()]);
   let filter = "secondary";
@@ -181,7 +207,11 @@ export async function renderSchoolMap(container) {
       const isMine = mine && s.id === mine.id;
       const m = L.marker([s.lat, s.lng], {
         title: s.name,
-        icon: L.divIcon({ className: "", html: `<span class="pin pin-${s.kind}${isMine ? " pin-mine" : ""}"></span>`, iconSize: [18, 18], iconAnchor: [9, 9] }),
+        // High schools show their rating in the pin; elementary stay dots.
+        icon:
+          s.kind === "secondary"
+            ? L.divIcon({ className: "", html: `<span class="pin-rated${isMine ? " pin-mine" : ""}">${ratingPill(s)}</span>`, iconSize: [36, 24], iconAnchor: [18, 12] })
+            : L.divIcon({ className: "", html: `<span class="pin pin-${s.kind}${isMine ? " pin-mine" : ""}"></span>`, iconSize: [18, 18], iconAnchor: [9, 9] }),
       });
       m.on("click", () => showSchool(s));
       markers.set(s, m);
@@ -203,12 +233,14 @@ export async function renderSchoolMap(container) {
   function apply() {
     const q = input.value.trim().toLowerCase();
     const shown = schools.filter((s) => matches(s, filter) && (!q || `${s.name} ${s.city} ${s.address}`.toLowerCase().includes(q)));
+    if (filter === "top") shown.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || a.name.localeCompare(b.name));
     for (const [s, m] of markers) {
       if (shown.includes(s)) m.addTo(map); else m.remove();
     }
     list.innerHTML = "";
     shown.slice(0, 60).forEach((s) => {
-      const row = el(`<button class="row"><span class="row-icon pin-dot pin-${s.kind}"></span><div class="row-main"><div class="row-title">${escapeHtml(s.name)}${mine && s.id === mine.id ? ' <span class="badge">My school</span>' : ""}</div><div class="row-sub">${escapeHtml(s.city)} · ${escapeHtml(schoolTypeLabel(s))}</div></div><span class="chevron"></span></button>`);
+      const lead = s.kind === "secondary" ? ratingPill(s, "row-rating") : `<span class="row-icon pin-dot pin-${s.kind}"></span>`;
+      const row = el(`<button class="row">${lead}<div class="row-main"><div class="row-title">${escapeHtml(s.name)}${mine && s.id === mine.id ? ' <span class="badge">My school</span>' : ""}</div><div class="row-sub">${escapeHtml(s.city)} · ${escapeHtml(schoolTypeLabel(s))}</div></div><span class="chevron"></span></button>`);
       row.onclick = () => showSchool(s);
       list.append(row);
     });
