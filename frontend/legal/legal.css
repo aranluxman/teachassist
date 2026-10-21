@@ -1,16 +1,48 @@
-/* Shared style for the public Privacy Policy and Terms pages. */
-:root { --bg: #f6f4f1; --fg: #17130f; --muted: #5f5850; --card: #ffffff; --line: #e6e1da; --accent: #b4561b; color-scheme: light; }
-@media (prefers-color-scheme: dark) { :root { --bg: #0b0908; --fg: #f3eee8; --muted: #a59b90; --card: #171310; --line: #2b241e; --accent: #ff9a4d; color-scheme: dark; } }
+/* Shared style for the public Privacy Policy and Terms pages: the app's
+   mint accent and a summary card with check-mark points. Text never sits on
+   glass, so the card is solid. */
+:root {
+  --bg: #eef6f2; --fg: #12171a; --muted: #55605b; --card: #ffffff; --rim: rgba(255, 255, 255, 0.95);
+  --line: #dbe7e1; --accent: #0b7a5c; --glow: #cfeee2; --shadow: 0 1px 2px rgba(10, 40, 30, 0.04), 0 10px 28px rgba(10, 50, 35, 0.07);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #060807; --fg: #f2f5f3; --muted: #a3ada8; --card: #111614; --rim: rgba(255, 255, 255, 0.09);
+    --line: #1f2724; --accent: #3dd6a3; --glow: #0b3a2c; --shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+}
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.65 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 48px max(18px, env(safe-area-inset-left)); }
+body {
+  margin: 0; color: var(--fg);
+  background: radial-gradient(90% 40% at 15% 0%, var(--glow), transparent 70%), var(--bg);
+  background-attachment: fixed;
+  font: 16px/1.65 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 48px max(18px, env(safe-area-inset-left));
+}
 main { max-width: 680px; margin: 0 auto; }
 .back { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 650; text-decoration: none; min-height: 44px; }
-h1 { font-size: 34px; line-height: 1.15; margin: 8px 0 4px; letter-spacing: -0.02em; text-wrap: balance; }
+h1 { font-size: 34px; line-height: 1.15; margin: 8px 0 4px; letter-spacing: -0.025em; font-weight: 800; text-wrap: balance; }
 .updated { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
-.summary { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; margin-bottom: 28px; }
-.summary ul { margin: 6px 0 0; padding-left: 20px; }
-h2 { font-size: 20px; margin: 30px 0 6px; }
+.summary {
+  background: var(--card); border: 1px solid var(--rim); border-radius: 24px; padding: 18px 20px; margin-bottom: 28px;
+  box-shadow: inset 0 1px 0 var(--rim), var(--shadow);
+}
+.summary > :first-child { margin-top: 0; }
+.summary ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.summary li { position: relative; margin: 0; padding-left: 34px; }
+/* A filled check circle in the accent colour. */
+.summary li::before {
+  content: ""; position: absolute; left: 0; top: 2px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent);
+}
+.summary li::after {
+  content: ""; position: absolute; left: 6px; top: 7px; width: 10px; height: 6px;
+  border: solid var(--bg); border-width: 0 0 2.5px 2.5px; transform: rotate(-45deg);
+}
+h2 { font-size: 20px; margin: 30px 0 6px; letter-spacing: -0.01em; }
 p, li { color: var(--fg); }
 li { margin: 4px 0; }
 a { color: var(--accent); }

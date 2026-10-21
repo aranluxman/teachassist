@@ -5,8 +5,7 @@
 // this module removed every screen still works, it just stops reacting.
 //
 //   • Header     the visible screen's header turns to glass once the page
-//                scrolls past 8px (.g-stuck); html.g-scrolling is set while
-//                the page is moving.
+//                scrolls past 8px (.g-stuck).
 //   • Light      on pointer devices the glass catches light under the cursor
 //                (--mx/--my). Touch devices get a slow CSS drift instead; no
 //                device-orientation (it needs a permission prompt on iOS).
@@ -71,7 +70,6 @@ function visibleHeader() {
 function initHeader() {
   let queued = false;
   let current = null;
-  let settle = 0;
   const sync = () => {
     queued = false;
     const header = visibleHeader();
@@ -86,15 +84,7 @@ function initHeader() {
     queued = true;
     requestAnimationFrame(sync);
   };
-  // While scrolling, the ambient drift pauses (css/glass.css) so the glass
-  // only re-blurs what actually moved.
-  const scrolling = () => {
-    document.documentElement.classList.add("g-scrolling");
-    clearTimeout(settle);
-    settle = setTimeout(() => document.documentElement.classList.remove("g-scrolling"), 200);
-    queue();
-  };
-  window.addEventListener("scroll", scrolling, { passive: true });
+  window.addEventListener("scroll", queue, { passive: true });
   window.addEventListener("hashchange", queue);
   // Screens re-render their header; pick the new one up.
   const shell = document.querySelector(".shell");

@@ -1,0 +1,847 @@
+/* ==========================================================================
+   UI — iOS 26-style components (loaded after v7.css, before glass.css).
+   --------------------------------------------------------------------------
+   The look of the content layer: frosted-white cards with bright rims,
+   mark pills tinted by each course's colour, rounded-square icon tiles,
+   glossy accent buttons, soft fields, check-mark steps. Everything is built
+   from the theme tokens (--accent, --card-solid, --text…), so all ten
+   colours × light/dark get the same look. Navigation glass stays in
+   glass.css; this file never blurs anything.
+   ========================================================================== */
+
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+html[data-mode] {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+  /* Marks use the same face with even-width digits, like the mockups. */
+  --font-num: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+
+  /* Icon-tile tones. The accent follows the theme; the others are fixed
+     hues for sections that need their own colour. */
+  --tone-accent: var(--accent);
+  --tone-blue: #2f7fe0;
+  --tone-purple: #7356e8;
+  --tone-pink: #e2456b;
+  --tone-orange: #ea7a12;
+
+  /* A card: white with a bright rim and a soft, wide shadow. */
+  --ui-card: var(--card-solid);
+  --ui-rim: rgba(255, 255, 255, 0.95);
+  --ui-hair: rgba(15, 40, 30, 0.06);
+  --ui-shadow: 0 8px 22px rgba(10, 50, 35, 0.07);
+  --ui-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 40%);
+  --ui-field: color-mix(in srgb, var(--text) 4%, var(--card-solid));
+  --ui-radius: 28px;
+}
+html[data-mode="light"] {
+  /* The page itself picks up the theme's tint (mint for Default). */
+  --bg: color-mix(in srgb, var(--glow) 38%, #f6f8f7);
+}
+html[data-mode="dark"] {
+  --ui-rim: rgba(255, 255, 255, 0.08);
+  --ui-hair: rgba(255, 255, 255, 0.06);
+  --ui-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  --ui-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 40%);
+  --ui-field: color-mix(in srgb, var(--text) 6%, var(--card-solid));
+  --tone-blue: #6cb2ff;
+  --tone-purple: #a996ff;
+  --tone-pink: #ff7d9b;
+  --tone-orange: #ffa552;
+}
+@media (prefers-contrast: more) {
+  html[data-mode] {
+    --ui-rim: var(--card-border);
+    --ui-hair: color-mix(in srgb, var(--text) 45%, transparent);
+    --ui-sheen: linear-gradient(transparent, transparent);
+  }
+}
+
+html[data-mode] body {
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+/* One flat fill, a bright 1px top highlight and one soft shadow: cheap to
+   paint even with a dozen cards on screen. */
+html[data-mode] .card,
+html[data-mode] .g-row,
+html[data-mode] .disclosure,
+html[data-mode] .tile,
+html[data-mode] .theme-tile {
+  background: var(--ui-card);
+  border: 1px solid var(--ui-hair);
+  box-shadow: inset 0 1px 0 var(--ui-rim), var(--ui-shadow);
+}
+html[data-mode] .card {
+  border-radius: var(--ui-radius);
+}
+/* Cards inside cards stay flat. */
+html[data-mode] .card .card {
+  box-shadow: inset 0 1px 0 var(--ui-rim);
+}
+
+/* Headings with an icon (Settings groups). */
+html[data-mode] .card > h2:has(.ui-h-icon) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ui-h-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+  flex: none;
+}
+.ui-h-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ── Icon tiles ─────────────────────────────────────────────────────────── */
+.ui-tile {
+  --tone: var(--tone-accent);
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  color: var(--tone);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%),
+    color-mix(in srgb, var(--tone) 15%, var(--card-solid));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--tone) 18%, transparent);
+}
+html[data-mode="dark"] .ui-tile {
+  background: color-mix(in srgb, var(--tone) 20%, var(--card-solid));
+}
+.ui-tile svg {
+  width: 22px;
+  height: 22px;
+}
+.ui-tile[data-tone="blue"],
+.feature-dot[data-tone="blue"] { --tone: var(--tone-blue); }
+.ui-tile[data-tone="purple"],
+.feature-dot[data-tone="purple"] { --tone: var(--tone-purple); }
+.ui-tile[data-tone="pink"],
+.feature-dot[data-tone="pink"] { --tone: var(--tone-pink); }
+.ui-tile[data-tone="orange"],
+.feature-dot[data-tone="orange"] { --tone: var(--tone-orange); }
+
+/* A field with its icon tile beside it. */
+html[data-mode] .ui-iconfield {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+html[data-mode] .ui-iconfield > .field {
+  margin: 0;
+}
+html[data-mode] .ui-iconfield + .ui-iconfield {
+  margin-top: 14px;
+}
+
+/* ── Fields ─────────────────────────────────────────────────────────────── */
+html[data-mode] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html[data-mode] select,
+html[data-mode] textarea {
+  min-height: 50px;
+  border-radius: 16px;
+  border: 1px solid var(--ui-hair);
+  background: var(--ui-field);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  font-family: var(--font);
+}
+html[data-mode] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+html[data-mode] textarea:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+  outline: none;
+}
+html[data-mode] .field label {
+  font-weight: 650;
+  color: var(--text);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+/* Primary: a glossy accent capsule. */
+html[data-mode] .btn:not(.secondary):not(.ghost):not(.danger) {
+  min-height: 56px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, white);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 52%),
+    linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 86%, black));
+  color: var(--accent-contrast);
+  font: 700 17px/1.1 var(--font);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.12),
+    0 8px 22px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+html[data-mode="dark"] .btn:not(.secondary):not(.ghost):not(.danger) {
+  border-color: color-mix(in srgb, var(--accent) 70%, black);
+}
+/* Secondary: frosted white. */
+html[data-mode] .btn.secondary {
+  min-height: 52px;
+  border-radius: 999px;
+  border: 1px solid var(--ui-rim);
+  background: var(--ui-sheen), color-mix(in srgb, var(--accent) 6%, var(--card-solid));
+  color: var(--text);
+  font: 650 16px/1.15 var(--font);
+  box-shadow: inset 0 0 0 0.5px var(--ui-hair), 0 4px 14px rgba(10, 50, 35, 0.06);
+}
+/* Tinted: small pill actions ("Change", "Choose", "Add", "Edit"). */
+html[data-mode] .btn.ghost {
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--accent);
+  font: 650 15px/1 var(--font);
+}
+/* Destructive: a soft pink capsule. */
+html[data-mode] .btn.danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--danger) 18%, transparent);
+  background: color-mix(in srgb, var(--danger) 13%, var(--card-solid));
+  color: var(--danger);
+  font: 650 16px/1 var(--font);
+}
+html[data-mode] .btn.danger svg {
+  width: 20px;
+  height: 20px;
+}
+/* Sign In: a chevron in a round inset on the right. */
+html[data-mode] .btn-go {
+  position: relative;
+}
+html[data-mode] .btn-go::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin-top: -20px;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, currentColor 18%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+html[data-mode] .btn-go::before {
+  content: "";
+  position: absolute;
+  right: 19px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 5 7 7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 5 7 7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+html[data-mode] .btn-go:disabled::before,
+html[data-mode] .btn-go:disabled::after {
+  display: none;
+}
+/* Explore the demo: a play icon in a tinted circle. */
+html[data-mode] .btn-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+html[data-mode] .btn-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, var(--card-solid));
+}
+html[data-mode] .btn-ico svg {
+  width: 16px;
+  height: 16px;
+  margin-left: 2px;
+}
+
+/* ── Chips and the Personal / School switch ─────────────────────────────── */
+html[data-mode] .chip {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--ui-rim);
+  background: var(--ui-sheen), var(--card-solid);
+  box-shadow: inset 0 0 0 0.5px var(--ui-hair), 0 3px 10px rgba(10, 50, 35, 0.05);
+  font: 650 15px/1 var(--font);
+}
+html[data-mode] .chip[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 70%, white);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0) 55%),
+    var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+html[data-mode] .seg {
+  padding: 4px;
+  gap: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--ui-rim);
+  background: color-mix(in srgb, var(--text) 4%, var(--card-solid));
+}
+html[data-mode] .seg span {
+  padding: 10px 22px;
+  border-radius: 999px;
+  font: 650 15px/1 var(--font);
+}
+html[data-mode] .seg input:checked + span {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0) 55%),
+    var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* ── Header status: "● Demo · bundled snapshot" ─────────────────────────── */
+html[data-mode] .g-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  flex: none;
+}
+html[data-mode] .g-header .g-btn {
+  width: 54px;
+  height: 54px;
+  flex-basis: 54px;
+}
+
+/* ── Overall average: a glass disc behind the gauge ─────────────────────── */
+html[data-mode] .g-hero {
+  padding-top: 30px;
+  padding-bottom: 34px;
+}
+html[data-mode] .g-hero .g-gauge-wrap {
+  isolation: isolate;
+}
+/* The disc is centred on the arc's centre (the bottom of the semicircle). */
+html[data-mode] .g-hero .g-gauge-wrap::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -9%;
+  top: -16%;
+  width: 118%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.28) 58%, rgba(255, 255, 255, 0.12) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 2px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -14px 40px color-mix(in srgb, var(--accent) 7%, transparent),
+    0 24px 60px rgba(10, 60, 40, 0.07);
+}
+html[data-mode="dark"] .g-hero .g-gauge-wrap::before {
+  background: radial-gradient(circle at 50% 28%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03) 60%, rgba(255, 255, 255, 0.01));
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.12),
+    inset 0 -14px 40px color-mix(in srgb, var(--accent) 8%, transparent),
+    0 24px 60px rgba(0, 0, 0, 0.35);
+}
+html[data-mode][data-glass="false"] .g-hero .g-gauge-wrap::before {
+  background: color-mix(in srgb, var(--card-solid) 70%, transparent);
+}
+@media (prefers-contrast: more) {
+  html[data-mode] .g-hero .g-gauge-wrap::before {
+    display: none;
+  }
+}
+/* The graduation cap sits inside the arc, above the number. */
+html[data-mode] .g-hero-icon {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  width: 50px;
+  height: 50px;
+  margin-left: -25px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--text);
+  background: var(--ui-sheen), var(--card-solid);
+  border: 1px solid var(--ui-rim);
+  box-shadow: 0 4px 14px rgba(10, 50, 35, 0.08);
+}
+html[data-mode] .g-hero-icon svg {
+  width: 26px;
+  height: 26px;
+}
+html[data-mode] .g-hero:has(.g-hero-icon, .g-hero-badge) .g-gauge-center {
+  bottom: -16px;
+}
+/* The course's own badge floats at the top-right of its gauge. */
+html[data-mode] .g-hero-badge {
+  position: absolute;
+  right: -6%;
+  top: -12%;
+  z-index: 1;
+}
+html[data-mode] .g-hero-badge .g-badge {
+  width: 56px;
+  height: 56px;
+}
+html[data-mode] .g-hero-num .g-pct {
+  font-size: clamp(50px, 15vw, 62px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+html[data-mode] .g-hero .g-caption {
+  margin-top: 22px;
+  font-size: 19px;
+  font-weight: 600;
+}
+/* "Level 4 · A+" */
+html[data-mode] .g-level {
+  margin: 12px 0 0;
+  padding: 8px 22px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, white);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%),
+    color-mix(in srgb, var(--accent) 15%, var(--card-solid));
+  color: color-mix(in srgb, var(--accent) 80%, var(--text));
+  font: 700 18px/1.2 var(--font);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+html[data-mode="dark"] .g-level {
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--card-solid));
+  color: var(--accent);
+}
+
+/* ── Marks: the face from the mockups, even-width digits ────────────────── */
+html[data-mode] .g-pct,
+html[data-mode] .g-mono {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Course and evaluation rows ─────────────────────────────────────────── */
+html[data-mode] .g-row {
+  border-radius: 34px;
+  min-height: 88px;
+}
+html[data-mode] .g-row .g-badge {
+  width: 56px;
+  height: 56px;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.35),
+    0 6px 16px color-mix(in srgb, var(--b-to) 40%, transparent);
+}
+/* The mark sits in a pill tinted by the course's (or strand's) colour. */
+html[data-mode] .g-row[style*="--tint"] .g-row-value {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tint) 15%, var(--card-solid));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--tint) 18%, transparent);
+}
+html[data-mode="dark"] .g-row[style*="--tint"] .g-row-value {
+  background: color-mix(in srgb, var(--tint) 22%, var(--card-solid));
+}
+html[data-mode] .g-row-value .g-pct {
+  font-size: 24px;
+  color: var(--text);
+}
+html[data-mode] .g-row-value .g-pct.g-none {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+html[data-mode] .g-row-main b {
+  font-size: 18px;
+}
+/* Evaluation rows carry long names: a slimmer pill leaves them room. */
+html[data-mode] .eval-row {
+  gap: 12px;
+  padding-right: 12px;
+}
+html[data-mode] .eval-row[style*="--tint"] .g-row-value {
+  padding: 6px 10px;
+}
+html[data-mode] .eval-row .g-row-value .g-pct {
+  font-size: 20px;
+}
+html[data-mode] .eval-row .g-row-main b {
+  font-size: 17px;
+}
+
+/* ── Screen titles: Guidance and Dreams open with a large, left title ───── */
+html[data-mode] #screen-guidance > .v5-header,
+html[data-mode] #screen-dreams > .v5-header {
+  align-items: flex-start;
+  text-align: left;
+  margin: 10px 2px 20px;
+}
+html[data-mode] #screen-guidance > .v5-header h1,
+html[data-mode] #screen-dreams > .v5-header h1 {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+html[data-mode] .v5-header p {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* ── Guidance ───────────────────────────────────────────────────────────── */
+/* myBlueprint: a glossy accent card with a soft light sweep. */
+html[data-mode] .blueprint-cta {
+  position: relative;
+  overflow: hidden;
+  min-height: 96px;
+  padding: 20px;
+  border-radius: var(--ui-radius);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, white);
+  color: var(--accent-contrast);
+  background:
+    radial-gradient(130% 90% at 100% 0%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 88%, white), var(--accent) 50%, color-mix(in srgb, var(--accent) 82%, black));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 12px 30px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+html[data-mode] .blueprint-cta .bp-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+html[data-mode] .blueprint-cta b {
+  font-size: 20px;
+}
+html[data-mode] .blueprint-cta small {
+  font-size: 14px;
+  opacity: 0.92;
+}
+/* School map: a row, icon tile first, chevron last. */
+html[data-mode] .tile-grid > .tile:only-child {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--ui-radius);
+}
+html[data-mode] .tile-grid > .tile:only-child::after {
+  content: "";
+  width: 14px;
+  height: 14px;
+  background: var(--text-faint);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 5 7 7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 5 7 7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+html[data-mode] .tile-grid > .tile:only-child .tile-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--card-solid));
+  color: var(--accent);
+}
+html[data-mode] .tile b {
+  font-size: 18px;
+}
+html[data-mode] .tile > span:last-child > span {
+  font-size: 15px;
+}
+/* My school, counsellor: bigger card headings. */
+html[data-mode] .tool-heading h2,
+html[data-mode] .my-school h2 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+/* Resource groups: icon tile, title + blurb, chevron. */
+html[data-mode] .disclosure > summary:has(.ui-tile) {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+html[data-mode] .disclosure > summary .ui-tile {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+}
+html[data-mode] .disclosure > summary .ui-tile svg {
+  width: 26px;
+  height: 26px;
+}
+html[data-mode] .disclosure > summary > span:not(.ui-tile) {
+  flex: 1;
+  font-size: 19px;
+  font-weight: 750;
+}
+html[data-mode] .disclosure > summary small {
+  font-size: 15px;
+  font-weight: 500;
+}
+html[data-mode] .link-row {
+  border-radius: 20px;
+}
+
+/* ── Dreams ─────────────────────────────────────────────────────────────── */
+/* Steps: round markers joined by a line; done ones are filled with a tick. */
+html[data-mode] .dream-steps {
+  gap: 0;
+  margin: 2px 0 18px;
+}
+html[data-mode] .dream-steps li {
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  font-size: 14px;
+}
+html[data-mode] .dream-steps li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 16px;
+  left: calc(50% + 24px);
+  right: calc(-50% + 24px);
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+html[data-mode] .dream-steps li.is-done:not(:last-child)::after {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+html[data-mode] .dream-steps .dot {
+  width: 34px;
+  height: 34px;
+  font-size: 15px;
+  font-weight: 700;
+  border: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: var(--card-solid);
+  color: var(--accent);
+}
+html[data-mode] .dream-steps li.is-active .dot {
+  border-color: var(--accent);
+}
+html[data-mode] .dream-steps li.is-done .dot {
+  border-color: transparent;
+  color: var(--accent-contrast);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 60%),
+    var(--accent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+html[data-mode] .dream-steps .dot svg {
+  width: 17px;
+  height: 17px;
+}
+/* The round marker on each dream card becomes an icon tile. */
+html[data-mode] .dream-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  color: var(--accent);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%),
+    color-mix(in srgb, var(--accent) 14%, var(--card-solid));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+html[data-mode="dark"] .dream-icon {
+  background: color-mix(in srgb, var(--accent) 20%, var(--card-solid));
+}
+html[data-mode] .dream-icon svg {
+  width: 26px;
+  height: 26px;
+}
+/* "✓ Saved" */
+html[data-mode] .done-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--card-solid));
+  color: color-mix(in srgb, var(--accent) 85%, var(--text));
+  font-weight: 650;
+}
+html[data-mode] .dream-form-body > .ui-iconfield,
+html[data-mode] .goal-form > .ui-iconfield {
+  margin-bottom: 14px;
+}
+html[data-mode] .dream-form-body > .btn,
+html[data-mode] .goal-form > .btn {
+  width: 100%;
+  margin-top: 6px;
+}
+/* Add goal: a "+" in a round inset on the left. */
+html[data-mode] .goal-form > .btn[type="submit"] {
+  position: relative;
+}
+html[data-mode] .goal-form > .btn[type="submit"]::before {
+  content: "+";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  margin-top: -18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  font: 600 24px/1 var(--font);
+}
+/* No goals yet: a seedling in a glass circle. */
+html[data-mode] .goal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 8px 8px;
+  text-align: center;
+}
+html[data-mode] .goal-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  color: var(--accent);
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.2) 70%),
+    color-mix(in srgb, var(--accent) 10%, var(--card-solid));
+  border: 1px solid var(--ui-rim);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+html[data-mode="dark"] .goal-empty-icon {
+  background: color-mix(in srgb, var(--accent) 16%, var(--card-solid));
+}
+html[data-mode] .goal-empty-icon svg {
+  width: 40px;
+  height: 40px;
+}
+html[data-mode] .goal-empty b {
+  font-size: 18px;
+}
+/* The target stepper. */
+html[data-mode] .stepper {
+  border-radius: 999px;
+  border: 1px solid var(--ui-rim);
+  background: var(--ui-field);
+}
+
+/* ── Settings ───────────────────────────────────────────────────────────── */
+html[data-mode] .settings-group > h2 {
+  font-size: 18px;
+  font-weight: 750;
+}
+html[data-mode] .theme-row {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+html[data-mode] .rows {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+html[data-mode] .rows .row {
+  gap: 14px;
+  padding: 12px 4px;
+  border-radius: 18px;
+}
+html[data-mode] .rows .row-title {
+  font-weight: 650;
+}
+html[data-mode] .settings-group .btn.danger {
+  width: 100%;
+}
+
+/* Theme page: ten colours as two columns of tiles (orb + name). */
+html[data-mode] .theme-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+html[data-mode] .theme-tile {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 22px;
+}
+html[data-mode] .theme-tile[aria-checked="true"] {
+  padding: 12.5px 14.5px;
+}
+
+/* ── Sign in ────────────────────────────────────────────────────────────── */
+html[data-mode] .auth-card .ui-iconfield {
+  margin-bottom: 14px;
+}
+html[data-mode] .auth-card #auth-submit {
+  width: 100%;
+}
+/* The three features: tiles in a row. */
+html[data-mode] .auth-features {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+html[data-mode] .feature-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 12px;
+  border-radius: 22px;
+  border: 1px solid var(--ui-rim);
+  background: var(--ui-sheen), var(--card-solid);
+  box-shadow: inset 0 0 0 0.5px var(--ui-hair), var(--ui-shadow);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+html[data-mode] .feature-item b {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 15px;
+  line-height: 1.2;
+}
+html[data-mode] .feature-item .feature-dot {
+  --tone: var(--tone-accent);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 14px;
+  color: var(--tone);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%),
+    color-mix(in srgb, var(--tone) 15%, var(--card-solid));
+}
+html[data-mode] .feature-item .feature-dot[data-tone="blue"] { --tone: var(--tone-blue); }
+html[data-mode] .feature-item .feature-dot[data-tone="orange"] { --tone: var(--tone-orange); }
+html[data-mode] .feature-item .feature-dot svg {
+  width: 22px;
+  height: 22px;
+}
+@media (max-width: 360px) {
+  html[data-mode] .auth-features {
+    grid-template-columns: 1fr;
+  }
+}

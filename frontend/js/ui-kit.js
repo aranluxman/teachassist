@@ -2,6 +2,7 @@
 // UI kit — the shared pieces of the dark-glass design.
 // ----------------------------------------------------------------------------
 //   glassButton()   round translucent icon button (back, close, share…)
+//   iconTile()      rounded-square tinted icon (rows, fields, sections)
 //   pageHeader()    glass button · centred title + subtitle · glass button
 //   pct()           a mark as big monospaced digits with a small "%"
 //   segBar()        a progress bar split into segments
@@ -30,8 +31,34 @@ export const GLYPHS = {
   seal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m12 2.5 2.4 1.7 2.9-.2 1 2.8 2.5 1.5-.7 2.8 1 2.7-2.4 1.6-.7 2.9-2.9.3-2.1 2-2.6-1.3-2.8.8-1.5-2.5-2.7-1.1.2-2.9L2.5 12l1.7-2.4-.2-2.9 2.8-1 1.5-2.5 2.8.7z"/><path d="m8.5 12 2.3 2.3 4.7-4.7" stroke-linecap="round"/></svg>',
   arrowRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
   trendUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18 18 6M9 6h9v9"/></svg>',
+  cap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9.5 12 5l10 4.5L12 14z"/><path d="M6 11.6V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.4"/><path d="M22 9.5v5"/></svg>',
+  person: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="7.5" r="4.5"/><path d="M3.5 21a8.5 8.5 0 0 1 17 0z"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="11" rx="2.6"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" fill="none" stroke="currentColor" stroke-width="2.3"/></svg>',
+  palette: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.9-.8 1.9-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.8-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.2" cy="8" r="1.3" fill="currentColor" stroke="none"/></svg>',
+  access: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="4.6" r="1.9" fill="currentColor" stroke="none"/><path d="m5 8.6 7 1.4 7-1.4M12 10v5m0 0-3.2 6m3.2-6 3.2 6"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 20 6v6c0 4.8-3.4 8-8 9-4.6-1-8-4.2-8-9V6z"/><path d="m9 12 2.2 2.2L15.5 10" stroke-linecap="round"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.6 2H4.4z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/></svg>',
+  doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>',
+  book: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.6C3 4.7 3.7 4 4.6 4H10c.9 0 1.7.4 2 1.1V20c-.5-.6-1.2-1-2-1H4.6c-.9 0-1.6-.7-1.6-1.6zM21 5.6c0-.9-.7-1.6-1.6-1.6H14c-.9 0-1.7.4-2 1.1V20c.5-.6 1.2-1 2-1h5.4c.9 0 1.6-.7 1.6-1.6z"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.5S3.5 15.5 3.5 9.4A4.6 4.6 0 0 1 12 6.8a4.6 4.6 0 0 1 8.5 2.6c0 6.1-8.5 11.1-8.5 11.1z"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3.5a1 1 0 0 1 2 0V21a1 1 0 0 1-2 0z"/><path d="M7 4h11.5l-2.5 4.5L18.5 13H7z"/></svg>',
+  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.5" cy="6.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="17.5" r="1.3" fill="currentColor" stroke="none"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.5 5.6v12.8c0 .8.9 1.3 1.6.9l10-6.4c.6-.4.6-1.3 0-1.7l-10-6.4c-.7-.5-1.6 0-1.6.8z"/></svg>',
+  signout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h3.5A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5H14"/><path d="M10 8 6 12l4 4M6 12h10"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="12" width="3.6" height="8" rx="1.2"/><rect x="10.2" y="7.5" width="3.6" height="12.5" rx="1.2"/><rect x="16.4" y="4" width="3.6" height="16" rx="1.2"/></svg>',
+  compass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.8 8.2-2.4 5.2-5.2 2.4 2.4-5.2z" fill="currentColor"/></svg>',
+  sparkle: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5c.5 4.6 2.9 7 9.5 9.5-6.6 2.5-9 4.9-9.5 9.5-.5-4.6-2.9-7-9.5-9.5 6.6-2.5 9-4.9 9.5-9.5z"/></svg>',
+  target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.4" fill="currentColor" stroke="none"/></svg>',
+  seedling: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 21v-7.5h2V21z"/><path d="M12 13.2c.1-4.6 2.9-7.6 8.5-7.7-.1 5.2-3.2 7.8-8.5 7.7zM11.6 13.6C6.8 13.7 4 11.3 3.5 7c4.9-.1 7.7 2.2 8.1 6.6z"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5.5 12.5 4.2 4.2L18.5 8"/></svg>',
   trendDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 9v9H9"/></svg>',
 };
+
+/** A rounded-square icon tile (Settings rows, form fields, sections).
+ *  `tone` picks a tint: accent (default), blue, purple, pink, orange. */
+export function iconTile(glyph, tone = "accent") {
+  return `<span class="ui-tile" data-tone="${tone}" aria-hidden="true">${GLYPHS[glyph] || glyph}</span>`;
+}
 
 /** A round glass icon button. `attrs` is raw attribute text. */
 export function glassButton(glyph, label, attrs = "") {

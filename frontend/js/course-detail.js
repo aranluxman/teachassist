@@ -52,6 +52,8 @@ function strandBadge(category) {
   const text = strandKey(category) ? letter : (String(category || "?").trim().charAt(0).toUpperCase() || "?");
   return letterBadge(escapeHtml(text), from, to);
 }
+/** The strand's badge colour, used to tint its mark pill. */
+const strandTint = (category) => STRAND_STYLE[strandKey(category) || "f"][1];
 const strandColor = (category) => `var(--strand-${strandKey(category) || "f"}-bar)`;
 
 /** "24 / 24" when TeachAssist gave raw marks, else "". */
@@ -96,13 +98,15 @@ export async function openCourseDetail(container, course) {
   const gaugePage = el(`
     <section class="g-page g-hero" aria-label="${kind === "midterm" ? "Midterm mark" : "Current mark"} ${mark == null ? "not available" : fmtPercent(mark)}">
       <div class="g-gauge-wrap">
+        <span class="g-hero-badge" aria-hidden="true">${subjectBadge(course.code)}</span>
         ${arcGauge(mark, { id: "course" })}
         <div class="g-gauge-center">
           <div class="g-hero-num private-mark">${pct(mark)}</div>
           ${course.midterm != null && kind !== "midterm" ? `<div class="g-delta">Midterm ${pct(Number(course.midterm))}</div>` : ""}
         </div>
       </div>
-      <p class="g-caption">${kind === "midterm" ? "Midterm Mark" : "Current Mark"}${mark != null ? ` · ${achievementLevel(mark)}` : ""}</p>
+      <p class="g-caption">${kind === "midterm" ? "Midterm Mark" : "Current Mark"}</p>
+      ${mark != null ? `<p class="g-level private-mark">${achievementLevel(mark)}</p>` : ""}
     </section>`);
   track.appendChild(gaugePage);
 
@@ -230,7 +234,7 @@ function buildEvals(evals, kind) {
   evals.forEach((e, i) => {
     const sub = [rawMark(e) ? `<span class="g-mono private-mark">${escapeHtml(rawMark(e))}</span>` : "", e.weight != null ? `Weight: <span class="g-mono">${escapeHtml(String(e.weight))}</span>` : "", fmtDate(e.date)].filter(Boolean).join(" · ");
     const row = el(`
-      <button type="button" class="g-row eval-row" aria-haspopup="dialog">
+      <button type="button" class="g-row eval-row" style="--tint:${strandTint(e.category || e.name)}" aria-haspopup="dialog">
         ${strandBadge(e.category || e.name)}
         <span class="g-row-main">
           <b>${escapeHtml(e.name || e.category || "Assessment")}</b>

@@ -5,7 +5,8 @@
    a floating capsule tab bar and floating sheets.
 
    Theme = data-mode (dark | light) × data-accent (default | mono | tide |
-   olive | ember | blossom), both set by js/theme.js. Every rule is scoped to
+   olive | ember | blossom | sky | coral | lavender | gold), both set by
+   js/theme.js. Every rule is scoped to
    html[data-mode] so it outranks the older layers without !important.
    ========================================================================== */
 
@@ -110,6 +111,30 @@ html[data-mode="dark"][data-accent="blossom"] {
   --gauge-from: #7a3bd1;
   --gauge-to: #f0b0ff;
 }
+html[data-mode="dark"][data-accent="sky"] {
+  --accent: #6cc4ff;
+  --glow: #0b2a44;
+  --gauge-from: #1d6fb0;
+  --gauge-to: #8fd3ff;
+}
+html[data-mode="dark"][data-accent="coral"] {
+  --accent: #ff8f80;
+  --glow: #3d1410;
+  --gauge-from: #c2453a;
+  --gauge-to: #ffa395;
+}
+html[data-mode="dark"][data-accent="lavender"] {
+  --accent: #b8a5ff;
+  --glow: #221a4a;
+  --gauge-from: #6a4fc4;
+  --gauge-to: #cfc2ff;
+}
+html[data-mode="dark"][data-accent="gold"] {
+  --accent: #f2c14a;
+  --glow: #3a2a05;
+  --gauge-from: #a87300;
+  --gauge-to: #ffd970;
+}
 html[data-mode="light"][data-accent="default"] {
   --accent: #0b7a5c;
   --glow: #cfeee2;
@@ -145,6 +170,30 @@ html[data-mode="light"][data-accent="blossom"] {
   --glow: #f0dcfb;
   --gauge-from: #8b35d6;
   --gauge-to: #e09bff;
+}
+html[data-mode="light"][data-accent="sky"] {
+  --accent: #1767a8;
+  --glow: #d6ebfb;
+  --gauge-from: #1767a8;
+  --gauge-to: #6cc4ff;
+}
+html[data-mode="light"][data-accent="coral"] {
+  --accent: #c23a3a;
+  --glow: #fde0da;
+  --gauge-from: #c23a3a;
+  --gauge-to: #ff8f80;
+}
+html[data-mode="light"][data-accent="lavender"] {
+  --accent: #6448c4;
+  --glow: #e7e1fb;
+  --gauge-from: #6448c4;
+  --gauge-to: #b8a5ff;
+}
+html[data-mode="light"][data-accent="gold"] {
+  --accent: #8a5f00;
+  --glow: #f8ecc4;
+  --gauge-from: #a87300;
+  --gauge-to: #f2c14a;
 }
 html[data-mode] {
   --accent-press: color-mix(in srgb, var(--accent) 82%, var(--text));
