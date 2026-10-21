@@ -24,7 +24,25 @@ import {
 } from "./ta-client.js";
 import { mountThumb, savedFeedback, stagger } from "./motion.js";
 import { APPEARANCES, COLORS, applyTheme, setTheme, themeChoice, themeLabel } from "./theme.js";
-import { glassButton, pageHeader, GLYPHS } from "./ui-kit.js";
+import { glassButton, pageHeader, GLYPHS, iconTile } from "./ui-kit.js";
+
+// Each settings group's heading icon, keyed by its title.
+const GROUP_ICONS = {
+  You: "person",
+  Appearance: "palette",
+  Accessibility: "access",
+  "Courses & privacy": "shield",
+  Notifications: "bell",
+  "Account & data": "person",
+  Legal: "doc",
+};
+/** Put the matching icon in front of every group heading (look only). */
+function decorateGroups(root) {
+  for (const h of root.querySelectorAll(".card > h2")) {
+    const glyph = GROUP_ICONS[h.textContent.trim()];
+    if (glyph && !h.querySelector(".ui-h-icon")) h.insertAdjacentHTML("afterbegin", `<span class="ui-h-icon" aria-hidden="true">${GLYPHS[glyph]}</span>`);
+  }
+}
 
 const APP_VERSION = "5.0.0";
 
@@ -34,7 +52,7 @@ export function applyStoredTheme() {
   applyPreferences();
 }
 
-/** The Theme page: appearance segmented control + six colour tiles. */
+/** The Theme page: appearance segmented control + the colour tiles. */
 export function renderThemeSettings(container) {
   container.innerHTML = "";
   const head = el(pageHeader({ title: "Theme", left: glassButton("back", "Back to settings", "data-back") }));
@@ -116,7 +134,7 @@ export async function renderSettings(container) {
     ["compact", "Compact layout", "Fit more courses on screen"],
   ]);
   const themeRow = el(
-    `<button type="button" class="preference-row theme-row"><span><b>Theme</b><small>${escapeHtml(themeLabel())}</small></span><span class="g-chev">${GLYPHS.chevron}</span></button>`,
+    `<button type="button" class="preference-row theme-row">${iconTile("palette")}<span><b>Theme</b><small>${escapeHtml(themeLabel())}</small></span><span class="g-chev">${GLYPHS.chevron}</span></button>`,
   );
   themeRow.onclick = () => window.AppNav.go("settings", "theme");
   appearance.querySelector(".preference-row").before(themeRow);
@@ -148,6 +166,7 @@ export async function renderSettings(container) {
     <section class="card settings-group"><h2>Account & data</h2>
     <div class="rows">
       <div class="row" style="cursor:default">
+        ${iconTile("person")}
         <div class="row-main">
           <div class="row-title">${isDemo() ? "Demo mode" : "Signed in as"}</div>
           <div class="row-sub">${
@@ -158,6 +177,7 @@ export async function renderSettings(container) {
         </div>
       </div>
       <button class="row" id="refresh">
+        ${iconTile("refresh")}
         <div class="row-main">
           <div class="row-title">Refresh from TeachAssist</div>
           <div class="row-sub" id="refresh-sub" role="status">${
@@ -169,7 +189,7 @@ export async function renderSettings(container) {
         <span class="chevron"></span>
       </button>
     </div>
-    <button class="btn danger" data-signout style="margin-top:14px">Sign Out</button>
+    <button class="btn danger" data-signout style="margin-top:14px">${GLYPHS.signout}Sign Out</button>
     </section>
   `);
   account.querySelector("#refresh").addEventListener("click", async (e) => {
@@ -226,6 +246,7 @@ export async function renderSettings(container) {
   );
   container.appendChild(el(MADE_BY));
 
+  decorateGroups(container);
   stagger(container.children);
 }
 

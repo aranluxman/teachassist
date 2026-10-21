@@ -8,6 +8,7 @@
 
 import { appointmentCard } from "./profile.js";
 import { el, escapeHtml, openSheet, closeSheet } from "./courses.js";
+import { iconTile } from "./ui-kit.js";
 import { getCourses } from "./ta-client.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
 import { mySchool, schoolCard, icon } from "./schools.js";
@@ -122,8 +123,10 @@ export async function renderGuidance(container) {
   // Resources: grouped and collapsed so nobody has to scroll a long list.
   container.append(el(`<h2 class="section-title">Resources</h2>`));
   const blurbs = { Planning: "Graduation rules, myBlueprint, universities & colleges", Academics: "OSSLT, TVO Learn, summer and night school", Support: "Kids Help Phone, mental health, counselling" };
+  const sectionTiles = { Planning: ["cap", "accent"], Academics: ["book", "purple"], Support: ["heart", "pink"] };
   for (const section of RESOURCES) {
-    const box = el(`<details class="card disclosure"${section.group === "Support" ? " open" : ""}><summary><span>${escapeHtml(section.group)}<small>${escapeHtml(blurbs[section.group] || "")}</small></span></summary><div class="disclosure-body"><div class="link-list"></div></div></details>`);
+    const [glyph, tone] = sectionTiles[section.group] || ["doc", "accent"];
+    const box = el(`<details class="card disclosure"${section.group === "Support" ? " open" : ""}><summary>${iconTile(glyph, tone)}<span>${escapeHtml(section.group)}<small>${escapeHtml(blurbs[section.group] || "")}</small></span></summary><div class="disclosure-body"><div class="link-list"></div></div></details>`);
     section.items.forEach((item) => box.querySelector(".link-list").append(linkRow(item)));
     container.append(box);
   }

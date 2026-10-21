@@ -1,14 +1,15 @@
 // ============================================================================
-// Theme — appearance (System / Dark / Light) × colour (six accents).
+// Theme — appearance (System / Dark / Light) × colour (ten accents).
 // ----------------------------------------------------------------------------
 // Two independent choices, both saved on this device:
 //   appearance: "system" | "dark" | "light"
-//   color:      "default" | "mono" | "tide" | "olive" | "ember" | "blossom"
+//   color:      "default" | "mono" | "tide" | "olive" | "ember" | "blossom" |
+//               "sky" | "coral" | "lavender" | "gold"
 //
 // They land on <html> as data-mode / data-accent; css/v6.css turns each pair
 // into a full token set. data-theme is still set to "dark" / "indigo" so the
 // older stylesheet layers pick the matching light or dark base.
-// First run: Ember on Light.
+// First run: Default (mint) on Light.
 // ============================================================================
 
 export const APPEARANCES = [
@@ -24,6 +25,10 @@ export const COLORS = [
   { id: "olive", name: "Olive", orb: "radial-gradient(circle at 35% 30%, #a3c45e, #3f5a1c 70%)" },
   { id: "ember", name: "Ember", orb: "radial-gradient(circle at 35% 30%, #ffb347, #d4560b 70%)" },
   { id: "blossom", name: "Blossom", orb: "radial-gradient(circle at 35% 30%, #f2a6ff, #9b4dff 70%)" },
+  { id: "sky", name: "Sky", orb: "radial-gradient(circle at 35% 30%, #a8e0ff, #1d6fb0 70%)" },
+  { id: "coral", name: "Coral", orb: "radial-gradient(circle at 35% 30%, #ffb8ad, #c2453a 70%)" },
+  { id: "lavender", name: "Lavender", orb: "radial-gradient(circle at 35% 30%, #ddd3ff, #6a4fc4 70%)" },
+  { id: "gold", name: "Gold", orb: "radial-gradient(circle at 35% 30%, #ffe08a, #a87300 70%)" },
 ];
 
 const APPEARANCE_KEY = "appearance";
@@ -71,12 +76,12 @@ export function themeChoice() {
   let color = read(COLOR_KEY);
   if (!appearance && !color) {
     const legacy = LEGACY[read(LEGACY_KEY)];
-    [appearance, color] = legacy || ["light", "ember"];
+    [appearance, color] = legacy || ["light", "default"];
     write(APPEARANCE_KEY, appearance);
     write(COLOR_KEY, color);
   }
   if (!APPEARANCES.some((a) => a.id === appearance)) appearance = "light";
-  if (!COLORS.some((c) => c.id === color)) color = "ember";
+  if (!COLORS.some((c) => c.id === color)) color = "default";
   return { appearance, color };
 }
 

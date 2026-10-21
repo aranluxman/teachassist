@@ -259,13 +259,15 @@ export async function renderCourses(container, { refresh = false } = {}) {
   const gaugePage = el(`
     <section class="g-page g-hero" aria-label="Overall average ${overall == null ? "not available" : fmtPercent(overall)}">
       <div class="g-gauge-wrap">
+        <span class="g-hero-icon" aria-hidden="true">${GLYPHS.cap}</span>
         ${arcGauge(overall, { id: "overall" })}
         <div class="g-gauge-center">
           <div class="g-hero-num private-mark">${pct(overall)}</div>
           ${delta != null && Math.abs(delta) >= 0.05 ? `<div class="g-delta ${delta >= 0 ? "up" : "down"} delta-pill">${delta >= 0 ? "↑" : "↓"} ${pct(Math.abs(delta))}</div>` : ""}
         </div>
       </div>
-      <p class="g-caption">Overall Average${overall != null ? ` · ${achievementLevel(overall)} · ${letterGrade(overall)}` : ""}</p>
+      <p class="g-caption">Overall Average</p>
+      ${overall != null ? `<p class="g-level private-mark">${achievementLevel(overall)} · ${letterGrade(overall)}</p>` : ""}
     </section>`);
   track.appendChild(gaugePage);
   track.appendChild(trendPage(courses.map((c) => c.code)));
@@ -298,7 +300,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
     const title = courseTitle(c);
     const teacher = teacherFor(c).name;
     const row = el(`
-      <button type="button" class="g-row course-card" aria-label="${escapeHtml(title)}, ${escapeHtml(label)}, ${big == null ? "no mark" : fmtPercent(big)}">
+      <button type="button" class="g-row course-card" style="--tint:${subjectStyle(c.code || label).from}" aria-label="${escapeHtml(title)}, ${escapeHtml(label)}, ${big == null ? "no mark" : fmtPercent(big)}">
         ${subjectBadge(c.code || label)}
         <span class="g-row-main">
           <b>${escapeHtml(title)}</b>

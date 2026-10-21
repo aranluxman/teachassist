@@ -10,6 +10,7 @@ import { getCourses, displayMark } from "./ta-client.js";
 import { preferences } from "./personalization.js";
 import { saveDreams, saveGoalList, syncFromCloud } from "./cloud-store.js";
 import { splitByTerm } from "./term.js";
+import { GLYPHS, iconTile } from "./ui-kit.js";
 import {
   countUp,
   initDisclosure,
@@ -80,14 +81,12 @@ function chapterForm(p) {
   const field = ([id, label, ph, max]) =>
     `<div class="field"><label for="dream-${id}">${label}</label><input id="dream-${id}" name="${id}" maxlength="${max}" required placeholder="${ph}" value="${escapeHtml(p[id])}" autocomplete="off"></div>`;
   return el(`<form class="dream-form-body" novalidate>
-    <div class="form-grid">
-      ${field(["career", "Dream career", "e.g. Software engineer", 120])}
-      ${field(["school", "School or destination", "e.g. University of Waterloo", 120])}
-    </div>
-    <div class="field"><label for="dream-target">Dream average (%)</label>
+    <div class="ui-iconfield">${iconTile("sparkle")}${field(["career", "Dream career", "e.g. Software engineer", 120])}</div>
+    <div class="ui-iconfield">${iconTile("cap")}${field(["school", "School or destination", "e.g. University of Waterloo", 120])}</div>
+    <div class="ui-iconfield">${iconTile("chart")}<div class="field"><label for="dream-target">Dream average (%)</label>
       <div class="chip-row" role="group" aria-label="Quick picks">${[85, 90, 95].map((n) => `<button type="button" class="chip" data-pick="${n}" aria-pressed="${Number(p.target) === n}">${n}%</button>`).join("")}</div>
-      <input id="dream-target" name="target" type="number" inputmode="decimal" min="0" max="100" step="0.1" required value="${escapeHtml(p.target)}"></div>
-    <div class="field"><label for="dream-motivation">Your reason to keep going</label><input id="dream-motivation" name="motivation" maxlength="240" placeholder="What makes this matter to you?" value="${escapeHtml(p.motivation)}" autocomplete="off"></div>
+      <input id="dream-target" name="target" type="number" inputmode="decimal" min="0" max="100" step="0.1" required value="${escapeHtml(p.target)}"></div></div>
+    <div class="ui-iconfield">${iconTile("heart", "pink")}<div class="field"><label for="dream-motivation">Your reason to keep going</label><input id="dream-motivation" name="motivation" maxlength="240" placeholder="What makes this matter to you?" value="${escapeHtml(p.motivation)}" autocomplete="off"></div></div>
     <button class="btn" type="submit">${p.dreamDone ? "Update my dream" : "Save my dream"}</button>
     <p class="small muted form-msg" role="alert"></p>
   </form>`);
@@ -118,12 +117,12 @@ function chapterBlock(p, container) {
   });
 
   if (!p.dreamDone) {
-    const card = el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">✦</span><div><h2>Create your dream</h2><p class="muted small">Two minutes. You can change your mind anytime.</p></div></div></section>`);
+    const card = el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.sparkle}</span><div><h2>Create your dream</h2><p class="muted small">Two minutes. You can change your mind anytime.</p></div></div></section>`);
     card.append(form);
     return card;
   }
   const line = [p.career, p.school, `aiming for ${p.target}%`].filter(Boolean).join(" · ");
-  const box = el(`<details class="card disclosure dream-block is-done"><summary><span class="dream-icon" aria-hidden="true">✦</span><span class="dream-sum"><b>Your next chapter</b><small></small></span><span class="done-pill">${tick} Saved</span></summary><div class="disclosure-body"></div></details>`);
+  const box = el(`<details class="card disclosure dream-block is-done"><summary><span class="dream-icon" aria-hidden="true">${GLYPHS.sparkle}</span><span class="dream-sum"><b>Your next chapter</b><small></small></span><span class="done-pill">${tick} Saved</span></summary><div class="disclosure-body"></div></details>`);
   box.querySelector("small").textContent = line;
   const body = box.querySelector(".disclosure-body");
   if (p.motivation) body.append(el(`<blockquote class="dream-why"></blockquote>`));
@@ -136,7 +135,7 @@ function chapterBlock(p, container) {
 // ── Step 2: dream grades by course ──────────────────────────────────────────
 async function gradesBlock(p, host, container) {
   host.replaceChildren(
-    el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">◎</span><div><h2>Dream grades by course</h2><p class="muted small">Loading your courses…</p></div></div></section>`),
+    el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Dream grades by course</h2><p class="muted small">Loading your courses…</p></div></div></section>`),
   );
   let courses = [];
   try {
@@ -144,14 +143,14 @@ async function gradesBlock(p, host, container) {
     if (p.currentTermOnly) courses = splitByTerm(courses).current;
   } catch {
     host.replaceChildren(
-      el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">◎</span><div><h2>Dream grades by course</h2><p class="muted small">Courses could not load. Your dream and goals still save.</p></div></div></section>`),
+      el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Dream grades by course</h2><p class="muted small">Courses could not load. Your dream and goals still save.</p></div></div></section>`),
     );
     return;
   }
   if (!host.isConnected) return;
   if (!courses.length) {
     host.replaceChildren(
-      el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">◎</span><div><h2>Dream grades by course</h2><p class="muted small">Your courses will appear here once they're available.</p></div></div></section>`),
+      el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Dream grades by course</h2><p class="muted small">Your courses will appear here once they're available.</p></div></div></section>`),
     );
     return;
   }
@@ -167,14 +166,14 @@ async function gradesBlock(p, host, container) {
   const note = `<p class="muted small">Personal targets, not admission requirements or official grade predictions.</p>`;
 
   if (!p.gradesDone) {
-    const card = el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">◎</span><div><h2>Dream grades by course</h2>${note}</div></div></section>`);
+    const card = el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Dream grades by course</h2>${note}</div></div></section>`);
     card.append(list, save);
     host.replaceChildren(card);
     return;
   }
   const targets = courses.map((c) => preferences().goals[c.code] ?? preferences().target);
   const avg = targets.reduce((a, b) => a + b, 0) / targets.length;
-  const box = el(`<details class="card disclosure dream-block is-done"><summary><span class="dream-icon" aria-hidden="true">◎</span><span class="dream-sum"><b>Dream grades</b><small>${courses.length} course${courses.length === 1 ? "" : "s"} · average target ${Math.round(avg * 10) / 10}%</small></span><span class="done-pill">${tick} Saved</span></summary><div class="disclosure-body">${note}</div></details>`);
+  const box = el(`<details class="card disclosure dream-block is-done"><summary><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><span class="dream-sum"><b>Dream grades</b><small>${courses.length} course${courses.length === 1 ? "" : "s"} · average target ${Math.round(avg * 10) / 10}%</small></span><span class="done-pill">${tick} Saved</span></summary><div class="disclosure-body">${note}</div></details>`);
   box.querySelector(".disclosure-body").append(list, save);
   host.replaceChildren(box);
   initDisclosure(box);
@@ -251,12 +250,12 @@ function when(date) {
 }
 
 function goalsBlock(p) {
-  const card = el(`<section class="card dream-block goals-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">⚑</span><div><h2>Personal &amp; school goals</h2><p class="muted small">A date, a goal, and why it matters: being happy with a mark, switching schools, anything.</p></div></div>
+  const card = el(`<section class="card dream-block goals-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.flag}</span><div><h2>Personal &amp; school goals</h2><p class="muted small">A date, a goal, and why it matters: being happy with a mark, switching schools, anything.</p></div></div>
     <form class="goal-form" novalidate>
       <div class="seg" role="radiogroup" aria-label="Goal type"><label><input type="radio" name="type" value="personal" checked><span>Personal</span></label><label><input type="radio" name="type" value="school"><span>School</span></label></div>
-      <div class="field"><label for="goal-title">What's the goal?</label><input id="goal-title" name="title" maxlength="120" required placeholder="e.g. Be proud of my French mark" autocomplete="off"></div>
-      <div class="form-grid"><div class="field"><label for="goal-date">By when</label><input id="goal-date" name="date" type="date"></div>
-      <div class="field"><label for="goal-details">First step or why (optional)</label><input id="goal-details" name="details" maxlength="400" placeholder="Extra help twice a week" autocomplete="off"></div></div>
+      <div class="ui-iconfield">${iconTile("flag")}<div class="field"><label for="goal-title">What's the goal?</label><input id="goal-title" name="title" maxlength="120" required placeholder="e.g. Be proud of my French mark" autocomplete="off"></div></div>
+      <div class="ui-iconfield">${iconTile("calendar")}<div class="field"><label for="goal-date">By when</label><input id="goal-date" name="date" type="date"></div></div>
+      <div class="ui-iconfield">${iconTile("list")}<div class="field"><label for="goal-details">First step or why (optional)</label><input id="goal-details" name="details" maxlength="400" placeholder="Extra help twice a week" autocomplete="off"></div></div>
       <button class="btn" type="submit">Add goal</button><p class="small muted form-msg" role="alert"></p>
     </form><ul class="goal-items" aria-label="Your goals"></ul></section>`);
   const form = card.querySelector(".goal-form");
@@ -266,7 +265,7 @@ function goalsBlock(p) {
     const goals = [...preferences().goalsList].sort((a, b) => Number(a.done) - Number(b.done) || (a.date || "9999").localeCompare(b.date || "9999"));
     ul.replaceChildren();
     if (!goals.length) {
-      ul.append(el(`<li class="goal-empty muted small">No goals yet. Start with one you can finish this term.</li>`));
+      ul.append(el(`<li class="goal-empty"><span class="goal-empty-icon" aria-hidden="true">${GLYPHS.seedling}</span><b>No goals yet</b><span class="muted small">Start with one you can finish this term.</span></li>`));
       return;
     }
     for (const g of goals) {

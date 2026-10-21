@@ -47,7 +47,7 @@ source and rebuild command live in [`../worker`](../worker).
   only, and close with the tab.
 - **Science** — a static analytics deep-dive for the Grade 9 Science course.
 - **Links** — an editable, locally-stored list of student tools.
-- **Settings** — a Theme page (System / Dark / Light × Default, Mono, Tide, Olive, Ember, Blossom), notification preferences, advanced server settings, diagnostic reports, refresh, and sign out.
+- **Settings** — a Theme page (System / Dark / Light × Default, Mono, Tide, Olive, Ember, Blossom, Sky, Coral, Lavender, Gold), notification preferences, advanced server settings, diagnostic reports, refresh, and sign out.
 - **Profile** — editable name, school, photo and cover; customizable quick actions, volunteer log, exam calculator, and student ID reference.
 
 ## URLs
@@ -92,7 +92,10 @@ frontend/
   index.html          sign in (live) or enter demo mode
   app.html            main shell (tab bar + screens)
   css/style.css       base design tokens and strand colours
-  css/v6.css          dark-glass look + the six colour themes (loaded last)
+  css/v6.css          base look + the ten colour themes
+  css/ui.css          iOS 26-style components: cards, pills, icon tiles, buttons
+  css/glass.css       Liquid Glass material for navigation (loaded last)
+  js/glass.js         glass header, light, press ripples, tab/toggle lens
   js/theme.js         appearance × colour choice, saved per device
   js/ui-kit.js        glass buttons, headers, gauge, pager dots, segmented bars
   js/subjects.js      subject icons/colours, period/room/term from a course

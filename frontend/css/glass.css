@@ -177,7 +177,7 @@ html[data-mode] body {
 html[data-mode] body::before {
   content: "";
   position: fixed;
-  inset: -6%;
+  inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
@@ -186,28 +186,24 @@ html[data-mode] body::before {
     radial-gradient(65% 42% at 28% 92%, color-mix(in srgb, var(--gauge-from) var(--amb-3), transparent), transparent 72%),
     var(--bg);
 }
-/* A very slow drift. Every time it moves, every glass surface has to
-   re-blur what is behind it, so it advances in tiny steps (~5 a second,
-   each well under a pixel) instead of every frame, and pauses while the
-   page scrolls, in a background tab, and with motion off. */
-html[data-mode].m-on body::before {
-  animation: glass-ambient 120s steps(600) infinite alternate;
+/* Light mode: one soft ribbon of light across the page, like the mockups. */
+html[data-mode="light"] body::before {
+  background:
+    radial-gradient(75% 10% at 72% 30%, rgba(255, 255, 255, 0.6), transparent 72%),
+    radial-gradient(70% 45% at 14% 6%, color-mix(in srgb, var(--glow) var(--amb-1), transparent), transparent 74%),
+    radial-gradient(50% 38% at 90% 34%, color-mix(in srgb, var(--accent) var(--amb-2), transparent), transparent 72%),
+    radial-gradient(65% 42% at 28% 92%, color-mix(in srgb, var(--gauge-from) var(--amb-3), transparent), transparent 72%),
+    var(--bg);
 }
-html[data-tab-hidden="true"] body::before,
-html.g-scrolling body::before {
-  animation-play-state: paused;
-}
-@keyframes glass-ambient {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(-3%, 2%, 0) scale(1.03);
-  }
-  100% {
-    transform: translate3d(2%, -2%, 0) scale(1.01);
+@media (prefers-contrast: more) {
+  html[data-mode="light"] body::before {
+    background: var(--bg);
   }
 }
+
+/* The ambient layer is still: a full-screen background that moves makes the
+   browser redraw every glass surface on top of it, and Apple's guidance is to
+   avoid moving full-screen backgrounds anyway. */
 
 /* ── Layer 2 · Content stays opaque ─────────────────────────────────────── */
 html[data-mode] .card,
