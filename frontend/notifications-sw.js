@@ -1,13 +1,13 @@
 // Notification display + offline app shell. Never caches student data:
 // /api/* (marks, sign-in) always goes to the network and is never stored.
-const SHELL = 'ta-shell-v4';
+const SHELL = 'ta-shell-v5';
 
 // The installed app's front door, cached up front so it opens offline even
 // before every screen has been visited. Everything else is cached as it loads.
 const PRECACHE = [
   './', 'index.html', 'app.html', 'manifest.webmanifest',
   'css/style.css', 'css/mobile.css', 'css/motion.css', 'css/student-tools.css',
-  'css/refresh.css', 'css/v5.css', 'css/v6.css', 'css/v7.css', 'css/v8.css',
+  'css/refresh.css', 'css/v5.css', 'css/v6.css', 'css/v7.css', 'css/ui.css', 'css/glass.css', 'css/polish.css',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/icon-32.png',
 ];
 
