@@ -61,8 +61,9 @@ export const hasMark = (c) => !!c && (Number.isFinite(c.currentMark) || Number.i
 /**
  * Combine fresh TeachAssist data with the last saved snapshot so a student
  * never loses a mark: a course with no mark now keeps its last recorded one,
- * and when TeachAssist returns nothing at all the saved snapshot is returned.
- * `stale` says whether anything came from the saved copy.
+ * a course TeachAssist stopped listing stays with its last mark, and when
+ * TeachAssist returns nothing at all the saved snapshot is returned.
+ * `stale` says whether a listed course's mark came from the saved copy.
  */
 export function mergeMarks(fresh, saved) {
   const now = Array.isArray(fresh) ? fresh : [];
@@ -74,9 +75,12 @@ export function mergeMarks(fresh, saved) {
     const before = old.find((o) => o.code === c.code);
     if (!before) return c;
     stale = true;
-    return { ...c, currentMark: before.currentMark ?? null, midterm: before.midterm ?? null, evaluations: c.evaluations?.length ? c.evaluations : before.evaluations || [] };
+    return { ...c, saved: true, currentMark: before.currentMark ?? null, midterm: before.midterm ?? null, evaluations: c.evaluations?.length ? c.evaluations : before.evaluations || [] };
   });
-  return { courses, stale };
+  // Kept courses are flagged `saved` so the app can say the mark is from
+  // TeachAssist's past, without marking the whole screen as a saved copy.
+  const gone = old.filter((o) => !now.some((c) => c.code === o.code)).map((o) => ({ ...o, saved: true }));
+  return { courses: [...courses, ...gone], stale };
 }
 
 /**
@@ -98,9 +102,9 @@ export async function withSavedMarks(response, env, ctx) {
     if (fresh.some(hasMark) && JSON.stringify(courses).length <= MAX_MARKS_JSON) {
       ctx?.waitUntil?.(saveRow(env, session.subject, { marks: courses, marks_at: new Date().toISOString() }));
     }
-    if (!stale) return response;
+    if (!stale && courses.length === fresh.length) return response;
     const headers = new Headers(response.headers);
-    headers.set('X-TeachAssist-Saved-At', row?.marks_at || row?.updated_at || '');
+    if (stale) headers.set('X-TeachAssist-Saved-At', row?.marks_at || row?.updated_at || '');
     return new Response(JSON.stringify(courses), { status: 200, headers });
   } catch { return response; }
 }

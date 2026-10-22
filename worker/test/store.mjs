@@ -11,6 +11,13 @@ assert.deepEqual(mergeMarks([], old), { courses: old, stale: true }, 'empty Teac
 assert.deepEqual(mergeMarks([{ code: 'MTH1W1-01', currentMark: null, midterm: null }], old).courses[0].currentMark, 91, 'a course with no mark keeps its last mark');
 assert.equal(mergeMarks([{ code: 'MTH1W1-01', currentMark: 88 }], old).stale, false, 'fresh marks are not replaced');
 assert.deepEqual(mergeMarks([], []), { courses: [], stale: false });
+{
+  const merged = mergeMarks([{ code: 'ENG1D1-01', currentMark: 84 }], old);
+  const kept = merged.courses.find((c) => c.code === 'MTH1W1-01');
+  assert.equal(kept?.currentMark, 91, 'a course TeachAssist stopped listing keeps its last mark');
+  assert.equal(kept?.saved, true, 'and is flagged as a saved mark');
+  assert.equal(merged.stale, false, 'the rest of the screen is still live');
+}
 assert.equal(cleanDreams({ career: ' x '.repeat(100), target: 500, goals: { 'MTH1W1-01': 95, bad: 'x' } }).target, 90, 'out-of-range target resets');
 assert.deepEqual(cleanDreams({ goals: { 'MTH1W1-01': 95, '../x': 50 } }).goals, { 'MTH1W1-01': 95 });
 assert.equal(cleanGoals([{ title: '  ', type: 'school' }, { title: 'Pass French', type: 'weird', date: '2026-12-01' }]).length, 1);

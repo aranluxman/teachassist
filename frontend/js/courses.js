@@ -358,7 +358,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
         ${subjectBadge(c.code || label)}
         <span class="g-row-main">
           <b>${escapeHtml(title)}</b>
-          <small>${escapeHtml([label, teacher].filter(Boolean).join(" · "))}</small>
+          <small>${escapeHtml([label, teacher, c.saved ? "Last saved mark" : ""].filter(Boolean).join(" · "))}</small>
         </span>
         <span class="g-row-value cc-mark">${pct(big)}</span>
         <span class="g-chev">${GLYPHS.chevron}</span>
@@ -433,6 +433,11 @@ function trendPage(codes) {
   return page;
 }
 
+/** True for the first and latest point and wherever the value changes. */
+function keyPoint(rows, i) {
+  return i === 0 || i === rows.length - 1 || Math.abs(rows[i].value - rows[i - 1].value) >= 0.05;
+}
+
 /**
  * Mono-labelled line chart with dashed verticals, like the TeachAssist app.
  * Rows: { date, value, label?, detail? }. `label` names the point (a test or a
@@ -457,7 +462,9 @@ export function trendChart(rows) {
   const xs = rows.length === 1 ? [L, x(start), W - R] : [L, (L + W - R) / 2, W - R];
   const verticals = xs.map((vx) => `<line x1="${vx}" x2="${vx}" y1="${T}" y2="${H - B}" class="g-grid g-dash"/>`).join("");
   const path = rows.map((r, i) => `${i ? "L" : "M"}${x(r.date).toFixed(1)},${y(r.value).toFixed(1)}`).join(" ");
-  const dots = rows.map((r, i) => `<circle cx="${x(r.date).toFixed(1)}" cy="${y(r.value).toFixed(1)}" r="4" class="g-dot" data-i="${i}"/>`).join("");
+  // One dot where the mark changes (plus the first and latest), not one per
+  // refresh, so a flat stretch reads as a line instead of a row of beads.
+  const dots = rows.map((r, i) => (keyPoint(rows, i) ? `<circle cx="${x(r.date).toFixed(1)}" cy="${y(r.value).toFixed(1)}" r="4" class="g-dot" data-i="${i}"/>` : "")).join("");
   const label = `From ${fmtPercent(rows[0].value)} to ${fmtPercent(rows.at(-1).value)} over ${rows.length} point${rows.length === 1 ? "" : "s"}`;
   const cursor = `<line class="g-cursor" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}" visibility="hidden"/>`;
   return `<svg class="g-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">${grid}${verticals}${cursor}${rows.length > 1 ? `<path d="${path}" class="g-line"/>` : ""}${dots}</svg>`;
@@ -476,10 +483,13 @@ export function trendChartEl(rows) {
   const dots = [...wrap.querySelectorAll(".g-dot")];
   let current = -1, hideTimer = 0;
 
-  const show = (i) => {
+  // Dots only mark changes, so the k-th dot is row `data-i`, and "change"
+  // compares with the previous dot.
+  const row = (k) => rows[Number(dots[k].dataset.i)];
+  const show = (k) => {
     clearTimeout(hideTimer);
-    current = i;
-    const r = rows[i], prev = rows[i - 1];
+    current = k;
+    const r = row(k), prev = k > 0 ? row(k - 1) : null;
     const diff = prev ? r.value - prev.value : 0;
     const change = !prev
       ? "Start"
@@ -490,7 +500,7 @@ export function trendChartEl(rows) {
       r.label || r.detail ? `<br>${escapeHtml([r.label, r.detail].filter(Boolean).join(": "))}` : ""
     }`;
     tip.hidden = false;
-    const dot = dots[i];
+    const dot = dots[k];
     const cx = Number(dot.getAttribute("cx"));
     cursor.setAttribute("x1", cx);
     cursor.setAttribute("x2", cx);
@@ -538,8 +548,8 @@ export function trendChartEl(rows) {
   wrap.addEventListener("keydown", (e) => {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
-    const next = current < 0 ? rows.length - 1 : current + (e.key === "ArrowRight" ? 1 : -1);
-    show(Math.min(Math.max(next, 0), rows.length - 1));
+    const next = current < 0 ? dots.length - 1 : current + (e.key === "ArrowRight" ? 1 : -1);
+    show(Math.min(Math.max(next, 0), dots.length - 1));
   });
   wrap.addEventListener("blur", hide);
   return wrap;

@@ -213,7 +213,7 @@ test("course cards show the course name and a clean class code", () => {
   assert.doesNotMatch(coursesJs, /cc-name|cc-meta/);
   assert.doesNotMatch(coursesJs, /c\.block|c\.room/);
   assert.match(coursesJs, /<b>\$\{escapeHtml\(title\)\}<\/b>/);
-  assert.match(coursesJs, /\[label, teacher\]/);
+  assert.match(coursesJs, /\[label, teacher(, [^\]]*)?\]/);
 });
 
 // ---------------------------------------------------------------------------
