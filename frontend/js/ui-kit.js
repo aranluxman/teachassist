@@ -5,7 +5,6 @@
 //   iconTile()      rounded-square tinted icon (rows, fields, sections)
 //   pageHeader()    glass button · centred title + subtitle · glass button
 //   pct()           a mark as big monospaced digits with a small "%"
-//   segBar()        a progress bar split into segments
 //   arcGauge()      the semicircle gauge with a gradient stroke
 //   pager()         a swipeable row of panels with dots underneath
 // ============================================================================
@@ -51,6 +50,7 @@ export const GLYPHS = {
   target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.4" fill="currentColor" stroke="none"/></svg>',
   seedling: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 21v-7.5h2V21z"/><path d="M12 13.2c.1-4.6 2.9-7.6 8.5-7.7-.1 5.2-3.2 7.8-8.5 7.7zM11.6 13.6C6.8 13.7 4 11.3 3.5 7c4.9-.1 7.7 2.2 8.1 6.6z"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5.5 12.5 4.2 4.2L18.5 8"/></svg>',
+  sliders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6.5h9M18 6.5h2M4 12h3M12 12h8M4 17.5h11"/><circle cx="15.5" cy="6.5" r="2.3"/><circle cx="9.5" cy="12" r="2.3"/><circle cx="17.5" cy="17.5" r="2.3"/></svg>',
   trendDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 9v9H9"/></svg>',
 };
 
@@ -80,17 +80,6 @@ export function pct(v, cls = "") {
   // Hide grades: the number never reaches the page (a blur can be read).
   if (marksHidden()) return `<span class="g-pct g-masked ${cls}" aria-label="Hidden">••<small>%</small></span>`;
   return `<span class="g-pct ${cls}">${(Math.round(v * 10) / 10).toFixed(1)}<small>%</small></span>`;
-}
-
-/** A progress bar split into `segments` pills, filled to `percent`.
- *  Empty when grades are hidden, since the fill length is the mark. */
-export function segBar(percent, color = "var(--accent)", segments = 6) {
-  const hidden = marksHidden();
-  const filled = hidden ? 0 : (Math.max(0, Math.min(100, Number(percent) || 0)) / 100) * segments;
-  const pills = Array.from({ length: segments }, (_, i) =>
-    `<i style="--f:${Math.max(0, Math.min(1, filled - i)).toFixed(3)}"></i>`,
-  ).join("");
-  return `<div class="g-seg${hidden ? " g-seg-masked" : ""}" style="--seg-c:${color}" aria-hidden="true">${pills}</div>`;
 }
 
 /**

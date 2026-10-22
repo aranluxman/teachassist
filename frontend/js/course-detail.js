@@ -9,8 +9,8 @@
 // ============================================================================
 
 import { achievementLevel, courseLabel, courseTitle, el, escapeHtml, fmtPercent, openSheet, trendChartEl } from "./courses.js";
-import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct, segBar } from "./ui-kit.js";
-import { fmtDay, fullCode, letterBadge, scheduleOf, subjectBadge } from "./subjects.js";
+import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct } from "./ui-kit.js";
+import { fmtDay, fullCode, letterBadge, scheduleOf, subjectBadge, subjectStyle } from "./subjects.js";
 import { courseMeta } from "./course-names.js";
 import { teacherFor, editTeacher } from "./teachers.js";
 import { preferences } from "./personalization.js";
@@ -54,7 +54,6 @@ function strandBadge(category) {
 }
 /** The strand's badge colour, used to tint its mark pill. */
 const strandTint = (category) => STRAND_STYLE[strandKey(category) || "f"][1];
-const strandColor = (category) => `var(--strand-${strandKey(category) || "f"}-bar)`;
 
 /** "24 / 24" when TeachAssist gave raw marks, else "". */
 // "18 / 20" — left out entirely while Hide grades is on.
@@ -188,7 +187,7 @@ export async function openCourseDetail(container, course) {
     const changed = content.childElementCount > 0 && content.dataset.seg !== s;
     content.dataset.seg = s;
     content.innerHTML = "";
-    content.appendChild(s === "evals" ? buildEvals(evals, kind) : buildBreakdown(evals));
+    content.appendChild(s === "evals" ? buildEvals(evals, kind, course) : buildBreakdown(evals, course));
     // The new view slides in from the side it was pulled from.
     if (changed && motionEnabled()) {
       content.style.setProperty("--seg-dir", s === "evals" ? "-1" : "1");
@@ -237,7 +236,7 @@ function teacherCard(course) {
 }
 
 // ── Evaluations list (letter badge + name + weight + mark → detail sheet) ──
-function buildEvals(evals, kind) {
+function buildEvals(evals, kind, course) {
   const frag = document.createElement("div");
   frag.className = "g-list";
   if (!evals.length) {
@@ -266,40 +265,63 @@ function buildEvals(evals, kind) {
       </button>
     `);
     row.style.setProperty("--m-i", String(i));
-    row.addEventListener("click", () => openEvaluation(e, evals));
+    row.addEventListener("click", () => openEvaluation(e, evals, course));
     frag.appendChild(row);
   });
   return frag;
 }
 
+/** The strand's short label for its round badge: "K/U", "T"… or "C2". */
+function strandLetter(category) {
+  const key = strandKey(category);
+  if (key) return STRAND_STYLE[key][0];
+  const label = String(category || "").trim();
+  return label.length <= 3 ? label.toUpperCase() || "?" : label.charAt(0).toUpperCase();
+}
+
+/**
+ * One strand as a glass tile: round badge · name and weight / glowing bar ·
+ * `right` (raw mark or entry count) / percent. Shared by the evaluation sheet
+ * and the Breakdown tab; the bar stays empty while Hide grades is on.
+ */
+function strandTile(category, weight, right, percent, i = 0, rightIsMark = true) {
+  const name = String(category || "Mark");
+  const letter = strandLetter(name);
+  const width = marksHidden() || typeof percent !== "number" ? 0 : Math.max(0, Math.min(100, percent));
+  return `<div class="ev-strand" aria-label="${escapeHtml(name)}" style="--m-i:${i}">
+    <span class="ev-letter${letter.length > 2 ? " ev-letter-sm" : ""}" aria-hidden="true">${escapeHtml(letter)}</span>
+    <span class="ev-strand-label">${letter.toUpperCase() !== name.toUpperCase() ? `<b>${escapeHtml(name).replace(/\//g, "/<wbr>")}</b>` : ""}${weight != null ? `<span>Weight: ${escapeHtml(String(weight))}</span>` : ""}</span>
+    <span class="ev-raw g-mono${rightIsMark ? " private-mark" : ""}">${right}</span>
+    <span class="ev-bar" aria-hidden="true"><i style="width:${width}%"></i></span>
+    <span class="ev-value private-mark">${pct(percent)}</span>
+  </div>`;
+}
+
 /** Bottom sheet for one evaluation: big mark, strand bars, impact. */
-function openEvaluation(e, evals) {
+function openEvaluation(e, evals, course) {
   const others = evals.filter((x) => x !== e);
   const impact = others.length ? weightedMean(evals) - weightedMean(others) : null;
-  const strands = Array.isArray(e.strands) && e.strands.length ? e.strands : [{ category: e.category || e.name, percent: e.percent, weight: e.weight }];
+  const strands = Array.isArray(e.strands) && e.strands.length ? e.strands : [{ category: e.category || e.name, percent: e.percent, weight: e.weight, mark: e.mark, outOf: e.outOf }];
+  const s = subjectStyle(course?.code);
+  const caption = ["Overall", rawMark(e), fmtDate(e.date)].filter(Boolean).map(escapeHtml).join(" · ");
   const body = el(`
-    <div class="eval-sheet">
-      <div class="eval-sheet-head">
-        ${subjectBadge("ENG", "g-badge-lg")}
+    <div class="ev" style="--tint:${s.tint};--b-from:${s.from};--b-to:${s.to}">
+      <div class="ev-head">
+        <span class="ev-icon" aria-hidden="true">${s.icon}</span>
         <h3>${escapeHtml(e.name || e.category || "Assessment")}</h3>
-        <div class="g-hero-num private-mark">${pct(e.percent)}</div>
-        <p class="g-caption">Overall${rawMark(e) ? ` · ${escapeHtml(rawMark(e))}` : ""}${e.date ? ` · ${escapeHtml(fmtDate(e.date))}` : ""}</p>
+        <div class="ev-mark private-mark">${pct(e.percent)}</div>
+        <p class="ev-caption">${caption}</p>
       </div>
-      <div class="eval-strands">
-        ${strands
-          .map(
-            (s) => `<div class="eval-strand">
-              <div class="eval-strand-top"><b>${escapeHtml(s.category || "Mark")}</b><span class="private-mark">${pct(s.percent)}</span></div>
-              <div class="eval-strand-sub"><span>${s.weight != null ? `Weight: <span class="g-mono">${escapeHtml(String(s.weight))}</span>` : ""}</span>${rawMark(s) ? `<span class="g-mono private-mark">${escapeHtml(rawMark(s))}</span>` : ""}</div>
-              ${segBar(s.percent, strandColor(s.category))}
-            </div>`,
-          )
-          .join("")}
+      <div class="ev-strands">
+        ${strands.map((x) => strandTile(x.category, x.weight, escapeHtml(rawMark(x)), x.percent)).join("")}
       </div>
-      ${e.feedback ? `<p class="eval-feedback">“${escapeHtml(e.feedback)}”</p>` : ""}
+      ${e.feedback ? `<p class="ev-feedback">“${escapeHtml(e.feedback)}”</p>` : ""}
       ${
         impact != null && Math.abs(impact) >= 0.05 && !preferences().hideMarks
-          ? `<p class="eval-impact ${impact >= 0 ? "up" : "down"}">${impact >= 0 ? GLYPHS.trendUp : GLYPHS.trendDown}This evaluation ${impact >= 0 ? "raised" : "lowered"} your average by about ${Math.abs(Math.round(impact * 10) / 10).toFixed(1)}%</p>`
+          ? `<div class="ev-impact ${impact >= 0 ? "up" : "down"}">
+              <span class="ev-impact-icon" aria-hidden="true">${impact >= 0 ? GLYPHS.trendUp : GLYPHS.trendDown}</span>
+              <p>This evaluation ${impact >= 0 ? "raised" : "lowered"} your average by about <b>${Math.abs(Math.round(impact * 10) / 10).toFixed(1)}%</b></p>
+            </div>`
           : ""
       }
     </div>`);
@@ -352,7 +374,7 @@ export function strandBreakdown(evals) {
 }
 
 // ── Breakdown (weighted per-category segmented bars) ──
-function buildBreakdown(evals) {
+function buildBreakdown(evals, course) {
   const frag = document.createElement("div");
   frag.className = "g-list";
   if (!evals.length) {
@@ -362,17 +384,10 @@ function buildBreakdown(evals) {
   if (evals.every((e) => !e.percent)) {
     frag.appendChild(el(`<p class="g-empty-note">Your teacher hasn't posted assignment marks yet, so percentages are 0%. The weightings below are from TeachAssist.</p>`));
   }
-  const card = el(`<div class="g-panel eval-strands"></div>`);
-  strandBreakdown(evals).forEach((s, i) => {
-    const row = el(`
-      <div class="eval-strand strand-row">
-        <div class="eval-strand-top"><span class="eval-strand-name">${strandBadge(s.name)}<b>${escapeHtml(s.name)}</b></span><span class="strand-value private-mark">${pct(s.average)}</span></div>
-        <div class="eval-strand-sub"><span>Weight: <span class="g-mono">${Math.round(s.weight * 10) / 10}</span></span><span class="g-mono">${s.count} ${s.count === 1 ? "entry" : "entries"}</span></div>
-        ${segBar(s.average, strandColor(s.name), 10)}
-      </div>`);
-    row.style.setProperty("--m-i", String(i));
-    card.appendChild(row);
-  });
-  frag.appendChild(card);
+  const s = subjectStyle(course?.code);
+  const tiles = strandBreakdown(evals).map((x, i) =>
+    strandTile(x.name, Math.round(x.weight * 10) / 10, `${x.count} ${x.count === 1 ? "entry" : "entries"}`, x.average, i, false),
+  );
+  frag.appendChild(el(`<div class="ev ev-breakdown" style="--tint:${s.tint};--b-from:${s.from};--b-to:${s.to}"><div class="ev-strands">${tiles.join("")}</div></div>`));
   return frag;
 }
