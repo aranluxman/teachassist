@@ -8,6 +8,7 @@
 // ============================================================================
 
 import { courseTerm } from "./term.js";
+import { courseOverride } from "./class-times.js";
 
 const svg = (body) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
@@ -81,7 +82,9 @@ export function scheduleOf(course) {
     String(course?.room || "").replace(/^(rm\.?|room)\s*/i, "") ||
     "";
   const term = courseTerm(course);
-  return { period, room: room.replace(/\s+\d{4}-.*$/, "").trim(), term };
+  // A room fixed in Manage Courses wins over the scraped one.
+  const edited = courseOverride(fullCode(course)).room;
+  return { period, room: edited || room.replace(/\s+\d{4}-.*$/, "").trim(), term };
 }
 
 /** "Sep 7, 2026" from a UTC timestamp. */

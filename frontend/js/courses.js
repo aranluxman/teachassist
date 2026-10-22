@@ -1,7 +1,7 @@
 import { preferences } from "./personalization.js";
 import { syncFromCloud } from "./cloud-store.js";
 import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct } from "./ui-kit.js";
-import { fmtDay, fullCode, scheduleOf, subjectBadge, subjectStyle } from "./subjects.js";
+import { fullCode, subjectBadge, subjectStyle } from "./subjects.js";
 // ============================================================================
 // Courses screen + shared UI helpers
 // ----------------------------------------------------------------------------
@@ -12,6 +12,8 @@ import { fmtDay, fullCode, scheduleOf, subjectBadge, subjectStyle } from "./subj
 // ============================================================================
 
 import { courseName, courseMeta } from "./course-names.js";
+import { courseOverride } from "./class-times.js";
+import { openSchedule } from "./schedule.js";
 import { teacherFor } from "./teachers.js";
 import { splitByTerm } from "./term.js";
 import {
@@ -89,7 +91,7 @@ export function letterGrade(v) {
 /** The readable course title: scraped name if real, else the code lookup. */
 export function courseTitle(course) {
   const label = courseLabel(course);
-  return courseName(label) || courseSubtitle(course).split(",")[0] || label;
+  return courseOverride(fullCode(course)).name || courseName(label) || courseSubtitle(course).split(",")[0] || label;
 }
 
 /** Round to one decimal and add "%". Shows "—" when there is no value. */
@@ -300,7 +302,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
     if (isDemo()) return savedFeedback(e.currentTarget, "Demo data is bundled");
     await renderCourses(container, { refresh: true });
   });
-  top.querySelector("[data-schedule]").addEventListener("click", () => openSchedule(courses));
+  top.querySelector("[data-schedule]").addEventListener("click", () => openSchedule(courses, { onEdit: () => renderCourses(container) }));
   top.querySelector("[data-inbox]").addEventListener("click", () => openUpdates(changes, updates.find((u) => u.overall)));
   container.appendChild(top);
 
@@ -541,61 +543,6 @@ export function trendChartEl(rows) {
   });
   wrap.addEventListener("blur", hide);
   return wrap;
-}
-
-/** The Class Schedule sheet: one tinted card per period. */
-export function openSchedule(courses) {
-  const rows = courses
-    .map((c) => ({ c, ...scheduleOf(c) }))
-    .sort((a, b) => (parseInt(a.period.slice(1)) || 99) - (parseInt(b.period.slice(1)) || 99));
-  const terms = rows.map((r) => r.term).filter(Boolean);
-  const range = terms.length
-    ? `${fmtDay(Math.min(...terms.map((t) => t.start)))} - ${fmtDay(Math.max(...terms.map((t) => t.end)))}`
-    : "This semester";
-  const body = el(`<div class="schedule-list" role="list"></div>`);
-  rows.forEach(({ c, period, room }, i) => {
-    const s = subjectStyle(c.code);
-    const name = courseSubtitle(c) || courseName(courseLabel(c)) || "";
-    const card = el(`
-      <div class="schedule-row" role="listitem">
-        <span class="schedule-period">${escapeHtml(period || "–")}</span>
-        <button type="button" class="schedule-card" style="--tint:${s.tint}">
-          ${subjectBadge(c.code)}
-          <span class="g-row-main">
-            <b>${escapeHtml(fullCode(c))}</b>
-            ${name ? `<small>${escapeHtml(name)}</small>` : ""}
-            ${room ? `<em>${GLYPHS.pin} Room ${escapeHtml(room)}</em>` : ""}
-          </span>
-        </button>
-      </div>`);
-    card.style.setProperty("--m-i", String(i));
-    card.querySelector("button").addEventListener("click", () => {
-      closeSheet();
-      if (displayMark(c) != null || (c.evaluations || []).length) window.AppNav.toDetail(c);
-    });
-    body.appendChild(card);
-  });
-  const text = rows
-    .map(({ c, period, room }) => [period, fullCode(c), courseSubtitle(c) || courseName(courseLabel(c)), room && `Room ${room}`].filter(Boolean).join(" · "))
-    .join("\n");
-  const { sheet } = openSheet("Class Schedule", body, {
-    subtitle: range,
-    className: "sheet-tall",
-    left: glassButton("close", "Close", "data-close"),
-    right: glassButton("share", "Share schedule", "data-share"),
-  });
-  sheet.querySelector("[data-share]").addEventListener("click", async (e) => {
-    const shareText = `My class schedule (${range})\n${text}`;
-    try {
-      if (navigator.share) await navigator.share({ title: "Class Schedule", text: shareText });
-      else {
-        await navigator.clipboard.writeText(shareText);
-        e.currentTarget.classList.add("g-done");
-      }
-    } catch {
-      /* cancelled */
-    }
-  });
 }
 
 /** The inbox sheet: day-over-day mark changes. */

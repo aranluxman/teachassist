@@ -23,11 +23,14 @@ source and rebuild command live in [`../worker`](../worker).
   updates), a swipeable gradient gauge of the overall average (with Ontario
   level and letter grade) and its average over time, and pill-shaped course
   rows with a subject icon, the real course name and the mark.
-- **Class Schedule** — a sheet with one colour-tinted card per period: code,
-  course name and room, plus the term's dates and a share button.
+- **Class Schedule** — a Liquid Glass sheet with one subject-tinted card per
+  class: code, name, class time (estimated from your school's bell times),
+  room and the current mark. **Add to Calendar** adds each class to Google
+  Calendar, repeating every school day; **Manage Courses** lets you rename a
+  course and fix its room or start/end time (saved on this device).
 - **Course detail** — swipeable mark gauge / grade progression / course info
   (period, room, term dates, midterm and final), an **Evaluations** list with
-  round K/U · T · C · A · F badges that open a sheet with segmented strand bars
+  round K/U · T · C · A · F badges that open a glass sheet with glowing strand bars
   and how much each one moved your average, a **Breakdown** tab of weighted
   per-category bars, and a Teacher card.
 - **Guidance** — my school (principal, VPs, bell times, phone, website,

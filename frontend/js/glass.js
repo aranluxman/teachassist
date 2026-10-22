@@ -29,7 +29,7 @@ const SURFACES = ".tabbar, .g-header.g-stuck, .segmented, .g-btn, .app-notice, .
 const PRESSABLE = ".g-btn, .tabbar button, .segmented button, .suggest-chip, .msg-actions .chip";
 const REVEALABLE = ".card, .disclosure, .g-row";
 // These already play their own entrance in css/motion.css.
-const ANIMATED_ELSEWHERE = ".g-list > .g-row, #seg-content .eval-row, .schedule-row .g-row, .sheet .g-row";
+const ANIMATED_ELSEWHERE = ".g-list > .g-row, #seg-content .eval-row, .sched-card, .manage-card, .sheet .g-row";
 
 let booted = false;
 

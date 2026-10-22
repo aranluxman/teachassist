@@ -136,23 +136,6 @@ html[data-mode="dark"] .sheet.sheet-glass {
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     var(--glass-shadow);
 }
-/* Strand tiles inside: a lighter, flat tint — never glass stacked on glass. */
-html[data-mode] .sheet-eval .eval-strand {
-  padding: 14px 16px;
-  border-radius: 22px;
-  background: color-mix(in srgb, var(--text) 5%, transparent);
-  border: 1px solid color-mix(in srgb, white 35%, transparent);
-}
-html[data-mode="dark"] .sheet-eval .eval-strand {
-  border-color: color-mix(in srgb, white 8%, transparent);
-}
-html[data-mode] .sheet-eval .eval-strands {
-  display: grid;
-  gap: 10px;
-}
-html[data-mode] .sheet-eval .eval-sheet-head .g-hero-num {
-  text-shadow: 0 2px 18px color-mix(in srgb, var(--accent) 30%, transparent);
-}
 /* Breakdown panel on the course page: glass card. */
 html[data-mode] #seg-content .g-panel.eval-strands {
   background: var(--glass-sheen), var(--glass-bg);
