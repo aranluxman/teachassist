@@ -1372,9 +1372,10 @@ function mergeMarks(fresh, saved) {
     const before = old.find((o) => o.code === c.code);
     if (!before) return c;
     stale = true;
-    return { ...c, currentMark: before.currentMark ?? null, midterm: before.midterm ?? null, evaluations: c.evaluations?.length ? c.evaluations : before.evaluations || [] };
+    return { ...c, saved: true, currentMark: before.currentMark ?? null, midterm: before.midterm ?? null, evaluations: c.evaluations?.length ? c.evaluations : before.evaluations || [] };
   });
-  return { courses, stale };
+  const gone = old.filter((o) => !now.some((c) => c.code === o.code)).map((o) => ({ ...o, saved: true }));
+  return { courses: [...courses, ...gone], stale };
 }
 async function withSavedMarks(response, env, ctx) {
   try {
@@ -1389,9 +1390,9 @@ async function withSavedMarks(response, env, ctx) {
     if (fresh.some(hasMark) && JSON.stringify(courses).length <= MAX_MARKS_JSON) {
       ctx?.waitUntil?.(saveRow(env, session.subject, { marks: courses, marks_at: (/* @__PURE__ */ new Date()).toISOString() }));
     }
-    if (!stale) return response;
+    if (!stale && courses.length === fresh.length) return response;
     const headers = new Headers(response.headers);
-    headers.set("X-TeachAssist-Saved-At", row?.marks_at || row?.updated_at || "");
+    if (stale) headers.set("X-TeachAssist-Saved-At", row?.marks_at || row?.updated_at || "");
     return new Response(JSON.stringify(courses), { status: 200, headers });
   } catch {
     return response;
