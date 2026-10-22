@@ -2,9 +2,9 @@
 // TeachAssist client — student sign-in + account-scoped live data
 // ----------------------------------------------------------------------------
 // Signs you in by POSTing your student number + password to the Worker, which
-// logs into ta.yrdsb.ca and returns your marks. Your credentials are kept in
-// this device's localStorage so the app can re-fetch (like the reference app);
-// Sign Out clears them. They are never sent anywhere except your own Worker.
+// logs into ta.yrdsb.ca and returns your marks. The Worker answers with a
+// sealed credential (a "locked box" only it can open); this device keeps that
+// box and the student number, never the password. Sign Out clears them.
 //
 // Returned course shape (from the Worker):
 //   { code, name, currentMark, midterm, evaluations: [{ name, category, percent, weight }] }
@@ -18,7 +18,8 @@ import { DEMO_COURSES, DEMO_SCRAPED_AT } from "./demo-data.js";
 const LS = {
   url: "ta_worker_url",
   num: "ta_student_number",
-  pass: "ta_password",
+  pass: "ta_password", // legacy: replaced by `cred` on the next refresh
+  cred: "ta_cred",
   demo: "ta_demo_mode",
 };
 
@@ -26,6 +27,7 @@ let cacheAccount = null;
 let cache = null; // last fetched courses (this page load)
 let cachedAt = null; // ISO time of the active student’s successful refresh
 let savedCopyAt = null; // set when TeachAssist had no marks and the last saved copy is shown
+let issuedCred = ""; // sealed credential from the latest successful sign-in
 
 /** When the marks currently on screen were scraped (ISO string), or null. */
 export function lastSyncedAt() {
@@ -64,8 +66,22 @@ export function studentNumber() {
 function password() {
   return localStorage.getItem(LS.pass) || "";
 }
+function sealedCred() {
+  return localStorage.getItem(LS.cred) || "";
+}
 export function isLoggedIn() {
-  return isDemo() || !!(studentNumber() && password());
+  return isDemo() || !!(studentNumber() && (sealedCred() || password()));
+}
+/** Keep the Worker's sealed credential and drop any stored password. */
+function keepCredential(pass) {
+  if (issuedCred) {
+    localStorage.setItem(LS.cred, issuedCred);
+    localStorage.removeItem(LS.pass);
+  } else if (pass) {
+    // A sign-in server without sealing (no API_KEY) still needs the password.
+    localStorage.setItem(LS.pass, pass);
+  }
+  issuedCred = "";
 }
 
 // ---- demo mode ---------------------------------------------------------------
@@ -105,7 +121,8 @@ export function sessionToken() {
 }
 
 // ---- network ---------------------------------------------------------------
-async function postMarks(username, pass) {
+/** `secret` is { password } on sign-in, or { cred } (the sealed box) on refresh. */
+async function postMarks(username, secret) {
   const url = workerUrl();
   if (!url) throw new Error("Sign-in is not configured. Please contact the site owner.");
   let res;
@@ -115,7 +132,7 @@ async function postMarks(username, pass) {
       headers: {
         "content-type": "application/json",
       },
-      body: JSON.stringify({ username, password: pass }),
+      body: JSON.stringify({ username, ...secret }),
       signal: AbortSignal.timeout(60000),
     });
   } catch {
@@ -144,6 +161,7 @@ async function postMarks(username, pass) {
   if (!res.ok) throw new Error((body && body.error) || `Worker returned HTTP ${res.status}`);
   if (!Array.isArray(body)) throw new Error("Unexpected response from the Worker.");
   savedCopyAt = res.headers.get("X-TeachAssist-Saved-At") || null;
+  issuedCred = res.headers.get("X-TeachAssist-Cred") || "";
   const token = res.headers.get("X-TeachAssist-Session");
   if (token) sessionStorage.setItem(`ta-session:${url}:${username}`, token);
   return body;
@@ -159,9 +177,9 @@ export function resetSignInService() {
 
 /** Sign in: validates the credentials by fetching marks, then stores them. */
 export async function login(num, pass) {
-  const courses = await postMarks(num.trim(), pass);
+  const courses = await postMarks(num.trim(), { password: pass });
   localStorage.setItem(LS.num, num.trim());
-  localStorage.setItem(LS.pass, pass);
+  keepCredential(pass);
   localStorage.removeItem(LS.demo);
   cache = courses;
   cacheAccount = `${workerUrl()}:${studentNumber()}`;
@@ -182,8 +200,21 @@ export async function getCourses({ refresh = false } = {}) {
   if (cache && cacheAccount === account && !refresh) return cache;
 
   if (!isLoggedIn()) throw new Error("Not signed in.");
-  const courses = await postMarks(studentNumber(), password());
-  if (isDemo() || account !== `${workerUrl()}:${studentNumber()}`) throw new Error("Your account changed. Open your courses again.");
+  // Refresh with the sealed box. A phone from before sealing still holds the
+  // password: send it once, then keepCredential swaps it for a box.
+  const legacy = !sealedCred() && password();
+  let courses;
+  try {
+    courses = await postMarks(studentNumber(), legacy ? { password: legacy } : { cred: sealedCred() });
+  } catch (err) {
+    if (err.code === "TA_CRED_EXPIRED" && account === `${workerUrl()}:${studentNumber()}`) signOut();
+    throw err;
+  }
+  if (isDemo() || account !== `${workerUrl()}:${studentNumber()}`) {
+    issuedCred = "";
+    throw new Error("Your account changed. Open your courses again.");
+  }
+  keepCredential(legacy);
   cache = courses;
   cacheAccount = account;
   cachedAt = savedCopyAt || new Date().toISOString();
@@ -203,6 +234,7 @@ export function signOut() {
   sessionStorage.removeItem(`ta-session:${workerUrl()}:${studentNumber()}`);
   localStorage.removeItem(LS.num);
   localStorage.removeItem(LS.pass);
+  localStorage.removeItem(LS.cred);
   localStorage.removeItem(LS.demo);
   localStorage.removeItem("ta_api_key");
   cache = null;
@@ -249,7 +281,10 @@ export function getUpdates() {
 // A sign-out/account switch in another tab must clear that tab's rendered marks too.
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', event => {
-    if ([LS.num, LS.pass, LS.demo, LS.url].includes(event.key) || event.key === null) {
+    // A refresh swaps in a new sealed box; only react when the account changes
+    // or this device is signed out.
+    const signedOut = [LS.pass, LS.cred].includes(event.key) && !isLoggedIn();
+    if ([LS.num, LS.demo, LS.url].includes(event.key) || signedOut || event.key === null) {
       cache = null;
       cachedAt = null;
       window.location.replace('index.html');

@@ -1,5 +1,6 @@
 import { createTeachAssistSession, TeachAssistError, extractCookies } from "./teachassist-session.js";
 import { issueSession, verifySession, subjectFor } from "./session.js";
+import { sealCredential, openCredential } from "./vault.js";
 import {interpretQuestion} from "./assistant.js";
 /**
  * TeachAssist sign-in service. Student POSTs use only the submitted credentials
@@ -214,9 +215,19 @@ export default {
         let offset = 0;
         for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
         const b = JSON.parse(new TextDecoder().decode(bytes));
-        if (typeof b?.username !== "string" || !/^\d{1,20}$/.test(b.username.trim()) ||
-            typeof b.password !== "string" || !b.password || b.password.length > 1024) throw new Error();
-        creds = { username: b.username.trim(), password: b.password };
+        if (typeof b?.username !== "string" || !/^\d{1,20}$/.test(b.username.trim())) throw new Error();
+        const username = b.username.trim();
+        if (typeof b.password === "string" && b.password && b.password.length <= 1024) {
+          creds = { username, password: b.password };
+        } else if (typeof b.cred === "string" && b.cred) {
+          // A sealed credential from an earlier sign-in: open it here so the
+          // phone never has to keep the password itself.
+          const password = await openCredential(env.API_KEY, username, b.cred);
+          if (!password) {
+            return json({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
+          }
+          creds = { username, password };
+        } else throw new Error();
       } catch {
         return json({ error: "Enter your student number and password." }, 400);
       }
@@ -298,7 +309,13 @@ export default {
       // are returned directly and are never stored in that cache.
       if (request.method === "GET") storeMarks(env, ctx, out);
       const session = publicSignIn ? await issueSession(env.API_KEY, Date.now(), await subjectFor(env.API_KEY, creds?.username)) : "";
-      return json(out, 200, session ? { "X-TeachAssist-Session": session } : {});
+      // A fresh sealed credential on every student sign-in, so its 90 days
+      // restart each time the student uses the app.
+      const cred = publicSignIn && creds ? await sealCredential(env.API_KEY, creds.username, creds.password) : "";
+      return json(out, 200, {
+        ...(session ? { "X-TeachAssist-Session": session } : {}),
+        ...(cred ? { "X-TeachAssist-Cred": cred } : {}),
+      });
     } catch (err) {
       if (err instanceof TeachAssistError) {
         // The trace lists only steps, statuses, paths, parameter/cookie names
@@ -908,7 +925,7 @@ function corsHeaders() {
     "Access-Control-Allow-Origin": DASHBOARD_ORIGIN,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": `Content-Type, Authorization, ${API_KEY_HEADER}`,
-    "Access-Control-Expose-Headers": "X-TeachAssist-Session",
+    "Access-Control-Expose-Headers": "X-TeachAssist-Session, X-TeachAssist-Cred",
     "Cache-Control": "no-store",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
