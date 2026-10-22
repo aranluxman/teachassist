@@ -136,14 +136,6 @@ html[data-mode="dark"] .sheet.sheet-glass {
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     var(--glass-shadow);
 }
-/* Breakdown panel on the course page: glass card. */
-html[data-mode] #seg-content .g-panel.eval-strands {
-  background: var(--glass-sheen), var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-highlight), var(--glass-shadow);
-}
 /* The sheet materialises: blur and scale arrive together. */
 html[data-mode].m-on .sheet-backdrop .sheet.sheet-eval {
   scale: 0.97;
@@ -632,8 +624,7 @@ html[data-mode] #screen-courses .dream-preview {
   html[data-mode] .sheet.sheet-eval,
   html[data-mode] .sheet.sheet-glass,
   html[data-mode] .notify-pill,
-  html[data-mode] .search-field,
-  html[data-mode] #seg-content .g-panel.eval-strands {
+  html[data-mode] .search-field {
     background: var(--card-solid);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

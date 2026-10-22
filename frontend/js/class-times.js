@@ -73,11 +73,16 @@ export function fmtClock(minutes) {
 }
 
 /**
- * The four periods' { start, end } (minutes) for a school day like
- * "8:45 AM - 3:05 PM". Periods are 75 minutes when that leaves a 35–80 minute
- * lunch; otherwise they share what's left after a 55 minute lunch.
+ * Each period's { start, end } (minutes) for a school day like
+ * "8:45 AM - 3:05 PM".
+ *   • 4 periods: 75 minutes each when that leaves a 35–80 minute lunch after
+ *     period 2; otherwise they share what's left after a 55 minute lunch.
+ *   • 5+ periods (TeachAssist sometimes lists lunch as its own period, e.g.
+ *     "LUNCH-4" in P3): `lunch` names that period; the classes stay 75
+ *     minutes and lunch gets the rest. Without a lunch period the day is
+ *     split evenly.
  */
-export function periodTimes(bellTimes = DEFAULT_BELL_TIMES) {
+export function periodTimes(bellTimes = DEFAULT_BELL_TIMES, { count = PERIODS, lunch = 0 } = {}) {
   const [a, b] = String(bellTimes || "").split(/\s[-–~]\s|\sto\s/i);
   let start = parseClock(a);
   let end = parseClock(b);
@@ -85,30 +90,50 @@ export function periodTimes(bellTimes = DEFAULT_BELL_TIMES) {
     [start, end] = String(DEFAULT_BELL_TIMES).split(" - ").map(parseClock);
   }
   const day = end - start;
-  let length = 75;
-  let lunch = day - PERIODS * length - 2 * PASSING;
-  if (lunch < 35 || lunch > 80) {
-    lunch = 55;
-    length = Math.floor((day - lunch - 2 * PASSING) / PERIODS);
+  const n = Math.max(PERIODS, Math.min(8, count || PERIODS));
+  const lengths = [];
+  const gaps = [];
+  if (n === PERIODS) {
+    let length = 75;
+    let lunchLen = day - n * length - 2 * PASSING;
+    if (lunchLen < 35 || lunchLen > 80) {
+      lunchLen = 55;
+      length = Math.floor((day - lunchLen - 2 * PASSING) / n);
+    }
+    for (let i = 0; i < n; i++) {
+      lengths.push(length);
+      gaps.push(i === 1 ? lunchLen : PASSING);
+    }
+  } else {
+    const lunchLen = day - (n - 1) * 75 - (n - 1) * PASSING;
+    const even = Math.floor((day - (n - 1) * PASSING) / n);
+    for (let i = 0; i < n; i++) {
+      lengths.push(lunch >= 1 && lunch <= n && lunchLen >= 30 && lunchLen <= 90 ? (i === lunch - 1 ? lunchLen : 75) : even);
+      gaps.push(PASSING);
+    }
   }
   const out = [];
   let t = start;
-  for (let i = 0; i < PERIODS; i++) {
-    out.push({ start: t, end: t + length });
-    t += length + (i === 1 ? lunch : PASSING);
+  for (let i = 0; i < n; i++) {
+    out.push({ start: t, end: t + lengths[i] });
+    t += lengths[i] + gaps[i];
   }
-  out[PERIODS - 1].end = end; // the last bell is the day's end
+  out[n - 1].end = end; // the last bell is the day's end
   return out;
 }
 
+/** "P3" → 3; 0 when there's no period number. */
+export const periodNumber = (period) => parseInt(String(period || "").replace(/\D/g, ""), 10) || 0;
+
 /**
  * A course's class time: { start, end, estimated } in minutes, or null when
- * the period is unknown and nothing was entered.
+ * the period is unknown and nothing was entered. `layout` is
+ * { count, lunch } for periodTimes.
  */
-export function classTime(code, period, bellTimes) {
+export function classTime(code, period, bellTimes, layout) {
   const o = courseOverride(code);
-  const n = parseInt(String(period || "").replace(/\D/g, ""), 10);
-  const est = n >= 1 && n <= PERIODS ? periodTimes(bellTimes)[n - 1] : null;
+  const n = periodNumber(period);
+  const est = n ? periodTimes(bellTimes, layout)[n - 1] : null;
   const start = parseClock(o.start) ?? est?.start;
   const end = parseClock(o.end) ?? est?.end;
   if (start == null || end == null || end <= start) return null;

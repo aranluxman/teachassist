@@ -22,22 +22,36 @@ import {
   fmtClock,
   googleCalendarUrl,
   classRange,
+  periodNumber,
   periodTimes,
   saveCourseOverride,
   toInputTime,
 } from "./class-times.js";
 
-/** Every class with its period, room, time and display name, in day order. */
+/**
+ * How the day is split: as many periods as the timetable uses (at least 4),
+ * and which one is lunch when TeachAssist lists it as a course ("LUNCH-4").
+ */
+function dayLayout(courses) {
+  const periods = courses.map((c) => ({ n: periodNumber(scheduleOf(c).period), lunch: /^\s*LUNCH/i.test(courseLabel(c)) }));
+  return {
+    count: Math.max(4, ...periods.map((p) => p.n)),
+    lunch: periods.find((p) => p.lunch && p.n)?.n || 0,
+  };
+}
+
+/** Every class with its period, room, time and display name: period 1, 2, 3… */
 function scheduleRows(courses, bellTimes) {
+  const layout = dayLayout(courses);
   return courses
     .map((c) => {
       const info = scheduleOf(c);
       const code = fullCode(c);
       // Short name ("Science"), or the one picked in Manage Courses.
       const name = courseTitle(c);
-      return { c, code, name, ...info, time: classTime(code, info.period, bellTimes) };
+      return { c, code, name, ...info, n: periodNumber(info.period), time: classTime(code, info.period, bellTimes, layout) };
     })
-    .sort((a, b) => (a.time?.start ?? 9999) - (b.time?.start ?? 9999) || a.code.localeCompare(b.code));
+    .sort((a, b) => (a.n || 99) - (b.n || 99) || (a.time?.start ?? 9999) - (b.time?.start ?? 9999) || a.code.localeCompare(b.code));
 }
 
 const timeText = (t) => (t ? `${fmtClock(t.start)} – ${fmtClock(t.end)}` : "");
@@ -52,27 +66,30 @@ export async function openSchedule(courses, { onEdit } = {}) {
 
   const body = el(`<div class="sched"><div class="sched-list" role="list"></div></div>`);
   const list = body.querySelector(".sched-list");
-  rows.forEach(({ c, code, name, room, time }, i) => {
+  rows.forEach(({ c, code, name, room, time, n }, i) => {
     const s = subjectStyle(c.code);
     const mark = displayMark(c);
+    // Lunch (or a course with nothing posted) has no detail page to open.
+    const opens = mark != null || (c.evaluations || []).length > 0;
     const card = el(`
       <button type="button" class="sched-card" role="listitem" style="--tint:${s.tint};--b-from:${s.from};--b-to:${s.to}">
         <span class="sched-icon" aria-hidden="true">${s.icon}</span>
         <span class="sched-main">
           <b>${escapeHtml(code)}</b>
-          ${name ? `<small>${escapeHtml(name)}</small>` : ""}
+          <small>${n ? `<span class="sched-period" aria-label="Period ${n}">P${n}</span>` : ""}${escapeHtml(name || "")}</small>
           <span class="sched-meta">
             ${time ? `<em>${GLYPHS.clock}${escapeHtml(timeText(time))}</em>` : `<em class="sched-missing">${GLYPHS.clock}Add a time</em>`}
             ${room ? `<em>${GLYPHS.pin}Room ${escapeHtml(room)}</em>` : ""}
           </span>
         </span>
         ${mark != null ? `<span class="sched-mark private-mark">${pill(mark)}</span>` : ""}
-        <span class="g-chev">${GLYPHS.chevron}</span>
+        ${opens ? `<span class="g-chev">${GLYPHS.chevron}</span>` : ""}
       </button>`);
     card.style.setProperty("--m-i", String(i));
     card.addEventListener("click", () => {
+      if (!opens) return;
       closeSheet();
-      if (mark != null || (c.evaluations || []).length) window.AppNav.toDetail(c);
+      window.AppNav.toDetail(c);
     });
     list.appendChild(card);
   });
@@ -170,12 +187,13 @@ function openAddToCalendar(rows, back) {
 /** Manage Courses: rename a course, fix its room, start and end time. */
 function openManageCourses(courses, bellTimes, back, onEdit) {
   let changed = false;
+  const layout = dayLayout(courses);
   const body = el(`<div class="sched manage-list"></div>`);
   scheduleRows(courses, bellTimes).forEach(({ c, code, period }, i) => {
     const s = subjectStyle(c.code);
     const o = courseOverride(code);
-    const n = parseInt(String(period || "").replace(/\D/g, ""), 10);
-    const est = n >= 1 && n <= 4 ? periodTimes(bellTimes)[n - 1] : null;
+    const n = periodNumber(period);
+    const est = n ? periodTimes(bellTimes, layout)[n - 1] : null;
     const defaults = {
       name: courseName(courseLabel(c)) || courseSubtitle(c).split(",")[0] || "",
       room: String(c.room || "").replace(/^(rm\.?|room)\s*/i, "") || "",

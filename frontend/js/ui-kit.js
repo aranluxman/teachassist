@@ -5,7 +5,6 @@
 //   iconTile()      rounded-square tinted icon (rows, fields, sections)
 //   pageHeader()    glass button · centred title + subtitle · glass button
 //   pct()           a mark as big monospaced digits with a small "%"
-//   segBar()        a progress bar split into segments
 //   arcGauge()      the semicircle gauge with a gradient stroke
 //   pager()         a swipeable row of panels with dots underneath
 // ============================================================================
@@ -81,17 +80,6 @@ export function pct(v, cls = "") {
   // Hide grades: the number never reaches the page (a blur can be read).
   if (marksHidden()) return `<span class="g-pct g-masked ${cls}" aria-label="Hidden">••<small>%</small></span>`;
   return `<span class="g-pct ${cls}">${(Math.round(v * 10) / 10).toFixed(1)}<small>%</small></span>`;
-}
-
-/** A progress bar split into `segments` pills, filled to `percent`.
- *  Empty when grades are hidden, since the fill length is the mark. */
-export function segBar(percent, color = "var(--accent)", segments = 6) {
-  const hidden = marksHidden();
-  const filled = hidden ? 0 : (Math.max(0, Math.min(100, Number(percent) || 0)) / 100) * segments;
-  const pills = Array.from({ length: segments }, (_, i) =>
-    `<i style="--f:${Math.max(0, Math.min(1, filled - i)).toFixed(3)}"></i>`,
-  ).join("");
-  return `<div class="g-seg${hidden ? " g-seg-masked" : ""}" style="--seg-c:${color}" aria-hidden="true">${pills}</div>`;
 }
 
 /**

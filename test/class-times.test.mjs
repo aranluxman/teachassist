@@ -73,3 +73,20 @@ test("googleCalendarUrl builds a weekday-repeating event", () => {
   assert.equal(url.searchParams.get("location"), "Room 302");
   assert.equal(url.searchParams.get("recur"), "RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=20270202T235959Z");
 });
+
+test("periodTimes with lunch listed as its own period (5 periods)", () => {
+  const p = periodTimes("8:45 AM - 3:05 PM", { count: 5, lunch: 3 });
+  assert.deepEqual(p.map(clock), ["8:45-10:00", "10:05-11:20", "11:25-12:25", "12:30-1:45", "1:50-3:05"]);
+});
+
+test("periodTimes splits a 5-period day evenly when no lunch period is known", () => {
+  const p = periodTimes("8:45 AM - 3:05 PM", { count: 5 });
+  assert.equal(p.length, 5);
+  assert.ok(p.every((x, i) => x.end > x.start && (i === 0 || x.start > p[i - 1].end)));
+  assert.equal(fmtClock(p[4].end), "3:05");
+});
+
+test("classTime estimates period 5 when the day has five periods", () => {
+  assert.equal(clock(classTime("TDJ2O1-1", "P5", "8:45 AM - 3:05 PM", { count: 5, lunch: 3 })), "1:50-3:05");
+  assert.equal(clock(classTime("TDJ2O1-1", "P4", "8:45 AM - 3:05 PM")), "1:50-3:05");
+});

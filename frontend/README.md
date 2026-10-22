@@ -24,7 +24,7 @@ source and rebuild command live in [`../worker`](../worker).
   level and letter grade) and its average over time, and pill-shaped course
   rows with a subject icon, the real course name and the mark.
 - **Class Schedule** — a Liquid Glass sheet with one subject-tinted card per
-  class: code, name, class time (estimated from your school's bell times),
+  class in period order (P1, P2, P3…): code, name, class time (estimated from your school's bell times),
   room and the current mark. **Add to Calendar** adds each class to Google
   Calendar, repeating every school day; **Manage Courses** lets you rename a
   course and fix its room or start/end time (saved on this device).
@@ -32,7 +32,7 @@ source and rebuild command live in [`../worker`](../worker).
   (period, room, term dates, midterm and final), an **Evaluations** list with
   round K/U · T · C · A · F badges that open a glass sheet with glowing strand bars
   and how much each one moved your average, a **Breakdown** tab of weighted
-  per-category bars, and a Teacher card.
+  per-category glass tiles (same style as the evaluation sheet), and a Teacher card.
 - **Guidance** — my school (principal, VPs, bell times, phone, website,
   official boundary map), an interactive **school map** of all 218 YRDSB
   schools, a counsellor card, an **OSSD diploma tracker**, a full **volunteer

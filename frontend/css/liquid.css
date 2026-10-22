@@ -115,6 +115,18 @@ html[data-mode] .sched-main > b {
   font-weight: 800;
   letter-spacing: 0.01em;
 }
+/* Period capsule leading the name line: the order at a glance. */
+html[data-mode] .sched-period {
+  display: inline-block;
+  margin-right: 7px;
+  padding: 3px 8px;
+  vertical-align: 1px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--tint) 35%, transparent);
+  background: color-mix(in srgb, var(--tint) 18%, transparent);
+  color: color-mix(in srgb, var(--tint) 55%, var(--text));
+  font: 800 12.5px/1.1 var(--font);
+}
 html[data-mode] .sched-main > small {
   overflow: hidden;
   font-size: 15px;
@@ -643,8 +655,13 @@ html[data-mode] .ev-impact b {
   color: var(--impact);
 }
 
+/* The same tiles on the course page's Breakdown tab. */
+html[data-mode] .ev-breakdown .ev-strands {
+  margin-top: 0;
+}
+
 /* ── Motion ───────────────────────────────────────────────────────────── */
-html[data-mode].m-on :is(.sched-list > .sched-card, .manage-card) {
+html[data-mode].m-on :is(.sched-list > .sched-card, .manage-card, .ev-breakdown .ev-strand) {
   animation: m-fade-up 420ms var(--ease-spring) both;
   animation-delay: calc(var(--m-i, 0) * 0.045s);
 }
