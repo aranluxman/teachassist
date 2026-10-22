@@ -1,0 +1,9 @@
+# TeachAssist
+
+> A free, student-made dashboard for York Region (YRDSB) students that turns TeachAssist marks into a clear view of every evaluation and the Knowledge, Thinking, Communication and Application breakdown. Independent project, not run by YRDSB.
+
+## Pages
+
+- [Home and sign-in](https://teachassist.pages.dev/): Sign in with a YRDSB student number or explore the demo with sample data
+- [Privacy](https://teachassist.pages.dev/legal/privacy.html): How student credentials and marks are handled
+- [Terms](https://teachassist.pages.dev/legal/terms.html): Terms of use
