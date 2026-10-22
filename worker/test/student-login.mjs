@@ -42,5 +42,21 @@ try {
   assert.equal((await mf.dispatchFetch('https://worker.test/api/marks?debug=login',{method:'POST',body:'{}'})).status,401);
   assert.equal((await mf.dispatchFetch('https://worker.test/api/marks',{method:'POST',headers:{Origin:'https://other.example'},body:'{}'})).status,403);
   assert.equal((await mf.dispatchFetch('https://worker.test/api/marks',{method:'POST',body:'x'.repeat(9000)})).status,413);
+  // Sealed credential: sign in once with the password, refresh with the box.
+  upstreamLogins = [];
+  const first = await post({username:'111',password:'correct'});
+  const box = first.headers.get('X-TeachAssist-Cred');
+  assert.match(box || '', /^v1\./, 'sign-in returns a sealed credential');
+  assert.ok(!box.includes('correct'), 'the box does not contain the password');
+  const again = await post({username:'111',cred:box});
+  assert.equal(again.status,200,'refresh with the box signs in');
+  assert.equal((await again.json())[0].currentMark,81);
+  assert.match(again.headers.get('X-TeachAssist-Cred') || '', /^v1\./, 'refresh issues a fresh box');
+  assert.deepEqual(upstreamLogins,['111','111'],'the box opens to the right student');
+  const stolen = await post({username:'222',cred:box});
+  assert.equal(stolen.status,401,"a box can't be used with another student number");
+  assert.equal((await stolen.json()).code,'TA_CRED_EXPIRED');
+  assert.equal((await post({username:'111',cred:'v1.bad.box'})).status,401,'a forged box is refused');
+  assert.equal(upstreamLogins.length,2,'refused boxes never reach TeachAssist');
   console.log('Student sign-in, account isolation, protected owner routes, and invalid-input tests passed.');
 } finally { await mf.dispose(); }

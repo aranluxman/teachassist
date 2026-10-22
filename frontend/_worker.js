@@ -372,6 +372,52 @@ async function verifySession(token, secret, now = Date.now()) {
   return !!await readSession(token, secret, now);
 }
 
+// worker/src/vault.js
+var encoder2 = new TextEncoder();
+var decoder = new TextDecoder();
+var CRED_TTL_DAYS = 90;
+var VERSION = "v1";
+var b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+var unb64url = (text2) => Uint8Array.from(atob(text2.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+async function vaultKey(secret) {
+  const base = await crypto.subtle.importKey("raw", encoder2.encode(secret), "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt: encoder2.encode("teachassist-vault"), info: encoder2.encode("student-credential-v1") },
+    base,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+async function sealCredential(secret, studentNumber, password, now = Date.now()) {
+  if (!secret || !studentNumber || !password) return "";
+  const expires = Math.floor(now / 1e3) + CRED_TTL_DAYS * 86400;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData: encoder2.encode(`${VERSION}:${studentNumber}`) },
+    await vaultKey(secret),
+    encoder2.encode(JSON.stringify({ p: password, e: expires }))
+  );
+  return `${VERSION}.${b64url(iv)}.${b64url(data)}`;
+}
+async function openCredential(secret, studentNumber, box, now = Date.now()) {
+  if (!secret || !studentNumber || typeof box !== "string" || box.length > 2048) return null;
+  const parts = box.split(".");
+  if (parts.length !== 3 || parts[0] !== VERSION) return null;
+  try {
+    const plain = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: unb64url(parts[1]), additionalData: encoder2.encode(`${VERSION}:${studentNumber}`) },
+      await vaultKey(secret),
+      unb64url(parts[2])
+    );
+    const { p, e } = JSON.parse(decoder.decode(plain));
+    if (typeof p !== "string" || !p || !(e > Math.floor(now / 1e3))) return null;
+    return p;
+  } catch {
+    return null;
+  }
+}
+
 // frontend/js/grade-math.js
 function percent(n, label) {
   if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || n > 100)
@@ -728,8 +774,17 @@ var index_default = {
           offset += chunk.length;
         }
         const b = JSON.parse(new TextDecoder().decode(bytes));
-        if (typeof b?.username !== "string" || !/^\d{1,20}$/.test(b.username.trim()) || typeof b.password !== "string" || !b.password || b.password.length > 1024) throw new Error();
-        creds = { username: b.username.trim(), password: b.password };
+        if (typeof b?.username !== "string" || !/^\d{1,20}$/.test(b.username.trim())) throw new Error();
+        const username = b.username.trim();
+        if (typeof b.password === "string" && b.password && b.password.length <= 1024) {
+          creds = { username, password: b.password };
+        } else if (typeof b.cred === "string" && b.cred) {
+          const password = await openCredential(env.API_KEY, username, b.cred);
+          if (!password) {
+            return json({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
+          }
+          creds = { username, password };
+        } else throw new Error();
       } catch {
         return json({ error: "Enter your student number and password." }, 400);
       }
@@ -788,7 +843,11 @@ var index_default = {
       const out = await scrapeMarks(env, creds);
       if (request.method === "GET") storeMarks(env, ctx, out);
       const session = publicSignIn ? await issueSession(env.API_KEY, Date.now(), await subjectFor(env.API_KEY, creds?.username)) : "";
-      return json(out, 200, session ? { "X-TeachAssist-Session": session } : {});
+      const cred = publicSignIn && creds ? await sealCredential(env.API_KEY, creds.username, creds.password) : "";
+      return json(out, 200, {
+        ...session ? { "X-TeachAssist-Session": session } : {},
+        ...cred ? { "X-TeachAssist-Cred": cred } : {}
+      });
     } catch (err) {
       if (err instanceof TeachAssistError) {
         if (DEBUG && err.trace) console.log(`Sign-in ${err.code}:
@@ -1135,7 +1194,7 @@ function corsHeaders() {
     "Access-Control-Allow-Origin": DASHBOARD_ORIGIN,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": `Content-Type, Authorization, ${API_KEY_HEADER}`,
-    "Access-Control-Expose-Headers": "X-TeachAssist-Session",
+    "Access-Control-Expose-Headers": "X-TeachAssist-Session, X-TeachAssist-Cred",
     "Cache-Control": "no-store",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin"
