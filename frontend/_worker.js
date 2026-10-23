@@ -91,8 +91,8 @@ function isErrorRedirect(url) {
 var numericId = (value) => typeof value === "string" && /^\d+$/.test(value) ? value : null;
 function describe(url) {
   if (!url) return "";
-  const keys = [...new Set(url.searchParams.keys())];
-  return url.pathname + (keys.length ? `?${keys.join("&")}` : "");
+  const keys2 = [...new Set(url.searchParams.keys())];
+  return url.pathname + (keys2.length ? `?${keys2.join("&")}` : "");
 }
 function note(trace, line) {
   if (trace && trace.length < 20) trace.push(line);
@@ -1527,7 +1527,61 @@ async function handleStore(request, env) {
   return ok ? json3({ saved: true }) : json3({ error: "Could not save to the cloud right now." }, 502);
 }
 
+// worker/src/login-limit.js
+var MAX_FAILS_PER_STUDENT = 10;
+var MAX_FAILS_PER_ADDRESS = 100;
+var HOUR = 36e5;
+var memory = /* @__PURE__ */ new Map();
+var hex2 = (bytes) => Array.from(new Uint8Array(bytes), (n) => n.toString(16).padStart(2, "0")).join("");
+async function keys(username, address, now) {
+  const bucket = Math.floor(now / HOUR);
+  const id = hex2(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`login:${username}`))).slice(0, 24);
+  return [
+    [`login:s:${bucket}:${id}`, MAX_FAILS_PER_STUDENT],
+    ...address ? [[`login:a:${bucket}:${address}`, MAX_FAILS_PER_ADDRESS]] : []
+  ];
+}
+async function read(kv, key2) {
+  return kv ? Number(await kv.get(key2)) || 0 : memory.get(key2) || 0;
+}
+async function loginBlocked(kv, username, address, now = Date.now()) {
+  for (const [key2, max] of await keys(username, address, now)) if (await read(kv, key2) >= max) return true;
+  return false;
+}
+async function recordLoginFailure(kv, username, address, now = Date.now()) {
+  for (const [key2] of await keys(username, address, now)) {
+    const next = await read(kv, key2) + 1;
+    if (kv) await kv.put(key2, String(next), { expirationTtl: 7200 });
+    else {
+      if (memory.size > 5e3) memory.clear();
+      memory.set(key2, next);
+    }
+  }
+}
+
 // worker/src/pages.js
+async function passwordSignIn(request) {
+  try {
+    const reader = request.clone().body?.getReader();
+    if (!reader) return "";
+    let text2 = "";
+    const decoder2 = new TextDecoder();
+    for (; ; ) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text2 += decoder2.decode(value, { stream: true });
+      if (text2.length > 8192) {
+        await reader.cancel();
+        return "";
+      }
+    }
+    const body = JSON.parse(text2);
+    const username = typeof body?.username === "string" ? body.username.trim() : "";
+    return /^\d{1,20}$/.test(username) && typeof body.password === "string" && body.password ? username : "";
+  } catch {
+    return "";
+  }
+}
 function json4(body, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
@@ -1566,6 +1620,11 @@ var pages_default = {
     if (url.pathname === "/api/assistant" && (!env.AI || !env.API_KEY)) {
       return json4({ error: "AI is not configured on this site yet. The quick calculator still works." }, 503);
     }
+    const student = url.pathname === "/api/marks" ? await passwordSignIn(request) : "";
+    const address = request.headers.get("CF-Connecting-IP") || "";
+    if (student && await loginBlocked(env.CHAT_LIMITS, student, address)) {
+      return json4({ error: "Too many wrong passwords. For your account's safety, wait an hour, then try again.", code: "TA_TOO_MANY_ATTEMPTS" }, 429);
+    }
     const headers = new Headers(request.headers);
     headers.delete("Origin");
     headers.delete("x-api-key");
@@ -1580,6 +1639,12 @@ var pages_default = {
       if (name.startsWith("access-control-")) result.headers.delete(name);
     }
     result.headers.set("Cache-Control", "no-store");
+    if (student && result.status === 401) {
+      const counted = recordLoginFailure(env.CHAT_LIMITS, student, address).catch(() => {
+      });
+      if (ctx?.waitUntil) ctx.waitUntil(counted);
+      else await counted;
+    }
     return url.pathname === "/api/marks" ? withSavedMarks(result, env, ctx) : result;
   }
 };

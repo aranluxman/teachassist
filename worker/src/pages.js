@@ -3,6 +3,27 @@
 import worker from './index.js';
 import { handleChat } from './chat.js';
 import { handleStore, withSavedMarks, storeConfigured } from './store.js';
+import { loginBlocked, recordLoginFailure } from './login-limit.js';
+
+/** The student number of a password sign-in, read from a copy of the body (else ''). */
+async function passwordSignIn(request) {
+  try {
+    const reader = request.clone().body?.getReader();
+    if (!reader) return '';
+    let text = '';
+    const decoder = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += decoder.decode(value, { stream: true });
+      // The sign-in handler rejects bodies this large itself.
+      if (text.length > 8192) { await reader.cancel(); return ''; }
+    }
+    const body = JSON.parse(text);
+    const username = typeof body?.username === 'string' ? body.username.trim() : '';
+    return /^\d{1,20}$/.test(username) && typeof body.password === 'string' && body.password ? username : '';
+  } catch { return ''; }
+}
 
 function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -51,6 +72,13 @@ export default {
       return json({ error: 'AI is not configured on this site yet. The quick calculator still works.' }, 503);
     }
 
+    // Limit wrong-password attempts so the site can't be used to guess passwords.
+    const student = url.pathname === '/api/marks' ? await passwordSignIn(request) : '';
+    const address = request.headers.get('CF-Connecting-IP') || '';
+    if (student && await loginBlocked(env.CHAT_LIMITS, student, address)) {
+      return json({ error: 'Too many wrong passwords. For your account\'s safety, wait an hour, then try again.', code: 'TA_TOO_MANY_ATTEMPTS' }, 429);
+    }
+
     // Same-origin was validated above, including on Pages preview domains.
     // Remove that header before calling the standalone Worker's implementation,
     // whose browser CORS policy belongs to its separate public endpoint.
@@ -68,6 +96,10 @@ export default {
       if (name.startsWith('access-control-')) result.headers.delete(name);
     }
     result.headers.set('Cache-Control', 'no-store');
+    if (student && result.status === 401) {
+      const counted = recordLoginFailure(env.CHAT_LIMITS, student, address).catch(() => {});
+      if (ctx?.waitUntil) ctx.waitUntil(counted); else await counted;
+    }
     // Keep each student's last recorded marks in Supabase and fall back to them
     // when TeachAssist comes back empty.
     return url.pathname === '/api/marks' ? withSavedMarks(result, env, ctx) : result;

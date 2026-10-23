@@ -65,3 +65,29 @@ try {
   }
   console.log('Bundled Pages backend: production/preview sign-in, two-student isolation, no-secret operation, protected owner routes, CORS, static assets, and missing-AI fallback passed.');
 } finally { await mf.dispose(); }
+
+// Wrong-password limit: after 10 misses in an hour a student number is locked,
+// without reaching TeachAssist; other students and addresses are unaffected.
+const limited = new Miniflare({ modules: true, script, compatibilityDate: '2025-09-01',
+  kvNamespaces: ['CHAT_LIMITS'],
+  serviceBindings: { ASSETS: () => new Response('') },
+  outboundService: upstream,
+});
+try {
+  const base = 'https://teachassist.pages.dev';
+  const post = (body, ip = '203.0.113.7') => limited.dispatchFetch(`${base}/api/marks`, { method: 'POST',
+    headers: { Origin: base, 'content-type': 'application/json', 'CF-Connecting-IP': ip }, body: JSON.stringify(body) });
+  for (let i = 0; i < 10; i++) assert.equal((await post({ username: '333', password: 'wrong' })).status, 401);
+  const before = upstreamRequests;
+  const blocked = await post({ username: '333', password: 'correct' });
+  assert.equal(blocked.status, 429, 'locked after 10 wrong passwords, even with the right one');
+  assert.equal((await blocked.json()).code, 'TA_TOO_MANY_ATTEMPTS');
+  assert.equal((await post({ username: '333', password: 'correct' }, '198.51.100.9')).status, 429, 'the lock follows the student number, not the address');
+  assert.equal(upstreamRequests, before, 'blocked attempts never reach TeachAssist');
+  assert.equal((await post({ username: '222', password: 'correct' })).status, 200, 'other students still sign in');
+  // One address guessing across many student numbers is stopped at 100 misses.
+  for (let i = 0; i < 100; i++) assert.equal((await post({ username: String(5000 + i), password: 'wrong' }, '192.0.2.1')).status, 401);
+  assert.equal((await post({ username: '6000', password: 'correct' }, '192.0.2.1')).status, 429, 'address locked after 100 misses');
+  assert.equal((await post({ username: '6000', password: 'correct' }, '192.0.2.2')).status, 200, 'other addresses still sign in');
+  console.log('Wrong-password limit: per-student and per-address locks, no upstream calls while locked, others unaffected.');
+} finally { await limited.dispose(); }
