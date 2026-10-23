@@ -1,6 +1,8 @@
 import { studentNumber, isDemo } from "./ta-client.js";
 const defaults = {
   name: "",
+  // Set once the dashboard has asked for a name (saved or "Not now").
+  namePrompted: false,
   career: "",
   school: "",
   motivation: "",

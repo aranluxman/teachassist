@@ -1,4 +1,5 @@
-import { preferences } from "./personalization.js";
+import { preferences, savePreferences } from "./personalization.js";
+import { mySchool, studentSite, icon } from "./schools.js";
 import { syncFromCloud } from "./cloud-store.js";
 import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct } from "./ui-kit.js";
 import { fullCode, subjectBadge, subjectStyle } from "./subjects.js";
@@ -305,6 +306,9 @@ export async function renderCourses(container, { refresh = false } = {}) {
   top.querySelector("[data-schedule]").addEventListener("click", () => openSchedule(courses, { onEdit: () => renderCourses(container) }));
   top.querySelector("[data-inbox]").addEventListener("click", () => openUpdates(changes, updates.find((u) => u.overall)));
   container.appendChild(top);
+  const hello = greeting();
+  if (hello) container.appendChild(hello);
+  const footer = el(`<p class="muted small student-run-note">This is a student-run website and is not affiliated with YRDSB.</p>`);
 
   // ── Hero pager: overall gauge · average over time ──
   const ov = updates.find((u) => u.overall);
@@ -345,6 +349,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
     container.appendChild(
       el(`<div class="empty centered"><div class="empty-title">No courses found</div>Your TeachAssist account has no courses listed.</div>`),
     );
+    container.appendChild(footer);
     return;
   }
   const list = el(`<div class="g-list course-grid"></div>`);
@@ -379,6 +384,22 @@ export async function renderCourses(container, { refresh = false } = {}) {
     list.appendChild(row);
   });
   container.appendChild(list);
+  container.appendChild(footer);
+
+  // A quick link to the school's student-run site (e.g. Bill Hogarth).
+  mySchool()
+    .then((school) => {
+      const site = studentSite(school);
+      if (!site || !container.isConnected) return;
+      list.after(el(`
+        <section class="card link-list school-site">
+          <a class="link-row" href="${escapeHtml(site.url)}" target="_blank" rel="noopener">
+            <span class="link-icon tone-school" aria-hidden="true">${icon("star", 20)}</span>
+            <span class="link-text"><b>${escapeHtml(site.name)}</b><small>${escapeHtml(site.sub)}</small><small class="link-host">Student-run site · ${escapeHtml(new URL(site.url).hostname)} ↗</small></span>
+          </a>
+        </section>`));
+    })
+    .catch(() => {});
 
   // Until the student has filled in their dream, nudge them from the top of
   // the list; once it's done this becomes a quiet summary at the bottom.
@@ -395,17 +416,53 @@ export async function renderCourses(container, { refresh = false } = {}) {
     return card;
   };
   let dream = dreamCard();
-  const place = (card) => (preferences().dreamDone ? container.append(card) : list.before(card));
+  const place = (card) => (preferences().dreamDone ? footer.before(card) : list.before(card));
   place(dream);
   // A new phone or cleared browser: pull the saved dream, then refresh the card.
   syncFromCloud().then((changed) => {
     if (!changed || !container.isConnected) return;
+    if (hello?.isConnected && hello.matches(".name-prompt") && preferences().name) hello.replaceWith(greeting());
     const next = dreamCard();
     dream.remove();
     dream = next;
     place(dream);
   });
   orbitSparkles(dream.querySelector(".dream-orbit"), 4);
+}
+
+/**
+ * "Good morning, Sam 👋" once the student has a name. On their first visit
+ * without one, a small card asks what to call them (once — "Not now" sticks).
+ */
+function greeting() {
+  const p = preferences();
+  if (p.name) {
+    const h = new Date().getHours();
+    const part = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    return el(`<p class="g-greeting">${part}, ${escapeHtml(p.name)} 👋</p>`);
+  }
+  if (p.namePrompted) return null;
+  const form = el(`
+    <form class="card name-prompt">
+      <label for="welcome-name"><b>Welcome! What should we call you?</b><small>We'll greet you by name. Change it anytime in Settings.</small></label>
+      <div class="name-prompt-row">
+        <input id="welcome-name" maxlength="50" placeholder="Your first name" autocomplete="given-name" required>
+        <button class="btn">Save</button>
+      </div>
+      <button type="button" class="name-prompt-skip" data-skip>Not now</button>
+    </form>`);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = form.querySelector("input").value.trim();
+    if (!name) return;
+    savePreferences({ name, namePrompted: true });
+    form.replaceWith(greeting());
+  });
+  form.querySelector("[data-skip]").addEventListener("click", () => {
+    savePreferences({ namePrompted: true });
+    form.remove();
+  });
+  return form;
 }
 
 /** "Overall Average Over Time": one point per saved snapshot. */
