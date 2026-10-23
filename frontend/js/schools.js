@@ -43,6 +43,13 @@ export function setMySchool(school) {
   writeStudentData("profile", { ...profile, school: school.name });
 }
 
+// Student-run websites for a school, keyed by schools.json id.
+const STUDENT_SITES = {
+  "418": { name: "BHSS Hornet Hub", sub: "Guidance, clubs, events and news for Bill Hogarth", url: "https://billhogarth.pages.dev/" },
+};
+/** The student-run website for a school ({ name, sub, url }), or null. */
+export const studentSite = (s) => (s && STUDENT_SITES[s.id]) || null;
+
 const tel = (p) => `tel:${String(p).replace(/[^\d+]/g, "")}`;
 const directions = (s) =>
   `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${s.name}, ${s.address}, ${s.city}, ON ${s.postal}`)}`;
@@ -108,6 +115,7 @@ export function schoolCard(s, { compact = false } = {}) {
       <div class="action-grid">
         ${s.phones?.[0] ? `<a class="action-tile" href="${tel(s.phones[0])}">${icon("phone")}<span>Call</span></a>` : ""}
         ${s.website ? `<a class="action-tile" href="${escapeHtml(s.website)}" target="_blank" rel="noopener">${icon("globe")}<span>Website</span></a>` : ""}
+        ${studentSite(s) ? `<a class="action-tile" href="${escapeHtml(studentSite(s).url)}" target="_blank" rel="noopener">${icon("star")}<span>Student site</span></a>` : ""}
         <a class="action-tile" href="${directions(s)}" target="_blank" rel="noopener">${icon("route")}<span>Directions</span></a>
         ${s.boundary ? `<button type="button" class="action-tile" data-boundary>${icon("map")}<span>Boundary</span></button>` : ""}
       </div>

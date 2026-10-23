@@ -169,3 +169,17 @@
 /* Chat composer: one pill, not a box inside a box. */
 .composer textarea { border: 0 !important; background: transparent !important; box-shadow: none !important; }
 .composer:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border)); }
+
+/* ── Courses: greeting, first-visit name prompt, student-run note ─────── */
+.g-greeting { margin: 2px 2px 10px; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+.name-prompt { display: grid; gap: 10px; margin-bottom: 14px; }
+.name-prompt label { display: grid; gap: 2px; }
+.name-prompt label b { font-size: 16px; }
+.name-prompt label small { font-size: 13px; color: var(--text-secondary); }
+.name-prompt-row { display: flex; gap: 8px; }
+.name-prompt-row input { flex: 1; min-width: 0; }
+.name-prompt-row .btn { width: auto; flex: none; margin: 0; }
+.name-prompt-skip { justify-self: start; padding: 4px 2px; border: 0; background: none; color: var(--text-secondary); font: 600 13px var(--font, inherit); cursor: pointer; }
+.name-prompt-skip:hover, .name-prompt-skip:focus-visible { color: var(--text); text-decoration: underline; }
+.school-site { margin-top: 12px; padding: 6px; }
+.student-run-note { margin: 18px 4px 4px; text-align: center; }

@@ -22,6 +22,7 @@ import {
 import { mountThumb, savedFeedback, stagger } from "./motion.js";
 import { APPEARANCES, COLORS, applyTheme, setTheme, themeChoice, themeLabel } from "./theme.js";
 import { glassButton, pageHeader, GLYPHS, iconTile } from "./ui-kit.js";
+import { CONTACT_FORM_URL, CONTACT_EMAIL } from "./config.js";
 
 // Each settings group's heading icon, keyed by its title.
 const GROUP_ICONS = {
@@ -31,6 +32,7 @@ const GROUP_ICONS = {
   "Courses & privacy": "shield",
   Notifications: "bell",
   "Account & data": "person",
+  "Help & feedback": "compose",
   Legal: "doc",
 };
 /** Put the matching icon in front of every group heading (look only). */
@@ -198,6 +200,7 @@ export async function renderSettings(container) {
       signOut();
   });
   container.append(account);
+  container.append(contactCard());
   container.append(legalCard());
 
   container.appendChild(
@@ -259,11 +262,24 @@ function legalCard() {
     </section>`);
   card.querySelector("[data-credits]").onclick = () =>
     openSheet("Credits", el(`<div class="credits">
-      <p><b>Developer</b><br>Aran Luxman, <a href="https://intelligentautomations.ca" target="_blank" rel="noopener">Intelligent Automations</a>, Markham, Ontario</p>
+      <p><b>Developer</b><br><a href="https://intelligentautomations.ca" target="_blank" rel="noopener">Intelligent Automations</a>, Markham, Ontario</p>
       <p><b>Beta testers</b><br>Keshavan Venkat, Aadavan Mathi, Kavin Senthil and Allen Wu</p>
       <p class="muted small">An independent student project. Not affiliated with or endorsed by the York Region District School Board or the TeachAssist Foundation. Your official marks are always on TeachAssist.</p>
       <p class="muted small">Made with the Inter and JetBrains Mono fonts, and hosted on Cloudflare.</p>
-      <p class="muted small">Questions: info@intelligentautomations.ca</p>
+      <p class="muted small">Questions: ${CONTACT_EMAIL}</p>
     </div>`));
   return card;
+}
+
+// ── Help & feedback: questions and bug reports go to the Google Form
+// (or an email until the form's link is set in config.js).
+function contactCard() {
+  const href = CONTACT_FORM_URL || `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("TeachAssist app: question or bug")}`;
+  return el(`
+    <section class="card settings-group"><h2>Help & feedback</h2>
+      <p class="group-note">Found a bug or have a question? Tell us and we'll get back to you.</p>
+      <div class="legal-links">
+        <a href="${escapeHtml(href)}"${CONTACT_FORM_URL ? ' target="_blank" rel="noopener"' : ""}>Contact us / report a bug ${EXTERNAL}</a>
+      </div>
+    </section>`);
 }
