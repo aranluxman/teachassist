@@ -11,9 +11,9 @@
 export const LEGACY_WORKER_URL = "https://teachassist-marks.aran-luxman.workers.dev";
 export const WORKER_URL = globalThis.location?.origin || "https://teachassist.pages.dev";
 
-// Settings → Help & feedback. Paste the Google Form's share link here; until
-// then the button opens an email to CONTACT_EMAIL instead.
-export const CONTACT_FORM_URL = "";
+// Settings → Help & feedback. The Google Form's share link; if it's ever
+// cleared, the button opens an email to CONTACT_EMAIL instead.
+export const CONTACT_FORM_URL = "https://forms.gle/5eyuGAmpjsVms4ud6";
 export const CONTACT_EMAIL = "info@intelligentautomations.ca";
 
 // Course icon colours, rotated through by course order.
