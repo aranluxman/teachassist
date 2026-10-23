@@ -5,20 +5,20 @@
 // logs into ta.yrdsb.ca and returns your marks. The Worker answers with a
 // sealed credential (a "locked box" only it can open); this device keeps that
 // box and the student number, never the password. Sign Out clears them.
+// Sign-in always goes to this site's own backend.
 //
 // Returned course shape (from the Worker):
 //   { code, name, currentMark, midterm, evaluations: [{ name, category, percent, weight }] }
 // ============================================================================
 
 import { readHistory, recordSnapshot } from "./history.js";
-import { validServerUrl } from "./student-store.js";
-import { WORKER_URL, LEGACY_WORKER_URL } from "./config.js";
+import { WORKER_URL } from "./config.js";
 import { DEMO_COURSES, DEMO_SCRAPED_AT } from "./demo-data.js";
 
 const LS = {
-  url: "ta_worker_url",
+  url: "ta_worker_url", // legacy custom server; cleared, never used
   num: "ta_student_number",
-  pass: "ta_password", // legacy: replaced by `cred` on the next refresh
+  pass: "ta_password", // legacy in localStorage; only ever kept in sessionStorage now
   cred: "ta_cred",
   demo: "ta_demo_mode",
 };
@@ -39,32 +39,21 @@ export function showingSavedCopy() {
 }
 
 // ---- per-device settings ---------------------------------------------------
+/** This site's own backend. Old saved servers and API keys are cleared, so a
+ *  stored address can never send a student's password anywhere else. */
 export function workerUrl() {
-  let saved = (localStorage.getItem(LS.url) || "").trim().replace(/\/+$/, "");
-  // Upgrade an old saved default once, so existing phones use the bundled
-  // backend as well. Explicit custom servers remain untouched.
-  if (localStorage.getItem("ta_service_version") !== "pages-v1") {
-    if (saved === LEGACY_WORKER_URL) {
-      localStorage.removeItem(LS.url);
-      saved = "";
-    }
+  if (localStorage.getItem(LS.url) || localStorage.getItem("ta_api_key")) {
+    localStorage.removeItem(LS.url);
     localStorage.removeItem("ta_api_key");
-    localStorage.setItem("ta_service_version", "pages-v1");
   }
-  return saved || WORKER_URL;
-}
-export function setWorkerUrl(u) {
-  const value = validServerUrl(u || WORKER_URL);
-  localStorage.setItem(LS.url, value);
-  localStorage.setItem("ta_service_version", "pages-v1");
-  cache = null;
-  cachedAt = null;
+  return WORKER_URL;
 }
 export function studentNumber() {
   return localStorage.getItem(LS.num) || "";
 }
+/** A password still held for this tab only (or left by an old version in localStorage). */
 function password() {
-  return localStorage.getItem(LS.pass) || "";
+  return sessionStorage.getItem(LS.pass) || localStorage.getItem(LS.pass) || "";
 }
 function sealedCred() {
   return localStorage.getItem(LS.cred) || "";
@@ -72,14 +61,16 @@ function sealedCred() {
 export function isLoggedIn() {
   return isDemo() || !!(studentNumber() && (sealedCred() || password()));
 }
-/** Keep the Worker's sealed credential and drop any stored password. */
+/** Keep the Worker's sealed credential; the password is never saved on the device. */
 function keepCredential(pass) {
+  localStorage.removeItem(LS.pass);
   if (issuedCred) {
     localStorage.setItem(LS.cred, issuedCred);
-    localStorage.removeItem(LS.pass);
+    sessionStorage.removeItem(LS.pass);
   } else if (pass) {
-    // A sign-in server without sealing (no API_KEY) still needs the password.
-    localStorage.setItem(LS.pass, pass);
+    // A backend that can't seal (no API_KEY) gets the password for this tab
+    // only; closing the tab forgets it.
+    sessionStorage.setItem(LS.pass, pass);
   }
   issuedCred = "";
 }
@@ -170,7 +161,6 @@ async function postMarks(username, secret) {
 export function resetSignInService() {
   localStorage.removeItem(LS.url);
   localStorage.removeItem("ta_api_key");
-  localStorage.setItem("ta_service_version", "pages-v1");
   cache = null;
   cachedAt = null;
 }
@@ -234,8 +224,10 @@ export function signOut() {
   sessionStorage.removeItem(`ta-session:${workerUrl()}:${studentNumber()}`);
   localStorage.removeItem(LS.num);
   localStorage.removeItem(LS.pass);
+  sessionStorage.removeItem(LS.pass);
   localStorage.removeItem(LS.cred);
   localStorage.removeItem(LS.demo);
+  localStorage.removeItem(LS.url);
   localStorage.removeItem("ta_api_key");
   cache = null;
   window.location.replace("index.html");

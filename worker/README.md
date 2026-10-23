@@ -135,7 +135,7 @@ npx wrangler dev
 Then call it (include the API-key header if the gate is on):
 
 ```bash
-curl -H "x-api-key: YOUR_API_KEY" http://localhost:8787/api/marks
+curl -H "x-api-key: $API_KEY" http://localhost:8787/api/marks
 ```
 
 `.dev.vars` is gitignored — don't commit it.
@@ -152,7 +152,7 @@ Wrangler prints your Worker URL (e.g. `https://teachassist-marks.<you>.workers.d
 Call it the same way:
 
 ```bash
-curl -H "x-api-key: YOUR_API_KEY" https://teachassist-marks.<you>.workers.dev/api/marks
+curl -H "x-api-key: $API_KEY" https://teachassist-marks.<you>.workers.dev/api/marks
 ```
 
 Watch live logs while you tune selectors:

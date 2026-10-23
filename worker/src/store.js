@@ -139,10 +139,25 @@ export function cleanGoals(list) {
   })).filter((g) => g.title);
 }
 
+/** Parse a JSON body, stopping as soon as it passes MAX_BODY bytes. */
 async function readJson(request) {
-  const text = await request.text();
-  if (text.length > MAX_BODY) throw Object.assign(new Error('too large'), { status: 413 });
-  return JSON.parse(text);
+  const tooLarge = () => Object.assign(new Error('too large'), { status: 413 });
+  if (Number(request.headers.get('content-length')) > MAX_BODY) throw tooLarge();
+  const reader = request.body?.getReader();
+  if (!reader) throw new Error('empty');
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY) { await reader.cancel(); throw tooLarge(); }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) { bytes.set(c, at); at += c.byteLength; }
+  return JSON.parse(new TextDecoder().decode(bytes));
 }
 
 /** GET /api/store → saved dreams + goals. PUT /api/store → save them. */

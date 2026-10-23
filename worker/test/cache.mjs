@@ -101,9 +101,9 @@ const KEY = { headers: { "x-api-key": "test-key" } };
   assert.strictEqual(body.courses.length, 2, "courses round-trip");
   assert.strictEqual(body.courses[1].currentMark, 94, "mark round-trips");
 
-  // The ?key= query param also authorizes (for opening in a browser).
+  // The key is accepted only as a header: URLs end up in logs and history.
   const viaQuery = await mf.dispatchFetch(`${base}/api/cached?key=test-key`);
-  assert.strictEqual(viaQuery.status, 200, "?key= authorizes too");
+  assert.strictEqual(viaQuery.status, 401, "?key= in the URL is not accepted");
 }
 
 await mf.dispose();

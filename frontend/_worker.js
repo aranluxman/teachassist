@@ -376,6 +376,7 @@ async function verifySession(token, secret, now = Date.now()) {
 var encoder2 = new TextEncoder();
 var decoder = new TextDecoder();
 var CRED_TTL_DAYS = 90;
+var CRED_MAX_DAYS = 180;
 var VERSION = "v1";
 var b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 var unb64url = (text2) => Uint8Array.from(atob(text2.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
@@ -389,18 +390,19 @@ async function vaultKey(secret) {
     ["encrypt", "decrypt"]
   );
 }
-async function sealCredential(secret, studentNumber, password, now = Date.now()) {
+async function sealCredential(secret, studentNumber, password, now = Date.now(), signedInAt = now) {
   if (!secret || !studentNumber || !password) return "";
-  const expires = Math.floor(now / 1e3) + CRED_TTL_DAYS * 86400;
+  const issued = Math.floor(Math.min(signedInAt, now) / 1e3);
+  const expires = Math.min(Math.floor(now / 1e3) + CRED_TTL_DAYS * 86400, issued + CRED_MAX_DAYS * 86400);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const data = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv, additionalData: encoder2.encode(`${VERSION}:${studentNumber}`) },
     await vaultKey(secret),
-    encoder2.encode(JSON.stringify({ p: password, e: expires }))
+    encoder2.encode(JSON.stringify({ p: password, e: expires, i: issued }))
   );
   return `${VERSION}.${b64url(iv)}.${b64url(data)}`;
 }
-async function openCredential(secret, studentNumber, box, now = Date.now()) {
+async function openCredentialBox(secret, studentNumber, box, now = Date.now()) {
   if (!secret || !studentNumber || typeof box !== "string" || box.length > 2048) return null;
   const parts = box.split(".");
   if (parts.length !== 3 || parts[0] !== VERSION) return null;
@@ -410,9 +412,11 @@ async function openCredential(secret, studentNumber, box, now = Date.now()) {
       await vaultKey(secret),
       unb64url(parts[2])
     );
-    const { p, e } = JSON.parse(decoder.decode(plain));
-    if (typeof p !== "string" || !p || !(e > Math.floor(now / 1e3))) return null;
-    return p;
+    const { p, e, i } = JSON.parse(decoder.decode(plain));
+    const nowS = Math.floor(now / 1e3);
+    const issued = Number.isFinite(i) ? i : e - CRED_TTL_DAYS * 86400;
+    if (typeof p !== "string" || !p || !(e > nowS) || !(issued + CRED_MAX_DAYS * 86400 > nowS)) return null;
+    return { password: p, signedInAt: issued * 1e3 };
   } catch {
     return null;
   }
@@ -721,7 +725,7 @@ var index_default = {
     }
     if (request.method === "GET" && url.pathname === "/api/cached") {
       if (REQUIRE_API_KEY) {
-        const provided = request.headers.get(API_KEY_HEADER) || url.searchParams.get("key");
+        const provided = request.headers.get(API_KEY_HEADER);
         if (!env.API_KEY || !provided || !timingSafeEqual(provided, env.API_KEY)) {
           return json({ error: "Unauthorized" }, 401);
         }
@@ -746,7 +750,7 @@ var index_default = {
     const origin = request.headers.get("Origin");
     if (origin && origin !== DASHBOARD_ORIGIN) return json({ error: "Origin not allowed." }, 403);
     if (!publicSignIn && REQUIRE_API_KEY) {
-      const provided = request.headers.get(API_KEY_HEADER) || url.searchParams.get("key");
+      const provided = request.headers.get(API_KEY_HEADER);
       if (!env.API_KEY || !provided || !timingSafeEqual(provided, env.API_KEY)) {
         return json({ error: "Unauthorized" }, 401);
       }
@@ -779,11 +783,11 @@ var index_default = {
         if (typeof b.password === "string" && b.password && b.password.length <= 1024) {
           creds = { username, password: b.password };
         } else if (typeof b.cred === "string" && b.cred) {
-          const password = await openCredential(env.API_KEY, username, b.cred);
-          if (!password) {
+          const opened = await openCredentialBox(env.API_KEY, username, b.cred);
+          if (!opened) {
             return json({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
           }
-          creds = { username, password };
+          creds = { username, password: opened.password, signedInAt: opened.signedInAt };
         } else throw new Error();
       } catch {
         return json({ error: "Enter your student number and password." }, 400);
@@ -843,7 +847,7 @@ var index_default = {
       const out = await scrapeMarks(env, creds);
       if (request.method === "GET") storeMarks(env, ctx, out);
       const session = publicSignIn ? await issueSession(env.API_KEY, Date.now(), await subjectFor(env.API_KEY, creds?.username)) : "";
-      const cred = publicSignIn && creds ? await sealCredential(env.API_KEY, creds.username, creds.password) : "";
+      const cred = publicSignIn && creds ? await sealCredential(env.API_KEY, creds.username, creds.password, Date.now(), creds.signedInAt) : "";
       return json(out, 200, {
         ...session ? { "X-TeachAssist-Session": session } : {},
         ...cred ? { "X-TeachAssist-Cred": cred } : {}
@@ -1348,16 +1352,17 @@ async function handleChat(request, env, now = Date.now()) {
   }
   const signal = AbortSignal.timeout(25e3);
   try {
-    const latest = input.messages.at(-1).content;
-    const mod = await openai(env, "moderations", { model: "omni-moderation-latest", input: latest }, signal);
-    if (mod.ok) {
-      const result = (await mod.json()).results?.[0];
-      if (result?.flagged) {
-        const c = result.categories || {};
-        const crisis = c["self-harm"] || c["self-harm/intent"] || c["self-harm/instructions"];
-        await recordUse(env, key2, used + 1);
-        return json2({ reply: crisis ? CRISIS_REPLY : BLOCKED_REPLY, remaining: DAILY_LIMIT - used - 1, flagged: true });
-      }
+    const texts = [...input.messages.map((m) => m.content), ...input.name ? [input.name] : []];
+    const mod = await openai(env, "moderations", { model: "omni-moderation-latest", input: texts }, signal);
+    const results = mod.ok ? (await mod.json()).results : null;
+    if (!Array.isArray(results) || results.length !== texts.length) {
+      return json2({ error: "The AI tutor can't check messages right now. Try again in a minute." }, 503);
+    }
+    const flagged = results.filter((r) => r?.flagged);
+    if (flagged.length) {
+      const crisis = flagged.some(({ categories: c = {} }) => c["self-harm"] || c["self-harm/intent"] || c["self-harm/instructions"]);
+      await recordUse(env, key2, used + 1);
+      return json2({ reply: crisis ? CRISIS_REPLY : BLOCKED_REPLY, remaining: DAILY_LIMIT - used - 1, flagged: true });
     }
     const notes = input.name ? [{ role: "system", content: `The student's name is ${input.name}.` }] : [{ role: "system", content: "The student has not set a name in the app." }];
     const context = input.marks.length ? [{ role: "system", content: `The student chose to share their current TeachAssist marks for this chat (current marks, not final or official): ${input.marks.map((m) => `${m.course}: ${m.mark == null ? "no mark yet" : `${m.mark}%`}`).join("; ")}.` }] : [];
@@ -1491,9 +1496,29 @@ function cleanGoals(list) {
   })).filter((g) => g.title);
 }
 async function readJson(request) {
-  const text2 = await request.text();
-  if (text2.length > MAX_BODY2) throw Object.assign(new Error("too large"), { status: 413 });
-  return JSON.parse(text2);
+  const tooLarge = () => Object.assign(new Error("too large"), { status: 413 });
+  if (Number(request.headers.get("content-length")) > MAX_BODY2) throw tooLarge();
+  const reader = request.body?.getReader();
+  if (!reader) throw new Error("empty");
+  const chunks = [];
+  let size = 0;
+  for (; ; ) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY2) {
+      await reader.cancel();
+      throw tooLarge();
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    bytes.set(c, at);
+    at += c.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(bytes));
 }
 async function handleStore(request, env) {
   if (!storeConfigured(env)) return json3({ error: "Cloud saving is not set up on this site yet.", configured: false }, 503);

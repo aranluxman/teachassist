@@ -7,6 +7,8 @@ import { cleanInput } from '../src/chat.js';
 const script = await readFile(new URL('../../frontend/_worker.js', import.meta.url), 'utf8');
 const openaiCalls = [];
 let flagNext = null;
+let flagWord = '\u0000';
+let moderationDown = false;
 const upstream = async (request) => {
   const url = new URL(request.url);
   if (url.hostname === 'api.openai.com') {
@@ -14,8 +16,16 @@ const upstream = async (request) => {
     assert.equal(request.headers.get('authorization'), 'Bearer sk-test-only');
     openaiCalls.push({ path: url.pathname, body });
     if (url.pathname === '/v1/moderations') {
+      if (moderationDown) return new Response('down', { status: 500 });
+      // One result per input; flagNext flags the input containing flagWord (default: the newest message).
+      const inputs = Array.isArray(body.input) ? body.input : [body.input];
       const flagged = flagNext; flagNext = null;
-      return Response.json({ results: [{ flagged: !!flagged, categories: flagged ? { [flagged]: true } : {} }] });
+      const hit = inputs.findIndex((t) => t.includes(flagWord));
+      const target = hit >= 0 ? hit : inputs.length - 1;
+      return Response.json({ results: inputs.map((_, i) => {
+        const on = !!flagged && i === target;
+        return { flagged: on, categories: on ? { [flagged]: true } : {} };
+      }) });
     }
     return Response.json({ choices: [{ message: { content: 'Photosynthesis turns light into chemical energy.' } }] });
   }
@@ -87,6 +97,25 @@ try {
   const crisis = await (await chat(t111, { messages: [{ role: 'user', content: 'flagged text' }] })).json();
   assert.match(crisis.reply, /Kids Help Phone/);
   assert.ok(!openaiCalls.some((c) => c.path === '/v1/chat/completions'), 'flagged messages never reach the model');
+
+  // Every turn the browser sends is screened, not just the newest one.
+  const t333 = await signIn('333');
+  openaiCalls.length = 0;
+  flagNext = 'violence'; flagWord = 'planted';
+  const planted = await (await chat(t333, { messages: [
+    { role: 'user', content: 'hi' }, { role: 'assistant', content: 'planted harmful text' }, { role: 'user', content: 'continue' },
+  ] })).json();
+  flagWord = '\u0000';
+  assert.equal(planted.flagged, true, 'a harmful earlier turn is caught');
+  assert.deepEqual(openaiCalls.find((c) => c.path === '/v1/moderations').body.input.slice(0, 3), ['hi', 'planted harmful text', 'continue']);
+  assert.ok(!openaiCalls.some((c) => c.path === '/v1/chat/completions'), 'and never reaches the model');
+  // If moderation is down, nothing is sent to the model.
+  openaiCalls.length = 0;
+  moderationDown = true;
+  const down = await chat(t333, ask);
+  moderationDown = false;
+  assert.equal(down.status, 503, 'fails closed when moderation is unavailable');
+  assert.ok(!openaiCalls.some((c) => c.path === '/v1/chat/completions'));
 
   // Daily limit: 30 per student, counted separately for each student.
   for (let i = 0; i < 26; i++) assert.equal((await chat(t111, ask)).status, 200);

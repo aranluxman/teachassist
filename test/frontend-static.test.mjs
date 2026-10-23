@@ -8,8 +8,9 @@ import { courseLabel, courseSubtitle } from "../frontend/js/courses.js";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-const appHtml = read("frontend/app.html");
-const indexHtml = read("frontend/index.html");
+// Each page as shipped: its HTML plus the boot module it loads (no inline scripts).
+const appHtml = read("frontend/app.html") + read("frontend/js/app-main.js");
+const indexHtml = read("frontend/index.html") + read("frontend/js/sign-in.js");
 const css = read("frontend/css/style.css");
 const coursesJs = read("frontend/js/courses.js");
 const courseDetailJs = read("frontend/js/course-detail.js");
@@ -167,7 +168,6 @@ test("strand breakdown reads each evaluation's strands", () => {
 
 test("app is installable: manifest, service worker with offline shell, install UI", async () => {
   const sw = readFileSync(new URL("../frontend/notifications-sw.js", import.meta.url), "utf8");
-  const indexHtml = readFileSync(new URL("../frontend/index.html", import.meta.url), "utf8");
   assert.equal(manifest.display, "standalone");
   assert.ok(manifest.icons.some((i) => i.sizes === "512x512" && i.purpose === "maskable"));
   assert.match(sw, /addEventListener\('fetch'/);
@@ -308,4 +308,21 @@ test("mobile layout keeps chrome inside the centered app column", () => {
   assert.match(css, /width:\s*calc\(min\(100vw,\s*var\(--max-width\)\)\s*-\s*28px\)/);
   assert.match(css, /\.app-topbar/);
   assert.match(css, /\.tabbar/);
+});
+
+test("pages run no inline scripts or ads, and the CSP forbids inline scripts", () => {
+  const headers = read("frontend/_headers");
+  const csp = headers.match(/Content-Security-Policy: (.*)/)[1];
+  const scriptSrc = csp.match(/script-src ([^;]*)/)[1];
+  assert.doesNotMatch(scriptSrc, /unsafe-inline|unsafe-eval|\*/);
+  assert.match(csp, /object-src 'none'/);
+  assert.match(csp, /connect-src 'self'/);
+  assert.match(csp, /frame-ancestors 'none'/);
+  for (const page of ["frontend/app.html", "frontend/index.html", "frontend/legal/privacy.html", "frontend/legal/terms.html"]) {
+    const html = read(page);
+    assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/, `${page} has no inline <script>`);
+    assert.doesNotMatch(html, /\son[a-z]+="/, `${page} has no inline event handlers`);
+    assert.doesNotMatch(html, /googlesyndication|adsbygoogle/, `${page} loads no ad code`);
+  }
+  assert.equal(existsSync(new URL("../frontend/ads.txt", import.meta.url)), false);
 });
