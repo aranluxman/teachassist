@@ -1,27 +1,25 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { workerUrl, setWorkerUrl, resetSignInService, login } from '../frontend/js/ta-client.js';
-import { WORKER_URL, LEGACY_WORKER_URL } from '../frontend/js/config.js';
-beforeEach(() => {
+import { workerUrl, resetSignInService, login } from '../frontend/js/ta-client.js';
+import { WORKER_URL } from '../frontend/js/config.js';
+const memoryStorage = () => {
   const data = new Map();
-  globalThis.localStorage = { getItem: k => data.get(k) ?? null, setItem: (k,v) => data.set(k,String(v)), removeItem: k => data.delete(k) };
-  globalThis.sessionStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+  return { getItem: k => data.get(k) ?? null, setItem: (k,v) => data.set(k,String(v)), removeItem: k => data.delete(k) };
+};
+beforeEach(() => {
+  globalThis.localStorage = memoryStorage();
+  globalThis.sessionStorage = memoryStorage();
 });
-test('old default service and API key migrate to same-origin sign-in once', () => {
-  localStorage.setItem('ta_worker_url', LEGACY_WORKER_URL + '/');
+test('sign-in always uses this site; saved custom servers and API keys are cleared', () => {
+  localStorage.setItem('ta_worker_url', 'https://attacker.example');
   localStorage.setItem('ta_api_key', 'old-key');
   assert.equal(workerUrl(), WORKER_URL);
+  assert.equal(localStorage.getItem('ta_worker_url'), null);
   assert.equal(localStorage.getItem('ta_api_key'), null);
-  setWorkerUrl('https://custom.example');
-  assert.equal(workerUrl(), 'https://custom.example');
-  resetSignInService();
-  assert.equal(workerUrl(), WORKER_URL);
-});
-test('an existing custom server is retained, and an explicit later choice is respected', () => {
   localStorage.setItem('ta_worker_url', 'https://custom.example');
-  assert.equal(workerUrl(), 'https://custom.example');
-  setWorkerUrl(LEGACY_WORKER_URL);
-  assert.equal(workerUrl(), LEGACY_WORKER_URL);
+  resetSignInService();
+  assert.equal(localStorage.getItem('ta_worker_url'), null);
+  assert.equal(workerUrl(), WORKER_URL);
 });
 test('old API-key gate, invalid passwords, and missing Pages backend have distinct errors', async () => {
   const originalFetch = globalThis.fetch;
@@ -65,6 +63,17 @@ test('the phone keeps a sealed credential, never the password, and old phones mi
     assert.deepEqual(sent.at(-1), { username: '111', password: 'old-pw' }, 'the old password is sent once');
     assert.equal(localStorage.getItem('ta_password'), null, 'and then deleted');
     assert.equal(localStorage.getItem('ta_cred'), 'v1.box.three');
+
+    // A backend that can't seal keeps the password for this tab only.
+    localStorage.removeItem('ta_cred');
+    globalThis.fetch = reply('');
+    await login('111', 'tab-pw');
+    assert.equal(localStorage.getItem('ta_password'), null, 'never written to localStorage');
+    assert.equal(sessionStorage.getItem('ta_password'), 'tab-pw', 'kept for this tab only');
+    globalThis.fetch = reply('v1.box.four');
+    await getCourses({ refresh: true });
+    assert.equal(sessionStorage.getItem('ta_password'), null, 'dropped once a box is issued');
+    assert.equal(localStorage.getItem('ta_cred'), 'v1.box.four');
 
     // An expired or forged box signs the phone out.
     let redirected = '';

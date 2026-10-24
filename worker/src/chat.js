@@ -14,7 +14,9 @@
 //
 // Each student gets DAILY_LIMIT messages per day (Toronto time), counted by
 // the hashed subject in their session token, in the CHAT_LIMITS KV namespace.
-// Every student message is checked with OpenAI's moderation endpoint first.
+// The whole conversation the browser sends (it holds the history, so any turn
+// could be altered) is checked with OpenAI's moderation endpoint first; if
+// that check can't run, nothing is sent to the model.
 // ============================================================================
 
 import { readSession } from './session.js';
@@ -147,17 +149,19 @@ export async function handleChat(request, env, now = Date.now()) {
 
   const signal = AbortSignal.timeout(25000);
   try {
-    // Screen the student's newest message before it reaches the model.
-    const latest = input.messages.at(-1).content;
-    const mod = await openai(env, 'moderations', { model: 'omni-moderation-latest', input: latest }, signal);
-    if (mod.ok) {
-      const result = (await mod.json()).results?.[0];
-      if (result?.flagged) {
-        const c = result.categories || {};
-        const crisis = c['self-harm'] || c['self-harm/intent'] || c['self-harm/instructions'];
-        await recordUse(env, key, used + 1);
-        return json({ reply: crisis ? CRISIS_REPLY : BLOCKED_REPLY, remaining: DAILY_LIMIT - used - 1, flagged: true });
-      }
+    // Screen every turn the browser sent before any of it reaches the model.
+    // Fail closed: no moderation answer means no tutor reply.
+    const texts = [...input.messages.map((m) => m.content), ...(input.name ? [input.name] : [])];
+    const mod = await openai(env, 'moderations', { model: 'omni-moderation-latest', input: texts }, signal);
+    const results = mod.ok ? (await mod.json()).results : null;
+    if (!Array.isArray(results) || results.length !== texts.length) {
+      return json({ error: "The AI tutor can't check messages right now. Try again in a minute." }, 503);
+    }
+    const flagged = results.filter((r) => r?.flagged);
+    if (flagged.length) {
+      const crisis = flagged.some(({ categories: c = {} }) => c['self-harm'] || c['self-harm/intent'] || c['self-harm/instructions']);
+      await recordUse(env, key, used + 1);
+      return json({ reply: crisis ? CRISIS_REPLY : BLOCKED_REPLY, remaining: DAILY_LIMIT - used - 1, flagged: true });
     }
 
     const notes = input.name ? [{ role: 'system', content: `The student's name is ${input.name}.` }] : [{ role: 'system', content: 'The student has not set a name in the app.' }];

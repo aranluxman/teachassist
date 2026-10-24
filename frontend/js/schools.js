@@ -11,6 +11,11 @@ import { el, escapeHtml, openSheet, closeSheet } from "./courses.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
 
 const LEAFLET = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4";
+// Subresource Integrity (cdnjs's published hashes): the browser refuses a changed file.
+const LEAFLET_SRI = {
+  js: "sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==",
+  css: "sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==",
+};
 const LOCATOR = "https://schoollocator.yrdsb.ca/";
 
 let cache = null;
@@ -144,12 +149,16 @@ function loadLeaflet() {
     const css = document.createElement("link");
     css.rel = "stylesheet";
     css.href = `${LEAFLET}/leaflet.min.css`;
+    css.integrity = LEAFLET_SRI.css;
+    css.crossOrigin = "anonymous";
     css.dataset.leaflet = "";
     document.head.append(css);
   }
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = `${LEAFLET}/leaflet.min.js`;
+    script.integrity = LEAFLET_SRI.js;
+    script.crossOrigin = "anonymous";
     script.onload = () => resolve(window.L);
     script.onerror = () => reject(new Error("The map couldn't load. Check your connection."));
     document.head.append(script);

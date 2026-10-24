@@ -1,6 +1,6 @@
 import { createTeachAssistSession, TeachAssistError, extractCookies } from "./teachassist-session.js";
 import { issueSession, verifySession, subjectFor } from "./session.js";
-import { sealCredential, openCredential } from "./vault.js";
+import { sealCredential, openCredentialBox } from "./vault.js";
 import {interpretQuestion} from "./assistant.js";
 /**
  * TeachAssist sign-in service. Student POSTs use only the submitted credentials
@@ -161,7 +161,7 @@ export default {
     // TeachAssist login. Shape: { scrapedAt, courses: [...] }.
     if (request.method === "GET" && url.pathname === "/api/cached") {
       if (REQUIRE_API_KEY) {
-        const provided = request.headers.get(API_KEY_HEADER) || url.searchParams.get("key");
+        const provided = request.headers.get(API_KEY_HEADER);
         if (!env.API_KEY || !provided || !timingSafeEqual(provided, env.API_KEY)) {
           return json({ error: "Unauthorized" }, 401);
         }
@@ -191,7 +191,7 @@ export default {
     const origin = request.headers.get("Origin");
     if (origin && origin !== DASHBOARD_ORIGIN) return json({ error: "Origin not allowed." }, 403);
     if (!publicSignIn && REQUIRE_API_KEY) {
-      const provided = request.headers.get(API_KEY_HEADER) || url.searchParams.get("key");
+      const provided = request.headers.get(API_KEY_HEADER);
       if (!env.API_KEY || !provided || !timingSafeEqual(provided, env.API_KEY)) {
         return json({ error: "Unauthorized" }, 401);
       }
@@ -222,11 +222,11 @@ export default {
         } else if (typeof b.cred === "string" && b.cred) {
           // A sealed credential from an earlier sign-in: open it here so the
           // phone never has to keep the password itself.
-          const password = await openCredential(env.API_KEY, username, b.cred);
-          if (!password) {
+          const opened = await openCredentialBox(env.API_KEY, username, b.cred);
+          if (!opened) {
             return json({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
           }
-          creds = { username, password };
+          creds = { username, password: opened.password, signedInAt: opened.signedInAt };
         } else throw new Error();
       } catch {
         return json({ error: "Enter your student number and password." }, 400);
@@ -272,7 +272,7 @@ export default {
         if (debug === "courses") return text(listHtml);
 
         // debug=report returns one raw report page. Use &code=SNC (matched
-        // against your course codes) or &subject_id=NNN. Open it with &key=.
+        // against your course codes) or &subject_id=NNN. Send the key in the x-api-key header.
         assertLoggedIn(listHtml);
         const courses = await parseCourseList(listHtml);
         for (const c of courses) c.studentId = c.studentId || session.studentId;
@@ -310,8 +310,9 @@ export default {
       if (request.method === "GET") storeMarks(env, ctx, out);
       const session = publicSignIn ? await issueSession(env.API_KEY, Date.now(), await subjectFor(env.API_KEY, creds?.username)) : "";
       // A fresh sealed credential on every student sign-in, so its 90 days
-      // restart each time the student uses the app.
-      const cred = publicSignIn && creds ? await sealCredential(env.API_KEY, creds.username, creds.password) : "";
+      // restart each time the student uses the app, up to 180 days after the
+      // password was last typed.
+      const cred = publicSignIn && creds ? await sealCredential(env.API_KEY, creds.username, creds.password, Date.now(), creds.signedInAt) : "";
       return json(out, 200, {
         ...(session ? { "X-TeachAssist-Session": session } : {}),
         ...(cred ? { "X-TeachAssist-Cred": cred } : {}),

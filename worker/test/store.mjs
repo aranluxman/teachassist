@@ -112,6 +112,7 @@ try {
   assert.equal((await (await store(t222)).json()).dreams, null, 'another student sees nothing');
   assert.equal((await store(token, 'PUT', { nope: 1 })).status, 400);
   assert.equal((await store(token, 'PUT', { dreams: 'x' })).status, 400);
+  assert.equal((await store(token, 'PUT', { dreams: { career: 'x'.repeat(70000) } })).status, 413, 'oversized bodies are refused');
   assert.equal((await store(token, 'DELETE')).status, 405);
   assert.equal((await mf.dispatchFetch(`${base}/api/store`, { method: 'GET', headers: { Origin: 'https://evil.example' } })).status, 403);
   console.log('Cloud saving: auth, per-student isolation, marks fallback, Supabase outage, dreams and goals passed.');

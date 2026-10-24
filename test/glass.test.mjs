@@ -12,8 +12,8 @@ import { test } from "node:test";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const v6 = read("frontend/css/v6.css");
 const glass = read("frontend/css/glass.css");
-const appHtml = read("frontend/app.html");
-const indexHtml = read("frontend/index.html");
+const appHtml = read("frontend/app.html") + read("frontend/js/app-main.js");
+const indexHtml = read("frontend/index.html") + read("frontend/js/sign-in.js");
 
 const COLORS = ["default", "mono", "tide", "olive", "ember", "blossom", "sky", "coral", "lavender", "gold"];
 
@@ -122,7 +122,7 @@ test("text on glass passes WCAG AA over the lightest and darkest content", () =>
 test("glass.css and glass.js are linked on both pages; v8.css is gone", () => {
   for (const html of [appHtml, indexHtml]) {
     assert.match(html, /href="css\/glass\.css"/);
-    assert.match(html, /import \{ initGlass \} from "\.\/js\/glass\.js"/);
+    assert.match(html, /import \{ initGlass \} from "\.\/glass\.js"/);
     assert.match(html, /initGlass\(\);/);
     assert.doesNotMatch(html, /css\/v8\.css/);
   }

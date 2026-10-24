@@ -6,9 +6,8 @@
 // returns your marks, and this app renders them. No database, no manual entry.
 // ============================================================================
 
-// Sign-in deploys with this site through Cloudflare Pages advanced mode.
-// A custom compatible server can still be chosen in signed-in Settings.
-export const LEGACY_WORKER_URL = "https://teachassist-marks.aran-luxman.workers.dev";
+// Sign-in deploys with this site through Cloudflare Pages advanced mode and
+// always goes to this same site.
 export const WORKER_URL = globalThis.location?.origin || "https://teachassist.pages.dev";
 
 // Settings → Help & feedback. The Google Form's share link; if it's ever

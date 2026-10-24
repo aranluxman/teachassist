@@ -1,6 +1,6 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { readStudentData, writeStudentData, validServerUrl } from '../frontend/js/student-store.js';
+import { readStudentData, writeStudentData } from '../frontend/js/student-store.js';
 import { readHistory, recordSnapshot, snapshotChanges } from '../frontend/js/history.js';
 import { notificationMessage } from '../frontend/js/notifications.js';
 import { issueSession, verifySession } from '../worker/src/session.js';
@@ -38,11 +38,6 @@ test('alerts distinguish missing marks from removed courses and preserve privacy
   const privateText = notificationMessage(changes,{marks:true,private:true});
   assert.doesNotMatch(privateText,/ENG|82|80|MATH|75/);
   assert.match(notificationMessage(changes,{marks:false,unavailable:true,private:false}),/MATH.*unavailable/);
-});
-test('custom servers accept HTTPS or local development only', () => {
-  assert.equal(validServerUrl('https://server.example/'),'https://server.example');
-  assert.equal(validServerUrl('http://localhost:8787'),'http://localhost:8787');
-  for(const value of ['javascript:alert(1)','http://server.example','https://user:pass@server.example','https://server.example?key=secret']) assert.throws(()=>validServerUrl(value));
 });
 test('assistant session capabilities expire and reject tampering or the wrong signing key', async () => {
   const now = Date.now(), token = await issueSession('server-secret',now);

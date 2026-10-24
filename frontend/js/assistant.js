@@ -153,7 +153,10 @@ async function send(text, { retryId = null } = {}) {
         .slice(-12);
       const data = await askTutor(history, convo.shareMarks ? sharedMarks(ctx.courses) : [], signal, preferences().name);
       const left = Number.isFinite(data.remaining) && data.remaining <= 5 ? ` · ${data.remaining} left today` : "";
-      message = { badge: `AI tutor${left}`, text: data.reply, via: "chat", tutor: true, suggestions: [] };
+      // The server screens the whole thread, so a blocked turn (and the safety
+      // reply) stays out of later requests instead of blocking the chat.
+      if (data.flagged && asked) asked.via = "blocked";
+      message = { badge: `AI tutor${left}`, text: data.reply, via: data.flagged ? "blocked" : "chat", tutor: true, suggestions: [] };
     } else {
       const data = await askAI(step.question, signal);
       if (data.clarification) {
