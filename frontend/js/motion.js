@@ -478,19 +478,6 @@ export function finishRefreshSpin(button, glyph = "↻", okGlyph = "✓") {
   }, 1200);
 }
 
-/** A three-dot "working on it" bubble for the assistant. */
-export function typingIndicator() {
-  const wrap = document.createElement("span");
-  wrap.className = "m-typing";
-  wrap.setAttribute("aria-hidden", "true");
-  for (let i = 0; i < 3; i++) {
-    const dot = document.createElement("i");
-    dot.style.setProperty("--m-i", String(i));
-    wrap.appendChild(dot);
-  }
-  return wrap;
-}
-
 // ─────────────────────────── disclosure (details) ──────────────────────────
 
 /**

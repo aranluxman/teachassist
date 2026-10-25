@@ -12,10 +12,11 @@ All responses use `Cache-Control: no-store`. Browser requests are restricted to
 `DASHBOARD_ORIGIN`, currently `https://teachassist.pages.dev`.
 
 Successful student sign-ins return an `X-TeachAssist-Session` header containing
-a one-hour capability for `/api/assistant`. It is signed using the existing
-server-side `API_KEY` secret, includes no student identity or credentials, and is
-sent by the frontend as a Bearer token. The API key is never sent to students.
-Without that secret, marks sign-in still works but the AI assistant is unavailable.
+a one-hour session for cloud saving (`/api/store`). It is signed using the
+server-side `API_KEY` secret, carries only a one-way student id (no number or
+credentials), and is sent by the frontend as a Bearer token. The API key is
+never sent to students. Without that secret, marks sign-in still works but cloud
+saving is unavailable.
 
 The main website now bundles this implementation into `frontend/_worker.js` so
 student sign-in deploys with Cloudflare Pages. It does not need a separate Worker
@@ -25,8 +26,7 @@ It also works on Pages preview domains.
 
 Rebuild after backend edits with `npm run build:pages`, then commit the generated
 file. `npm test` checks that bundle and exercises the Pages service without any
-secrets. Optional Pages AI questions require an `AI` binding and a server-side
-`API_KEY`; ordinary sign-in and local calculators need neither.
+secrets.
 
 Student login first uses the original direct TeachAssist form POST. If that
 cannot complete a session, the server loads the login page, carries its cookies
@@ -255,7 +255,7 @@ your selector/constant tweaks before deploying.
 | `package.json`    | `dev` / `deploy` / `tail` / `test` scripts.        |
 | `test/`           | Miniflare-based parser tests (sample HTML).        |
 
-## Cloud saving (Supabase) and the AI tutor
+## Cloud saving (Supabase)
 
 Pages project settings (Settings → Environment variables):
 
@@ -263,8 +263,6 @@ Pages project settings (Settings → Environment variables):
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key. The table is locked; only the `ta_load`/`ta_save` functions in `supabase/schema.sql` are callable |
-| `OPENAI_API_KEY` | AI tutor key (secret) |
-| `OPENAI_MODEL` | Optional, defaults to `gpt-4.1-mini` |
 | `API_KEY` | Signs student sessions (secret) |
 
 `GET /api/status` shows which settings are present (never their values). Each sign-in saves the student's latest marks; if TeachAssist later returns no marks, the last saved ones are shown and labelled "Last saved marks". Dreams and goals sync through `/api/store`.

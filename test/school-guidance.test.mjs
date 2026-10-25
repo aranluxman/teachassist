@@ -8,7 +8,6 @@ globalThis.localStorage = { getItem: (k) => storage.get(k) ?? null, setItem: (k,
 const { courseName, courseMeta, parseCourseCode } = await import("../frontend/js/course-names.js");
 const { parseRoute, routeHash } = await import("../frontend/js/router.js");
 const { RESOURCES } = await import("../frontend/js/guidance.js");
-const { answer, findCourse } = await import("../frontend/js/assistant-brain.js");
 const { ossdProgress, saveOssd } = await import("../frontend/js/ossd.js");
 const { achievementLevel, letterGrade, courseTitle } = await import("../frontend/js/courses.js");
 const { DEMO_COURSES } = await import("../frontend/js/demo-data.js");
@@ -85,23 +84,6 @@ test("guidance links are https and none of the dead YRDSB paths remain", () => {
     assert.ok(item.kind, `${item.label} has an icon type`);
     for (const d of dead) assert.ok(!item.url.endsWith(d), `${item.url} is a dead link`);
   }
-});
-
-test("assistant answers from the student's own marks, school and diploma data", () => {
-  const school = schools.find((s) => s.name === "Bur Oak S.S.");
-  const ctx = { courses: DEMO_COURSES, school, ossd: ossdProgress(DEMO_COURSES), volunteerHours: 10 };
-  assert.match(answer("What do I need on the math final to get 90?", ctx).text, /need 87\.\d% on the remaining 30%/);
-  assert.match(answer("what do i need on the english exam worth 20% to get 95", ctx).text, /not reachable/);
-  assert.match(answer("If I get 75 on the next science test?", ctx).text, /Science goes from 93\.4% to about/);
-  assert.match(answer("Make me a study plan", ctx).text, /Core French/);
-  assert.match(answer("What's my lowest course?", ctx).text, /Core French/);
-  assert.match(answer("What are my bell times?", ctx).text, /8:15 AM - 2:55 PM/);
-  assert.match(answer("how many volunteer hours do I have left", ctx).text, /30 to go/);
-  assert.match(answer("How many credits do I still need?", ctx).text, /of 30 credits/);
-  assert.equal(answer("What are my bell times?", { ...ctx, school: null }).actions[0].route, "guidance/map");
-  assert.equal(answer("hello", ctx), null);
-  assert.equal(answer("sqrt(144)", ctx), null); // left to the calculator
-  assert.equal(courseTitle(findCourse("my geography test", DEMO_COURSES)), "Exploring Canadian Geography");
 });
 
 test("diploma tracker fills compulsory slots from passing courses", () => {

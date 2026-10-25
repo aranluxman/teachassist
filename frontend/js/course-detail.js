@@ -82,7 +82,7 @@ export async function openCourseDetail(container, course) {
   const kind = markKind(course);
   const { period, room, term } = scheduleOf(course);
 
-  // ── Header: back · code · ask the assistant ──
+  // ── Header: back · code ──
   const nav = el(
     pageHeader({
       title: fullCode(course) || courseLabel(course),

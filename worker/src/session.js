@@ -1,7 +1,7 @@
-// A short-lived, signed capability for the assistant. Never contains credentials.
-// It may carry a subject: a one-way HMAC of the student number (16 hex chars),
-// used only to count AI tutor messages per student. The number itself is never
-// in the token and can't be recovered from it.
+// A short-lived, signed session for the signed-in student (cloud saving uses
+// it). Never contains credentials. It may carry a subject: a one-way HMAC of
+// the student number (16 hex chars) that keys the student's saved data. The
+// number itself is never in the token and can't be recovered from it.
 const encoder = new TextEncoder();
 const hex = bytes => Array.from(new Uint8Array(bytes), n => n.toString(16).padStart(2, '0')).join('');
 async function key(secret) {
