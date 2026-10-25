@@ -40,6 +40,3 @@ id = "c60820c31edf4a659f1d563a30d59408"
 #   { pattern = "marks.example.com/api/*", custom_domain = true }
 # ]
 
-# Grade question interpretation; calculations are validated in code.
-[ai]
-binding = "AI"

@@ -3,7 +3,7 @@
 // ----------------------------------------------------------------------------
 // Only this Worker talks to Supabase, using the service_role key (a Pages
 // secret, never sent to the browser). Rows are keyed by the same one-way
-// student subject used for the AI tutor limit, so no student number is stored.
+// student subject carried in their session token, so no student number is stored.
 // The table has row-level security on and no public policies.
 //   NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL)
 //   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or SUPABASE_SERVICE_KEY)

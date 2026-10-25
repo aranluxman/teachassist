@@ -1,7 +1,6 @@
 import { createTeachAssistSession, TeachAssistError, extractCookies } from "./teachassist-session.js";
-import { issueSession, verifySession, subjectFor } from "./session.js";
+import { issueSession, subjectFor } from "./session.js";
 import { sealCredential, openCredentialBox } from "./vault.js";
-import {interpretQuestion} from "./assistant.js";
 /**
  * TeachAssist sign-in service. Student POSTs use only the submitted credentials
  * and return that student's marks without storing them in the owner cache.
@@ -123,17 +122,6 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
 
-    if (url.pathname === "/api/assistant") {
-      if (request.method !== "POST") return json({error:"Use POST."},405);
-      const provided = request.headers.get(API_KEY_HEADER);
-      if (!(env.API_KEY && provided && timingSafeEqual(provided, env.API_KEY)) &&
-          !await verifySession(request.headers.get("Authorization")?.replace(/^Bearer /, ""), env.API_KEY))
-        return json({error:"Your session expired. Refresh your courses, then try again."},401);
-      const origin = request.headers.get("Origin");
-      if (origin && origin !== DASHBOARD_ORIGIN) return json({error:"Origin not allowed."},403);
-      const result = await interpretQuestion(request, env);
-      return json(result.body,result.status,{"Cache-Control":"no-store"});
-    }
     // Friendly root + path-normalization helpers.
     if (request.method === "GET" && url.pathname === "/") {
       return json({

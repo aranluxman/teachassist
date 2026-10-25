@@ -26,7 +26,7 @@ const upstream = async request => {
   throw new Error('Unexpected upstream request');
 };
 const mf = new Miniflare({ modules: true, script, compatibilityDate: '2025-09-01',
-  // No API_KEY, owner secrets, AI binding, or KV required for student sign-in.
+  // No API_KEY, owner secrets or KV required for student sign-in.
   serviceBindings: { ASSETS: () => new Response('<h1>TeachAssist static asset</h1>') },
   outboundService: upstream,
 });
@@ -52,7 +52,9 @@ try {
     }
     assert.equal((await mf.dispatchFetch(`${base}/api/marks`)).status, 405);
     assert.equal((await mf.dispatchFetch(`${base}/api/marks`, { method: 'POST', headers: { Origin: 'https://other.example' }, body: '{}' })).status, 403);
-    assert.equal((await mf.dispatchFetch(`${base}/api/assistant`, { method: 'POST', body: '{}' })).status, 503, 'unconfigured AI has a clear fallback');
+    for (const path of ['/api/assistant', '/api/chat']) {
+      assert.equal((await mf.dispatchFetch(base + path, { method: 'POST', body: '{}' })).status, 404, 'the AI chatbot endpoints are gone');
+    }
   }
   assert.match(await (await mf.dispatchFetch('https://teachassist.pages.dev/app.html')).text(), /static asset/);
   const routes = JSON.parse(await readFile(new URL('../../frontend/_routes.json', import.meta.url), 'utf8'));
@@ -63,7 +65,7 @@ try {
     assert.equal(res.status, 200);
     assert.equal(await res.text(), 'google-site-verification: googlecca61e9d43d944ee.html');
   }
-  console.log('Bundled Pages backend: production/preview sign-in, two-student isolation, no-secret operation, protected owner routes, CORS, static assets, and missing-AI fallback passed.');
+  console.log('Bundled Pages backend: production/preview sign-in, two-student isolation, no-secret operation, protected owner routes, CORS, static assets, and removed AI endpoints passed.');
 } finally { await mf.dispose(); }
 
 // Wrong-password limit: after 10 misses in an hour a student number is locked,

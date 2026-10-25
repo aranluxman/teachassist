@@ -263,7 +263,7 @@ function legalCard() {
   card.querySelector("[data-credits]").onclick = () =>
     openSheet("Credits", el(`<div class="credits">
       <p><b>Developer</b><br><a href="https://intelligentautomations.ca" target="_blank" rel="noopener">Intelligent Automations</a>, Markham, Ontario</p>
-      <p><b>Beta testers</b><br>Keshavan Venkat, Aadavan Mathi, Kavin Senthil and Allen Wu</p>
+      <p><b>Beta testers</b><br>Keshavan Venkat, Aadavan Mathi, Kavin Senthil, Allen Wu, Rayaan Shivji and Kiefer Jarchow</p>
       <p class="muted small">An independent student project. Not affiliated with or endorsed by the York Region District School Board or the TeachAssist Foundation. Your official marks are always on TeachAssist.</p>
       <p class="muted small">Made with the Inter and JetBrains Mono fonts, and hosted on Cloudflare.</p>
       <p class="muted small">Questions: ${CONTACT_EMAIL}</p>

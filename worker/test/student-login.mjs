@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
+import { verifySession } from '../src/session.js';
 const bundle = await build({entryPoints:['src/index.js'],bundle:true,format:'esm',write:false,platform:'browser',conditions:['worker','browser']});
 let upstreamLogins = [];
 const mf = new Miniflare({modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2025-09-01',kvNamespaces:{MARKS:'student-login-test'},bindings:{API_KEY:'owner-secret',TA_USERNAME:'owner',TA_PASSWORD:'owner-pass'},outboundService:async request => {
@@ -32,8 +33,7 @@ try {
     assert.equal(response.headers.get('cache-control'),'no-store');
     const token = response.headers.get('X-TeachAssist-Session');
     assert.ok(token);
-    const assistant = await mf.dispatchFetch('https://worker.test/api/assistant', {method:'POST',headers:{Authorization:`Bearer ${token}`},body:JSON.stringify({question:'Hello'})});
-    assert.equal(assistant.status,503,'signed student token passes auth and reaches missing-AI handling');
+    assert.equal(await verifySession(token,'owner-secret'),true,'the session token is signed by the server');
     assert.equal((await response.json())[0].currentMark,mark);
   }
   assert.equal(await kv.get('latest'),owner,'student login never overwrites owner cache');
