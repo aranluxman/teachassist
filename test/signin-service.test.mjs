@@ -75,6 +75,24 @@ test('the phone keeps a sealed credential, never the password, and old phones mi
     assert.equal(sessionStorage.getItem('ta_password'), null, 'dropped once a box is issued');
     assert.equal(localStorage.getItem('ta_cred'), 'v1.box.four');
 
+    // Sign Out asks the server to cancel the saved login, then clears the device.
+    const calls = [];
+    let left = '';
+    globalThis.window = { location: { replace: (to) => { left = to; } }, dispatchEvent() {}, addEventListener() {} };
+    globalThis.fetch = async (url, init) => { calls.push({ url, init }); return new Response(null, { status: 204 }); };
+    const { signOut } = await import('../frontend/js/ta-client.js');
+    const box = localStorage.getItem('ta_cred');
+    signOut();
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /\/api\/signout$/);
+    assert.deepEqual(JSON.parse(calls[0].init.body), { username: '111', cred: box });
+    assert.equal(calls[0].init.keepalive, true, 'the request survives leaving the page');
+    assert.equal(localStorage.getItem('ta_cred'), null, 'the device copy is removed');
+    assert.equal(left, 'index.html');
+    delete globalThis.window;
+    localStorage.setItem('ta_student_number', '111');
+    localStorage.setItem('ta_cred', box);
+
     // An expired or forged box signs the phone out.
     let redirected = '';
     globalThis.window = { location: { replace: (to) => { redirected = to; } }, dispatchEvent() {}, addEventListener() {} };

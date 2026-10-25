@@ -9,7 +9,8 @@
 //   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or SUPABASE_SERVICE_KEY)
 // ============================================================================
 
-import { readSession } from './session.js';
+import { readSessionWith } from './session.js';
+import { sessionKeys } from './keys.js';
 
 const MAX_MARKS_JSON = 300000;
 const MAX_BODY = 60000;
@@ -17,10 +18,28 @@ const MAX_BODY = 60000;
 const json = (body, status = 200, headers = {}) =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
 
-// Either key works: the table itself is locked (RLS on, no policies); all
-// access goes through two SECURITY DEFINER functions (ta_load / ta_save) that
-// only accept a student's one-way subject id.
+// The table itself is locked (RLS on, no policies); all access goes through
+// two SECURITY DEFINER functions (ta_load / ta_save) that only accept a
+// student's one-way subject id. Use the secret key: once
+// supabase/lock-functions.sql has run, the publishable key can't call them.
 const apiKey = (env) => env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_PUBLISHABLE_KEY || '';
+
+/**
+ * Which kind of Supabase key cloud saving uses: "secret", "publishable" or
+ * "none" — never the key itself. Once this reads "secret" on the live site,
+ * the public roles can lose access to ta_load / ta_save (see supabase/).
+ */
+export function storeKeyKind(env) {
+  const key = apiKey(env);
+  if (!key) return 'none';
+  if (key.startsWith('sb_secret_')) return 'secret';
+  if (key.startsWith('sb_publishable_')) return 'publishable';
+  // Legacy JWT keys carry their role in the (unsigned-readable) payload.
+  try {
+    const role = JSON.parse(atob(key.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role;
+    return role === 'service_role' ? 'secret' : 'publishable';
+  } catch { return 'unknown'; }
+}
 const baseUrl = (env) => (env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
 export const storeConfigured = (env) => !!(baseUrl(env) && apiKey(env) && env.API_KEY);
 
@@ -93,7 +112,7 @@ export async function withSavedMarks(response, env, ctx) {
   try {
     if (!storeConfigured(env) || !response.ok) return response;
     const token = response.headers.get('X-TeachAssist-Session');
-    const session = await readSession(token, env.API_KEY);
+    const session = await readSessionWith(token, sessionKeys(env));
     if (!session?.subject) return response;
     const fresh = await response.clone().json();
     if (!Array.isArray(fresh)) return response;
@@ -164,7 +183,7 @@ async function readJson(request) {
 export async function handleStore(request, env) {
   if (!storeConfigured(env)) return json({ error: 'Cloud saving is not set up on this site yet.', configured: false }, 503);
   const token = request.headers.get('Authorization')?.replace(/^Bearer /, '');
-  const session = await readSession(token, env.API_KEY);
+  const session = await readSessionWith(token, sessionKeys(env));
   if (!session?.subject) return json({ error: 'Your session expired. Refresh your courses, then retry.' }, 401);
 
   if (request.method === 'GET') {

@@ -28,6 +28,14 @@ export async function readSession(token, secret, now = Date.now()) {
   const ok = await crypto.subtle.verify('HMAC', await key(secret), signature, encoder.encode(payload));
   return ok ? { subject: parts[3] || '' } : null;
 }
+/** readSession against several keys (current one first, then fallbacks). */
+export async function readSessionWith(token, secrets, now = Date.now()) {
+  for (const secret of secrets) {
+    const session = await readSession(token, secret, now);
+    if (session) return session;
+  }
+  return null;
+}
 export async function verifySession(token, secret, now = Date.now()) {
   return !!(await readSession(token, secret, now));
 }

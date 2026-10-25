@@ -221,6 +221,19 @@ export function requireLogin() {
 }
 
 export function signOut() {
+  // Ask the server to cancel this saved login everywhere (so a copy of the box
+  // stops working too). Best effort: signing out here never waits on it.
+  const cred = sealedCred();
+  if (cred && studentNumber() && !isDemo()) {
+    try {
+      fetch(`${workerUrl()}/api/signout`, {
+        method: "POST",
+        keepalive: true,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: studentNumber(), cred }),
+      }).catch(() => {});
+    } catch { /* offline or no fetch: the device copy is still removed below */ }
+  }
   sessionStorage.removeItem(`ta-session:${workerUrl()}:${studentNumber()}`);
   localStorage.removeItem(LS.num);
   localStorage.removeItem(LS.pass);

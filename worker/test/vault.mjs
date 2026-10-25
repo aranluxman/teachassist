@@ -38,4 +38,14 @@ const oldBox = `v1.${b64(iv)}.${b64(oldData)}`;
 const oldOpened = await openCredentialBox('secret-a', '123456789', oldBox, now + DAY);
 assert.equal(oldOpened.password, 'hunter2', 'old boxes still open');
 assert.equal(oldOpened.signedInAt, now, 'old boxes count from when they were sealed');
+
+// Login ids: made on first seal, kept when passed back in, '' for old boxes.
+const fresh = await openCredentialBox('secret-a', '123456789', box, now);
+assert.match(fresh.loginId, /^[a-f0-9]{24}$/, 'every new box has a login id');
+const kept = await sealCredential('secret-a', '123456789', 'hunter2', now, now, fresh.loginId);
+assert.equal((await openCredentialBox('secret-a', '123456789', kept, now)).loginId, fresh.loginId, 'a refresh keeps the id');
+assert.equal(oldOpened.loginId, '', 'boxes from before login ids have none');
+// Several keys: any of them opens a box; the first one seals.
+assert.equal(await openCredential(['new-key', 'secret-a'], '123456789', box, now), 'hunter2', 'an old key in the list still opens');
+assert.equal(await openCredential(['new-key'], '123456789', box, now), null, 'a box opens only with its own key');
 console.log('vault: ok');

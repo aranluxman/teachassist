@@ -1,6 +1,7 @@
 import { createTeachAssistSession, TeachAssistError, extractCookies } from "./teachassist-session.js";
 import { issueSession, subjectFor } from "./session.js";
-import { sealCredential, openCredentialBox } from "./vault.js";
+import { sealCredential, openCredentialBox, loginRevoked } from "./vault.js";
+import { sessionKeys, vaultKeys, idKey } from "./keys.js";
 /**
  * TeachAssist sign-in service. Student POSTs use only the submitted credentials
  * and return that student's marks without storing them in the owner cache.
@@ -210,11 +211,12 @@ export default {
         } else if (typeof b.cred === "string" && b.cred) {
           // A sealed credential from an earlier sign-in: open it here so the
           // phone never has to keep the password itself.
-          const opened = await openCredentialBox(env.API_KEY, username, b.cred);
-          if (!opened) {
+          const opened = await openCredentialBox(vaultKeys(env), username, b.cred);
+          // A login that was signed out (see /api/signout) can't be reused.
+          if (!opened || await loginRevoked(env.REVOCATIONS, opened.loginId)) {
             return json({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
           }
-          creds = { username, password: opened.password, signedInAt: opened.signedInAt };
+          creds = { username, password: opened.password, signedInAt: opened.signedInAt, loginId: opened.loginId };
         } else throw new Error();
       } catch {
         return json({ error: "Enter your student number and password." }, 400);
@@ -296,11 +298,11 @@ export default {
       // Only the owner GET/cron writes the shared owner cache. Student responses
       // are returned directly and are never stored in that cache.
       if (request.method === "GET") storeMarks(env, ctx, out);
-      const session = publicSignIn ? await issueSession(env.API_KEY, Date.now(), await subjectFor(env.API_KEY, creds?.username)) : "";
+      const session = publicSignIn ? await issueSession(sessionKeys(env)[0], Date.now(), await subjectFor(idKey(env), creds?.username)) : "";
       // A fresh sealed credential on every student sign-in, so its 90 days
       // restart each time the student uses the app, up to 180 days after the
       // password was last typed.
-      const cred = publicSignIn && creds ? await sealCredential(env.API_KEY, creds.username, creds.password, Date.now(), creds.signedInAt) : "";
+      const cred = publicSignIn && creds ? await sealCredential(vaultKeys(env)[0], creds.username, creds.password, Date.now(), creds.signedInAt, creds.loginId) : "";
       return json(out, 200, {
         ...(session ? { "X-TeachAssist-Session": session } : {}),
         ...(cred ? { "X-TeachAssist-Cred": cred } : {}),

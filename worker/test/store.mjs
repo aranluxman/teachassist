@@ -2,9 +2,19 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare } from 'miniflare';
 import { issueSession, subjectFor } from '../src/session.js';
-import { mergeMarks, hasMark, cleanDreams, cleanGoals } from '../src/store.js';
+import { mergeMarks, hasMark, cleanDreams, cleanGoals, storeKeyKind } from '../src/store.js';
 
 // ---- pure helpers -----------------------------------------------------------
+// Which key cloud saving uses is reported by type only, never by value.
+// Fake legacy JWT keys, built here so no key-shaped string sits in the repo.
+const fakeJwt = (role) => ['header', btoa(JSON.stringify({ role })).replace(/=+$/, ''), 'sig'].join('.');
+assert.equal(storeKeyKind({}), 'none');
+assert.equal(storeKeyKind({ SUPABASE_SERVICE_KEY: 'sb_secret_fake' }), 'secret');
+assert.equal(storeKeyKind({ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_fake' }), 'publishable');
+assert.equal(storeKeyKind({ SUPABASE_SERVICE_KEY: 'sb_secret_fake', NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_fake' }), 'secret', 'the secret key wins');
+assert.equal(storeKeyKind({ SUPABASE_SERVICE_KEY: 'sb_publishable_fake' }), 'publishable', 'a publishable key pasted in the secret slot is caught');
+assert.equal(storeKeyKind({ SUPABASE_SERVICE_KEY: fakeJwt('service_role') }), 'secret', 'legacy service_role key');
+assert.equal(storeKeyKind({ SUPABASE_SERVICE_KEY: fakeJwt('anon') }), 'publishable', 'legacy anon key');
 const old = [{ code: 'MTH1W1-01', name: 'Math', currentMark: 91, evaluations: [{ name: 'Quiz' }] }, { code: 'ENG1D1-01', name: 'English', currentMark: 85 }];
 assert.equal(hasMark({ currentMark: 0 }), true, 'a mark of 0 is still a mark');
 assert.deepEqual(mergeMarks([], old), { courses: old, stale: true }, 'empty TeachAssist falls back to the saved marks');
