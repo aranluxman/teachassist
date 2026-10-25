@@ -2,7 +2,8 @@
 -- Already applied to the Supabase project; kept here so it can be re-created.
 -- Students are identified only by a one-way 16-hex subject (HMAC of the student
 -- number made inside the Worker). The table is locked: all access goes through
--- ta_load / ta_save, which accept only that subject.
+-- ta_load / ta_save, which accept only that subject and only the server's
+-- secret key may call.
 
 create table if not exists public.teachassist_student_data (
   subject text primary key check (subject ~ '^[a-f0-9]{16}$'),
@@ -37,5 +38,8 @@ end; $$;
 
 revoke all on function public.ta_load(text) from public;
 revoke all on function public.ta_save(text, jsonb, jsonb, jsonb, timestamptz) from public;
-grant execute on function public.ta_load(text) to anon, authenticated, service_role;
-grant execute on function public.ta_save(text, jsonb, jsonb, jsonb, timestamptz) to anon, authenticated, service_role;
+-- Only the Worker's secret (service_role) key may call these; see lock-functions.sql.
+revoke all on function public.ta_load(text) from anon, authenticated;
+revoke all on function public.ta_save(text, jsonb, jsonb, jsonb, timestamptz) from anon, authenticated;
+grant execute on function public.ta_load(text) to service_role;
+grant execute on function public.ta_save(text, jsonb, jsonb, jsonb, timestamptz) to service_role;

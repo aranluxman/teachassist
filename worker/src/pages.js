@@ -1,14 +1,16 @@
 // Pages advanced-mode entry point. Deploy the sign-in service with the site so
 // a frontend release cannot depend on an out-of-date standalone Worker.
 import worker from './index.js';
-import { handleStore, withSavedMarks, storeConfigured } from './store.js';
+import { handleStore, withSavedMarks, storeConfigured, storeKeyKind } from './store.js';
 import { loginBlocked, recordLoginFailure } from './login-limit.js';
+import { openCredentialBox, revokeLogin } from './vault.js';
+import { vaultKeys } from './keys.js';
 
-/** The student number of a password sign-in, read from a copy of the body (else ''). */
-async function passwordSignIn(request) {
+/** A small JSON body read from a copy of the request; null if missing, over 8 KB or not JSON. */
+async function peekJson(request) {
   try {
     const reader = request.clone().body?.getReader();
-    if (!reader) return '';
+    if (!reader) return null;
     let text = '';
     const decoder = new TextDecoder();
     for (;;) {
@@ -16,12 +18,36 @@ async function passwordSignIn(request) {
       if (done) break;
       text += decoder.decode(value, { stream: true });
       // The sign-in handler rejects bodies this large itself.
-      if (text.length > 8192) { await reader.cancel(); return ''; }
+      if (text.length > 8192) { await reader.cancel(); return null; }
     }
-    const body = JSON.parse(text);
-    const username = typeof body?.username === 'string' ? body.username.trim() : '';
-    return /^\d{1,20}$/.test(username) && typeof body.password === 'string' && body.password ? username : '';
-  } catch { return ''; }
+    return JSON.parse(text);
+  } catch { return null; }
+}
+const studentNumberIn = (body) => {
+  const username = typeof body?.username === 'string' ? body.username.trim() : '';
+  return /^\d{1,20}$/.test(username) ? username : '';
+};
+
+/** The student number of a password sign-in (else ''). */
+async function passwordSignIn(request) {
+  const body = await peekJson(request);
+  return typeof body?.password === 'string' && body.password ? studentNumberIn(body) : '';
+}
+
+/**
+ * POST /api/signout { username, cred }: cancel that saved login everywhere.
+ * Opening the box proves the caller holds it; its login id then goes on the
+ * revoked list, so copies of the box stop working too. Always 204, so the
+ * answer says nothing about whether a box was genuine.
+ */
+async function signOut(request, env) {
+  const body = await peekJson(request);
+  const username = studentNumberIn(body);
+  if (username && typeof body.cred === 'string') {
+    const opened = await openCredentialBox(vaultKeys(env), username, body.cred);
+    if (opened?.loginId) await revokeLogin(env.CHAT_LIMITS, opened.loginId).catch(() => {});
+  }
+  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
 }
 
 function json(body, status = 200) {
@@ -50,9 +76,13 @@ export default {
       // so a missing secret or binding is easy to spot after a deploy.
       return json({
         service: 'TeachAssist', studentSignIn: true, version: 1,
-        setup: { API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS, SUPABASE_URL: !!(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL), SUPABASE_KEY: !!(env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) },
+        setup: { API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS, SUPABASE_URL: !!(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL), SUPABASE_KEY: !!(env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY), SUPABASE_KEY_TYPE: storeKeyKind(env), SESSION_SECRET: !!env.SESSION_SECRET, VAULT_SECRET: !!env.VAULT_SECRET },
         cloudSave: storeConfigured(env),
       });
+    }
+    if (url.pathname === '/api/signout' && !url.search) {
+      if (request.method !== 'POST') return json({ error: 'Use POST.' }, 405);
+      return signOut(request, env);
     }
     // Dreams + goals saved to Supabase (per student, token-authenticated).
     if (url.pathname === '/api/store' && !url.search) return handleStore(request, env);
@@ -78,6 +108,10 @@ export default {
     const internalRequest = new Request(request, { headers });
     const response = await worker.fetch(internalRequest, {
       API_KEY: env.API_KEY,
+      SESSION_SECRET: env.SESSION_SECRET,
+      VAULT_SECRET: env.VAULT_SECRET,
+      // Signed-out logins (see /api/signout) live in the same KV namespace.
+      REVOCATIONS: env.CHAT_LIMITS,
       // Deliberately omit owner credentials and the shared MARKS cache.
     }, ctx);
     const result = new Response(response.body, response);

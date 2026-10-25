@@ -368,6 +368,13 @@ async function readSession(token, secret, now = Date.now()) {
   const ok = await crypto.subtle.verify("HMAC", await key(secret), signature, encoder.encode(payload));
   return ok ? { subject: parts[3] || "" } : null;
 }
+async function readSessionWith(token, secrets, now = Date.now()) {
+  for (const secret of secrets) {
+    const session = await readSession(token, secret, now);
+    if (session) return session;
+  }
+  return null;
+}
 
 // worker/src/vault.js
 var encoder2 = new TextEncoder();
@@ -377,6 +384,9 @@ var CRED_MAX_DAYS = 180;
 var VERSION = "v1";
 var b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 var unb64url = (text2) => Uint8Array.from(atob(text2.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+var LOGIN_ID = /^[a-f0-9]{24}$/;
+var newLoginId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), (n) => n.toString(16).padStart(2, "0")).join("");
+var keyList = (secrets) => (Array.isArray(secrets) ? secrets : [secrets]).filter(Boolean);
 async function vaultKey(secret) {
   const base = await crypto.subtle.importKey("raw", encoder2.encode(secret), "HKDF", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
@@ -387,37 +397,59 @@ async function vaultKey(secret) {
     ["encrypt", "decrypt"]
   );
 }
-async function sealCredential(secret, studentNumber, password, now = Date.now(), signedInAt = now) {
+async function sealCredential(secret, studentNumber, password, now = Date.now(), signedInAt = now, loginId = "") {
   if (!secret || !studentNumber || !password) return "";
+  const id = LOGIN_ID.test(loginId || "") ? loginId : newLoginId();
   const issued = Math.floor(Math.min(signedInAt, now) / 1e3);
   const expires = Math.min(Math.floor(now / 1e3) + CRED_TTL_DAYS * 86400, issued + CRED_MAX_DAYS * 86400);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const data = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv, additionalData: encoder2.encode(`${VERSION}:${studentNumber}`) },
     await vaultKey(secret),
-    encoder2.encode(JSON.stringify({ p: password, e: expires, i: issued }))
+    encoder2.encode(JSON.stringify({ p: password, e: expires, i: issued, l: id }))
   );
   return `${VERSION}.${b64url(iv)}.${b64url(data)}`;
 }
-async function openCredentialBox(secret, studentNumber, box, now = Date.now()) {
-  if (!secret || !studentNumber || typeof box !== "string" || box.length > 2048) return null;
+async function openCredentialBox(secrets, studentNumber, box, now = Date.now()) {
+  const keys2 = keyList(secrets);
+  if (!keys2.length || !studentNumber || typeof box !== "string" || box.length > 2048) return null;
   const parts = box.split(".");
   if (parts.length !== 3 || parts[0] !== VERSION) return null;
-  try {
-    const plain = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: unb64url(parts[1]), additionalData: encoder2.encode(`${VERSION}:${studentNumber}`) },
-      await vaultKey(secret),
-      unb64url(parts[2])
-    );
-    const { p, e, i } = JSON.parse(decoder.decode(plain));
-    const nowS = Math.floor(now / 1e3);
-    const issued = Number.isFinite(i) ? i : e - CRED_TTL_DAYS * 86400;
-    if (typeof p !== "string" || !p || !(e > nowS) || !(issued + CRED_MAX_DAYS * 86400 > nowS)) return null;
-    return { password: p, signedInAt: issued * 1e3 };
-  } catch {
-    return null;
+  for (const secret of keys2) {
+    let plain;
+    try {
+      plain = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: unb64url(parts[1]), additionalData: encoder2.encode(`${VERSION}:${studentNumber}`) },
+        await vaultKey(secret),
+        unb64url(parts[2])
+      );
+    } catch {
+      continue;
+    }
+    try {
+      const { p, e, i, l } = JSON.parse(decoder.decode(plain));
+      const nowS = Math.floor(now / 1e3);
+      const issued = Number.isFinite(i) ? i : e - CRED_TTL_DAYS * 86400;
+      if (typeof p !== "string" || !p || !(e > nowS) || !(issued + CRED_MAX_DAYS * 86400 > nowS)) return null;
+      return { password: p, signedInAt: issued * 1e3, loginId: LOGIN_ID.test(l || "") ? l : "" };
+    } catch {
+      return null;
+    }
   }
+  return null;
 }
+async function loginRevoked(kv, loginId) {
+  return !!(kv && loginId && await kv.get(`revoked:${loginId}`));
+}
+async function revokeLogin(kv, loginId) {
+  if (kv && LOGIN_ID.test(loginId || "")) await kv.put(`revoked:${loginId}`, "1", { expirationTtl: (CRED_MAX_DAYS + 1) * 86400 });
+}
+
+// worker/src/keys.js
+var distinct = (...keys2) => [...new Set(keys2.filter(Boolean))];
+var sessionKeys = (env) => distinct(env.SESSION_SECRET, env.API_KEY);
+var vaultKeys = (env) => distinct(env.VAULT_SECRET, env.API_KEY);
+var idKey = (env) => env.API_KEY || "";
 
 // worker/src/index.js
 var DASHBOARD_ORIGIN = "https://teachassist.pages.dev";
@@ -551,11 +583,11 @@ var index_default = {
         if (typeof b.password === "string" && b.password && b.password.length <= 1024) {
           creds = { username, password: b.password };
         } else if (typeof b.cred === "string" && b.cred) {
-          const opened = await openCredentialBox(env.API_KEY, username, b.cred);
-          if (!opened) {
+          const opened = await openCredentialBox(vaultKeys(env), username, b.cred);
+          if (!opened || await loginRevoked(env.REVOCATIONS, opened.loginId)) {
             return json({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
           }
-          creds = { username, password: opened.password, signedInAt: opened.signedInAt };
+          creds = { username, password: opened.password, signedInAt: opened.signedInAt, loginId: opened.loginId };
         } else throw new Error();
       } catch {
         return json({ error: "Enter your student number and password." }, 400);
@@ -614,8 +646,8 @@ var index_default = {
       }
       const out = await scrapeMarks(env, creds);
       if (request.method === "GET") storeMarks(env, ctx, out);
-      const session = publicSignIn ? await issueSession(env.API_KEY, Date.now(), await subjectFor(env.API_KEY, creds?.username)) : "";
-      const cred = publicSignIn && creds ? await sealCredential(env.API_KEY, creds.username, creds.password, Date.now(), creds.signedInAt) : "";
+      const session = publicSignIn ? await issueSession(sessionKeys(env)[0], Date.now(), await subjectFor(idKey(env), creds?.username)) : "";
+      const cred = publicSignIn && creds ? await sealCredential(vaultKeys(env)[0], creds.username, creds.password, Date.now(), creds.signedInAt, creds.loginId) : "";
       return json(out, 200, {
         ...session ? { "X-TeachAssist-Session": session } : {},
         ...cred ? { "X-TeachAssist-Cred": cred } : {}
@@ -1006,6 +1038,18 @@ var MAX_MARKS_JSON = 3e5;
 var MAX_BODY = 6e4;
 var json2 = (body, status = 200, headers = {}) => Response.json(body, { status, headers: { "Cache-Control": "no-store", ...headers } });
 var apiKey = (env) => env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_PUBLISHABLE_KEY || "";
+function storeKeyKind(env) {
+  const key2 = apiKey(env);
+  if (!key2) return "none";
+  if (key2.startsWith("sb_secret_")) return "secret";
+  if (key2.startsWith("sb_publishable_")) return "publishable";
+  try {
+    const role = JSON.parse(atob(key2.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).role;
+    return role === "service_role" ? "secret" : "publishable";
+  } catch {
+    return "unknown";
+  }
+}
 var baseUrl = (env) => (env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
 var storeConfigured = (env) => !!(baseUrl(env) && apiKey(env) && env.API_KEY);
 async function rpc(env, name, args) {
@@ -1061,7 +1105,7 @@ async function withSavedMarks(response, env, ctx) {
   try {
     if (!storeConfigured(env) || !response.ok) return response;
     const token = response.headers.get("X-TeachAssist-Session");
-    const session = await readSession(token, env.API_KEY);
+    const session = await readSessionWith(token, sessionKeys(env));
     if (!session?.subject) return response;
     const fresh = await response.clone().json();
     if (!Array.isArray(fresh)) return response;
@@ -1139,7 +1183,7 @@ async function readJson(request) {
 async function handleStore(request, env) {
   if (!storeConfigured(env)) return json2({ error: "Cloud saving is not set up on this site yet.", configured: false }, 503);
   const token = request.headers.get("Authorization")?.replace(/^Bearer /, "");
-  const session = await readSession(token, env.API_KEY);
+  const session = await readSessionWith(token, sessionKeys(env));
   if (!session?.subject) return json2({ error: "Your session expired. Refresh your courses, then retry." }, 401);
   if (request.method === "GET") {
     const row = await loadRow(env, session.subject);
@@ -1201,10 +1245,10 @@ async function recordLoginFailure(kv, username, address, now = Date.now()) {
 }
 
 // worker/src/pages.js
-async function passwordSignIn(request) {
+async function peekJson(request) {
   try {
     const reader = request.clone().body?.getReader();
-    if (!reader) return "";
+    if (!reader) return null;
     let text2 = "";
     const decoder2 = new TextDecoder();
     for (; ; ) {
@@ -1213,15 +1257,31 @@ async function passwordSignIn(request) {
       text2 += decoder2.decode(value, { stream: true });
       if (text2.length > 8192) {
         await reader.cancel();
-        return "";
+        return null;
       }
     }
-    const body = JSON.parse(text2);
-    const username = typeof body?.username === "string" ? body.username.trim() : "";
-    return /^\d{1,20}$/.test(username) && typeof body.password === "string" && body.password ? username : "";
+    return JSON.parse(text2);
   } catch {
-    return "";
+    return null;
   }
+}
+var studentNumberIn = (body) => {
+  const username = typeof body?.username === "string" ? body.username.trim() : "";
+  return /^\d{1,20}$/.test(username) ? username : "";
+};
+async function passwordSignIn(request) {
+  const body = await peekJson(request);
+  return typeof body?.password === "string" && body.password ? studentNumberIn(body) : "";
+}
+async function signOut(request, env) {
+  const body = await peekJson(request);
+  const username = studentNumberIn(body);
+  if (username && typeof body.cred === "string") {
+    const opened = await openCredentialBox(vaultKeys(env), username, body.cred);
+    if (opened?.loginId) await revokeLogin(env.CHAT_LIMITS, opened.loginId).catch(() => {
+    });
+  }
+  return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
 }
 function json3(body, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -1244,9 +1304,13 @@ var pages_default = {
         service: "TeachAssist",
         studentSignIn: true,
         version: 1,
-        setup: { API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS, SUPABASE_URL: !!(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL), SUPABASE_KEY: !!(env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) },
+        setup: { API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS, SUPABASE_URL: !!(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL), SUPABASE_KEY: !!(env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY), SUPABASE_KEY_TYPE: storeKeyKind(env), SESSION_SECRET: !!env.SESSION_SECRET, VAULT_SECRET: !!env.VAULT_SECRET },
         cloudSave: storeConfigured(env)
       });
+    }
+    if (url.pathname === "/api/signout" && !url.search) {
+      if (request.method !== "POST") return json3({ error: "Use POST." }, 405);
+      return signOut(request, env);
     }
     if (url.pathname === "/api/store" && !url.search) return handleStore(request, env);
     if (url.pathname !== "/api/marks" || url.search) {
@@ -1263,7 +1327,11 @@ var pages_default = {
     headers.delete("x-api-key");
     const internalRequest = new Request(request, { headers });
     const response = await index_default.fetch(internalRequest, {
-      API_KEY: env.API_KEY
+      API_KEY: env.API_KEY,
+      SESSION_SECRET: env.SESSION_SECRET,
+      VAULT_SECRET: env.VAULT_SECRET,
+      // Signed-out logins (see /api/signout) live in the same KV namespace.
+      REVOCATIONS: env.CHAT_LIMITS
       // Deliberately omit owner credentials and the shared MARKS cache.
     }, ctx);
     const result = new Response(response.body, response);

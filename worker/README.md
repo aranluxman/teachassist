@@ -255,14 +255,22 @@ your selector/constant tweaks before deploying.
 | `package.json`    | `dev` / `deploy` / `tail` / `test` scripts.        |
 | `test/`           | Miniflare-based parser tests (sample HTML).        |
 
-## Cloud saving (Supabase)
+## Pages settings, secrets and cloud saving (Supabase)
 
-Pages project settings (Settings → Environment variables):
+Pages project settings (Settings → Variables and Secrets). Add every key as a **Secret**:
 
 | Name | Purpose |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key. The table is locked; only the `ta_load`/`ta_save` functions in `supabase/schema.sql` are callable |
-| `API_KEY` | Signs student sessions (secret) |
+| `SUPABASE_SERVICE_KEY` | Supabase **secret** key (`sb_secret_…`). Cloud saving uses it to call `ta_load`/`ta_save` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Old fallback only. It stops working once `supabase/lock-functions.sql` has run |
+| `API_KEY` | Each student's one-way id (it files their saved data in Supabase), plus the owner key for the standalone Worker. **Never change it**, or saved data detaches from students |
+| `SESSION_SECRET` | Signs one-hour session tokens. Falls back to `API_KEY` until set |
+| `VAULT_SECRET` | Seals saved logins. Falls back to `API_KEY` until set; boxes sealed with `API_KEY` still open, so adding it signs nobody out |
+| `CHAT_LIMITS` (KV binding) | Wrong-password counts and signed-out logins |
 
-`GET /api/status` shows which settings are present (never their values). Each sign-in saves the student's latest marks; if TeachAssist later returns no marks, the last saved ones are shown and labelled "Last saved marks". Dreams and goals sync through `/api/store`.
+`GET /api/status` shows which settings are present and which kind of Supabase key is in use (`SUPABASE_KEY_TYPE`), never their values. Each sign-in saves the student's latest marks; if TeachAssist later returns no marks, the last saved ones are shown and labelled "Last saved marks". Dreams and goals sync through `/api/store`.
+
+**Locking the database functions:** once `/api/status` on the live site shows `"SUPABASE_KEY_TYPE": "secret"`, run `supabase/lock-functions.sql` in the Supabase SQL editor. Running it earlier stops cloud saving until the secret key is set.
+
+**Sign-out:** `POST /api/signout` with `{ username, cred }` cancels that saved login (every copy of the box) by putting its login id on the revoked list in `CHAT_LIMITS`. The app calls it when a student taps Sign Out.
