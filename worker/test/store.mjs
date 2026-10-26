@@ -47,6 +47,7 @@ const upstream = async (request) => {
     if (supabaseDown) return new Response('down', { status: 500 });
     const body = await request.json();
     if (url.pathname.endsWith('/ta_load')) return Response.json(rows.get(body.p_subject) ?? null);
+    if (url.pathname.endsWith('/ta_delete')) return Response.json(rows.delete(body.p_subject));
     if (url.pathname.endsWith('/ta_save')) {
       const cur = rows.get(body.p_subject) || { dreams: {}, goals: [], marks: [], marks_at: null };
       rows.set(body.p_subject, { dreams: body.p_dreams ?? cur.dreams, goals: body.p_goals ?? cur.goals, marks: body.p_marks ?? cur.marks, marks_at: body.p_marks_at ?? cur.marks_at, updated_at: 'now' });
@@ -123,7 +124,20 @@ try {
   assert.equal((await store(token, 'PUT', { nope: 1 })).status, 400);
   assert.equal((await store(token, 'PUT', { dreams: 'x' })).status, 400);
   assert.equal((await store(token, 'PUT', { dreams: { career: 'x'.repeat(70000) } })).status, 413, 'oversized bodies are refused');
-  assert.equal((await store(token, 'DELETE')).status, 405);
+
+  // Delete my data: removes only the signed-in student's backup.
+  assert.equal((await store(t222, 'PUT', { dreams: { ...dreams, career: 'Doctor' } })).status, 200);
+  const deleted = await store(token, 'DELETE');
+  assert.equal(deleted.status, 200);
+  assert.equal((await deleted.json()).deleted, true);
+  assert.equal((await (await store(token)).json()).dreams, null, 'the backup is gone');
+  assert.equal((await (await store(t222)).json()).dreams.career, 'Doctor', "another student's backup is untouched");
+  assert.equal((await store(token, 'DELETE')).status, 200, 'deleting again is fine');
+  assert.equal((await mf.dispatchFetch(`${base}/api/store`, { method: 'DELETE', headers: { Origin: base } })).status, 401, 'needs a signed-in session');
+  supabaseDown = true;
+  assert.equal((await store(t222, 'DELETE')).status, 502, 'a failed delete says so');
+  supabaseDown = false;
+  assert.equal((await store(token, 'POST', {})).status, 405, 'other methods are refused');
   assert.equal((await mf.dispatchFetch(`${base}/api/store`, { method: 'GET', headers: { Origin: 'https://evil.example' } })).status, 403);
-  console.log('Cloud saving: auth, per-student isolation, marks fallback, Supabase outage, dreams and goals passed.');
+  console.log('Cloud saving: auth, per-student isolation, marks fallback, Supabase outage, dreams and goals, and delete-my-data passed.');
 } finally { await mf.dispose(); }

@@ -58,6 +58,19 @@ async function flush() {
   if (result?.saved) emit("saved");
   else { pending = { ...body, ...pending }; emit("offline"); }
 }
+/**
+ * Delete the signed-in student's whole cloud backup (Settings → Delete my
+ * data). Unsent saves are dropped first so they can't recreate it. True once
+ * the server confirms.
+ */
+export async function deleteCloudData() {
+  if (isDemo()) return false;
+  clearTimeout(timer);
+  pending = {};
+  const result = await request("DELETE");
+  return result?.deleted === true;
+}
+
 /** Queue a save; rapid edits (typing a target) are sent together. */
 export function cloudSave(patch) {
   if (isDemo()) return;

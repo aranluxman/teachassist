@@ -9,3 +9,12 @@ export function readStudentData(name, fallback) {
 export function writeStudentData(name, value) {
   localStorage.setItem(`ta-tools:${accountKey()}:${name}`, JSON.stringify(value));
 }
+/** Remove everything this browser keeps for one student (settings, goals, history, profile). */
+export function forgetStudentData(studentNumber) {
+  if (!studentNumber) return;
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+  for (const key of keys) {
+    if (key === `ta-personal:${studentNumber}` || key?.startsWith(`ta-tools:${studentNumber}:`)) localStorage.removeItem(key);
+  }
+}

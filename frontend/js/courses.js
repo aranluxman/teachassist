@@ -254,7 +254,7 @@ export function skeletonCards(n = 4) {
 export async function renderCourses(container, { refresh = false } = {}) {
   const header = (subtitle, dot = false) =>
     pageHeader({
-      title: "TeachAssist",
+      title: "TA Dashboard",
       subtitle,
       left: glassButton("schedule", "Class schedule", "data-schedule"),
       right: glassButton("inbox", "Recent updates", `data-inbox${dot ? ' data-dot="true"' : ""}`),

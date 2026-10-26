@@ -9,7 +9,7 @@ import {
 // Settings
 // ----------------------------------------------------------------------------
 // Shows the signed-in student number (or demo state), the theme picker,
-// a refresh action, and Sign Out.
+// a refresh action, Sign Out, and Delete my data.
 // ============================================================================
 
 import { el, escapeHtml, openSheet } from "./courses.js";
@@ -23,6 +23,8 @@ import { mountThumb, savedFeedback, stagger } from "./motion.js";
 import { APPEARANCES, COLORS, applyTheme, setTheme, themeChoice, themeLabel } from "./theme.js";
 import { glassButton, pageHeader, GLYPHS, iconTile } from "./ui-kit.js";
 import { CONTACT_FORM_URL, CONTACT_EMAIL } from "./config.js";
+import { deleteCloudData } from "./cloud-store.js";
+import { forgetStudentData } from "./student-store.js";
 
 // Each settings group's heading icon, keyed by its title.
 const GROUP_ICONS = {
@@ -179,6 +181,8 @@ export async function renderSettings(container) {
       </button>
     </div>
     <button class="btn danger" data-signout style="margin-top:14px">${GLYPHS.signout}Sign Out</button>
+    ${isDemo() ? "" : `<button class="btn ghost delete-data" data-delete-data>Delete my data</button>
+    <p class="small muted delete-data-note" role="status">Removes your cloud backup and this device's saved data, then signs you out. Your TeachAssist account isn't affected.</p>`}
     </section>
   `);
   account.querySelector("#refresh").addEventListener("click", async (e) => {
@@ -198,6 +202,20 @@ export async function renderSettings(container) {
   account.querySelector("[data-signout]").addEventListener("click", () => {
     if (confirm("Sign out? Your saved login will be cleared from this device."))
       signOut();
+  });
+  account.querySelector("[data-delete-data]")?.addEventListener("click", async (e) => {
+    const button = e.currentTarget;
+    const note = account.querySelector(".delete-data-note");
+    if (!confirm("Delete your data? This permanently removes your cloud backup (saved marks, dreams, goals and name) and everything this app saved on this device, then signs you out. Your TeachAssist account isn't affected.")) return;
+    button.disabled = true;
+    note.textContent = "Deleting…";
+    if (!(await deleteCloudData())) {
+      button.disabled = false;
+      note.textContent = `Couldn't delete your cloud data right now. Try again, or email ${CONTACT_EMAIL}.`;
+      return;
+    }
+    forgetStudentData(studentNumber());
+    signOut();
   });
   container.append(account);
   container.append(contactCard());
@@ -257,6 +275,7 @@ function legalCard() {
       <div class="legal-links">
         <a href="legal/privacy.html" target="_blank" rel="noopener">Privacy Policy ${EXTERNAL}</a>
         <a href="legal/terms.html" target="_blank" rel="noopener">Terms of Service ${EXTERNAL}</a>
+        <a href="legal/delete.html" target="_blank" rel="noopener">Delete your data ${EXTERNAL}</a>
         <button type="button" data-credits>Credits <span class="chevron"></span></button>
       </div>
     </section>`);

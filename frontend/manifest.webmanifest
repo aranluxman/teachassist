@@ -1,6 +1,6 @@
 {
   "name": "TeachAssist Dashboard",
-  "short_name": "TeachAssist",
+  "short_name": "TA Dashboard",
   "description": "Your YRDSB TeachAssist marks, dreams and school info in a fast mobile app.",
   "start_url": "app.html#courses",
   "scope": "./",

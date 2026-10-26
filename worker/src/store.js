@@ -74,6 +74,15 @@ export async function saveRow(env, subject, columns) {
   } catch { return false; }
 }
 
+/** Delete a student's whole backup. True once nothing is left for them. */
+export async function deleteRow(env, subject) {
+  if (!storeConfigured(env) || !/^[a-f0-9]{16}$/.test(subject || '')) return false;
+  try {
+    const res = await rpc(env, 'ta_delete', { p_subject: subject });
+    return res.ok;
+  } catch { return false; }
+}
+
 // ---- marks snapshot --------------------------------------------------------
 export const hasMark = (c) => !!c && (Number.isFinite(c.currentMark) || Number.isFinite(c.midterm));
 
@@ -179,7 +188,10 @@ async function readJson(request) {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
-/** GET /api/store → saved dreams + goals. PUT /api/store → save them. */
+/**
+ * GET /api/store → saved dreams + goals. PUT /api/store → save them.
+ * DELETE /api/store → delete the signed-in student's whole backup.
+ */
 export async function handleStore(request, env) {
   if (!storeConfigured(env)) return json({ error: 'Cloud saving is not set up on this site yet.', configured: false }, 503);
   const token = request.headers.get('Authorization')?.replace(/^Bearer /, '');
@@ -190,7 +202,12 @@ export async function handleStore(request, env) {
     const row = await loadRow(env, session.subject);
     return json({ dreams: row?.dreams && Object.keys(row.dreams).length ? row.dreams : null, goals: row?.goals ?? null, updatedAt: row?.updated_at || null });
   }
-  if (request.method !== 'PUT') return json({ error: 'Use GET or PUT.' }, 405);
+  if (request.method === 'DELETE') {
+    return await deleteRow(env, session.subject)
+      ? json({ deleted: true })
+      : json({ error: 'Could not delete your data right now. Try again, or email info@intelligentautomations.ca.' }, 502);
+  }
+  if (request.method !== 'PUT') return json({ error: 'Use GET, PUT or DELETE.' }, 405);
 
   let body;
   try { body = await readJson(request); }

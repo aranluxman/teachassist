@@ -105,3 +105,21 @@ test('the phone keeps a sealed credential, never the password, and old phones mi
     delete globalThis.window;
   }
 });
+
+test('Delete my data sends DELETE and drops unsent saves first', async () => {
+  const { deleteCloudData, cloudSave } = await import('../frontend/js/cloud-store.js');
+  const originalFetch = globalThis.fetch;
+  const sent = [];
+  globalThis.fetch = async (url, init) => { sent.push({ url, method: init?.method }); return Response.json({ deleted: true }); };
+  try {
+    localStorage.setItem('ta_student_number', '111');
+    sessionStorage.getItem = () => 'session-token';
+    cloudSave({ dreams: { career: 'x' } }); // queued, not yet sent
+    assert.equal(await deleteCloudData(), true);
+    await new Promise((r) => setTimeout(r, 900)); // past the save debounce
+    assert.deepEqual(sent.map((c) => c.method), ['DELETE'], 'only the delete is sent; the queued save never fires');
+    assert.match(sent[0].url, /\/api\/store$/);
+    globalThis.fetch = async () => Response.json({ error: 'down' }, { status: 502 });
+    assert.equal(await deleteCloudData(), false, 'a failed delete reports false');
+  } finally { globalThis.fetch = originalFetch; }
+});
