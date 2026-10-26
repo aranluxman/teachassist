@@ -1,13 +1,23 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { readStudentData, writeStudentData } from '../frontend/js/student-store.js';
+import { readStudentData, writeStudentData, forgetStudentData } from '../frontend/js/student-store.js';
 import { readHistory, recordSnapshot, snapshotChanges } from '../frontend/js/history.js';
 import { notificationMessage } from '../frontend/js/notifications.js';
 import { issueSession, verifySession } from '../worker/src/session.js';
 
 beforeEach(() => {
   const storage = new Map();
-  globalThis.localStorage = { getItem: k => storage.get(k) ?? null, setItem: (k,v) => storage.set(k,String(v)), removeItem: k => storage.delete(k) };
+  globalThis.localStorage = { getItem: k => storage.get(k) ?? null, setItem: (k,v) => storage.set(k,String(v)), removeItem: k => storage.delete(k),
+    get length() { return storage.size; }, key: i => [...storage.keys()][i] ?? null };
+});
+test('Delete my data wipes only that student from this device', () => {
+  for (const [k, v] of [['ta-personal:111','{}'],['ta-tools:111:profile','{}'],['ta-tools:111:history:x','[]'],
+    ['ta-personal:222','{}'],['ta-tools:222:profile','{}'],['ta-tools:1111:profile','{}'],['ta_links','[]']]) localStorage.setItem(k, v);
+  forgetStudentData('111');
+  for (const gone of ['ta-personal:111','ta-tools:111:profile','ta-tools:111:history:x']) assert.equal(localStorage.getItem(gone), null, gone);
+  for (const kept of ['ta-personal:222','ta-tools:222:profile','ta-tools:1111:profile','ta_links']) assert.notEqual(localStorage.getItem(kept), null, `${kept} is kept`);
+  forgetStudentData('');
+  assert.equal(localStorage.getItem('ta-personal:222'), '{}', 'no student number deletes nothing');
 });
 const snap = (date, mark) => ({ date, marks: { ENG: mark }, overall: mark });
 test('student tools and history remain separate across students, demo, and servers', () => {

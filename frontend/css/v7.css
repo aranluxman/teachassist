@@ -183,3 +183,8 @@
 .name-prompt-skip:hover, .name-prompt-skip:focus-visible { color: var(--text); text-decoration: underline; }
 .school-site { margin-top: 12px; padding: 6px; }
 .student-run-note { margin: 18px 4px 4px; text-align: center; }
+
+/* Settings → Delete my data: a quiet text button under Sign Out. */
+.delete-data, html[data-mode] .settings-group .btn.delete-data { margin-top: 8px; color: var(--danger); font-weight: 600; }
+.delete-data:disabled { opacity: 0.6; }
+.delete-data-note { margin: 6px 4px 0; text-align: center; }

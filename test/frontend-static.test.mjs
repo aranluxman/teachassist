@@ -29,7 +29,8 @@ test("app exposes PWA metadata and mobile app chrome", () => {
   assert.match(appHtml, /rel="icon"/);
   assert.match(indexHtml, /rel="manifest"/);
   assert.equal(existsSync(new URL("../frontend/manifest.webmanifest", import.meta.url)), true);
-  assert.equal(manifest.short_name, "TeachAssist");
+  assert.equal(manifest.name, "TeachAssist Dashboard");
+  assert.equal(manifest.short_name, "TA Dashboard");
   assert.match(manifest.description, /TeachAssist/);
 });
 
@@ -318,7 +319,7 @@ test("pages run no inline scripts or ads, and the CSP forbids inline scripts", (
   assert.match(csp, /object-src 'none'/);
   assert.match(csp, /connect-src 'self'/);
   assert.match(csp, /frame-ancestors 'none'/);
-  for (const page of ["frontend/app.html", "frontend/index.html", "frontend/legal/privacy.html", "frontend/legal/terms.html"]) {
+  for (const page of ["frontend/app.html", "frontend/index.html", "frontend/legal/privacy.html", "frontend/legal/terms.html", "frontend/legal/delete.html"]) {
     const html = read(page);
     assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/, `${page} has no inline <script>`);
     assert.doesNotMatch(html, /\son[a-z]+="/, `${page} has no inline event handlers`);

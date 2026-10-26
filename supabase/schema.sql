@@ -43,3 +43,16 @@ revoke all on function public.ta_load(text) from anon, authenticated;
 revoke all on function public.ta_save(text, jsonb, jsonb, jsonb, timestamptz) from anon, authenticated;
 grant execute on function public.ta_load(text) to service_role;
 grant execute on function public.ta_save(text, jsonb, jsonb, jsonb, timestamptz) to service_role;
+
+-- Delete one student's backup (Settings → Delete my data); see delete-function.sql.
+create or replace function public.ta_delete(p_subject text) returns boolean
+language sql security definer set search_path = public as $$
+  with gone as (
+    delete from public.teachassist_student_data
+    where p_subject ~ '^[a-f0-9]{16}$' and subject = p_subject
+    returning 1
+  )
+  select exists (select 1 from gone)
+$$;
+revoke all on function public.ta_delete(text) from public, anon, authenticated;
+grant execute on function public.ta_delete(text) to service_role;
