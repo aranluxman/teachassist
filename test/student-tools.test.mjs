@@ -4,6 +4,7 @@ import { readStudentData, writeStudentData, forgetStudentData } from '../fronten
 import { readHistory, recordSnapshot, snapshotChanges } from '../frontend/js/history.js';
 import { notificationMessage } from '../frontend/js/notifications.js';
 import { issueSession, verifySession } from '../worker/src/session.js';
+import { COLORS, themeChoice } from '../frontend/js/theme.js';
 
 beforeEach(() => {
   const storage = new Map();
@@ -56,4 +57,17 @@ test('assistant session capabilities expire and reject tampering or the wrong si
   assert.equal(await verifySession(token,'server-secret',now+3600000),false);
   assert.equal(await verifySession(token.replace(/^\d+/, '9999999999'),'server-secret',now),false);
   assert.equal(await verifySession('', 'server-secret'),false);
+});
+test('theme picker has fifteen colours and old colour names carry over', () => {
+  assert.equal(COLORS.length, 15);
+  assert.equal(new Set(COLORS.map(c => c.id)).size, 15, 'ids are unique');
+  for (const c of COLORS) assert.equal(c.dots.length, 4, `${c.name} has four swatch dots`);
+  assert.deepEqual(themeChoice(), { appearance: 'light', color: 'default' }, 'first run is Mint on Light');
+  for (const [old, now] of [['mono','slate'],['tide','indigo'],['olive','forest'],['ember','amber']]) {
+    localStorage.setItem('theme-color', old);
+    assert.equal(themeChoice().color, now, `${old} becomes ${now}`);
+    assert.equal(localStorage.getItem('theme-color'), now, 'and is saved under the new name');
+  }
+  localStorage.setItem('theme-color', 'nonsense');
+  assert.equal(themeChoice().color, 'default');
 });

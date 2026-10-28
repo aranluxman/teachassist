@@ -4,10 +4,10 @@
    buttons, pill-shaped cards with gradient icon badges, monospaced marks,
    a floating capsule tab bar and floating sheets.
 
-   Theme = data-mode (dark | light) × data-accent (default | mono | tide |
-   olive | ember | blossom | sky | coral | lavender | gold), both set by
-   js/theme.js. Every rule is scoped to
-   html[data-mode] so it outranks the older layers without !important.
+   Theme = data-mode (dark | light) × data-accent (one of the 15 colour ids
+   in js/theme.js; "default" is Mint), both set by js/theme.js. Every rule
+   is scoped to html[data-mode] so it outranks the older layers without
+   !important.
    ========================================================================== */
 
 /* ── Base tokens per mode ─────────────────────────────────────────────────
@@ -74,126 +74,186 @@ html[data-mode="light"] {
   color-scheme: light;
 }
 
-/* ── Colour per accent × mode ─────────────────────────────────────────── */
+/* ── Colour per accent × mode (15 themes; see js/theme.js) ──────────────── */
 html[data-mode="dark"][data-accent="default"] {
   --accent: #3dd6a3;
-  --glow: #0b3a2c;
-  --gauge-from: #2b6b5b;
-  --gauge-to: #6ee0ad;
+  --glow: #0f3327;
+  --gauge-from: #1f9f78;
+  --gauge-to: #5adcb1;
 }
-html[data-mode="dark"][data-accent="mono"] {
-  --accent: #e5e5ea;
-  --glow: #26262a;
-  --gauge-from: #55555a;
-  --gauge-to: #f2f2f7;
+html[data-mode="dark"][data-accent="ocean"] {
+  --accent: #6aa8ff;
+  --glow: #19283d;
+  --gauge-from: #3c7ce3;
+  --gauge-to: #80b5ff;
 }
-html[data-mode="dark"][data-accent="tide"] {
-  --accent: #8c9aff;
-  --glow: #171d52;
-  --gauge-from: #3b45a8;
-  --gauge-to: #9aa6ff;
+html[data-mode="dark"][data-accent="sunset"] {
+  --accent: #ff9a76;
+  --glow: #3d251c;
+  --gauge-from: #da624a;
+  --gauge-to: #ffa98b;
 }
-html[data-mode="dark"][data-accent="olive"] {
-  --accent: #a8c96a;
-  --glow: #222f0c;
-  --gauge-from: #4d6420;
-  --gauge-to: #b5d475;
-}
-html[data-mode="dark"][data-accent="ember"] {
-  --accent: #ff9f43;
-  --glow: #3a1906;
-  --gauge-from: #b8480a;
-  --gauge-to: #ffad5c;
-}
-html[data-mode="dark"][data-accent="blossom"] {
-  --accent: #e09bff;
-  --glow: #351448;
-  --gauge-from: #7a3bd1;
-  --gauge-to: #f0b0ff;
-}
-html[data-mode="dark"][data-accent="sky"] {
-  --accent: #6cc4ff;
-  --glow: #0b2a44;
-  --gauge-from: #1d6fb0;
-  --gauge-to: #8fd3ff;
-}
-html[data-mode="dark"][data-accent="coral"] {
-  --accent: #ff8f80;
-  --glow: #3d1410;
-  --gauge-from: #c2453a;
-  --gauge-to: #ffa395;
+html[data-mode="dark"][data-accent="forest"] {
+  --accent: #86cf98;
+  --glow: #203224;
+  --gauge-from: #529363;
+  --gauge-to: #98d6a7;
 }
 html[data-mode="dark"][data-accent="lavender"] {
   --accent: #b8a5ff;
-  --glow: #221a4a;
-  --gauge-from: #6a4fc4;
-  --gauge-to: #cfc2ff;
+  --glow: #2c283d;
+  --gauge-from: #866ddc;
+  --gauge-to: #c3b3ff;
+}
+html[data-mode="dark"][data-accent="blossom"] {
+  --accent: #ff8cc8;
+  --glow: #3d2230;
+  --gauge-from: #d45099;
+  --gauge-to: #ff9dd0;
+}
+html[data-mode="dark"][data-accent="sky"] {
+  --accent: #6cc4ff;
+  --glow: #1a2f3d;
+  --gauge-from: #398ccb;
+  --gauge-to: #82cdff;
+}
+html[data-mode="dark"][data-accent="coral"] {
+  --accent: #ff8f80;
+  --glow: #3d221f;
+  --gauge-from: #da5c56;
+  --gauge-to: #ffa093;
 }
 html[data-mode="dark"][data-accent="gold"] {
   --accent: #f2c14a;
-  --glow: #3a2a05;
-  --gauge-from: #a87300;
-  --gauge-to: #ffd970;
+  --glow: #3a2e12;
+  --gauge-from: #b4861e;
+  --gauge-to: #f4ca65;
+}
+html[data-mode="dark"][data-accent="slate"] {
+  --accent: #b4bfcf;
+  --glow: #2b2e32;
+  --gauge-from: #737f92;
+  --gauge-to: #bfc9d6;
+}
+html[data-mode="dark"][data-accent="rose"] {
+  --accent: #ff8fa8;
+  --glow: #3d2228;
+  --gauge-from: #d85876;
+  --gauge-to: #ffa0b5;
+}
+html[data-mode="dark"][data-accent="indigo"] {
+  --accent: #a29dff;
+  --glow: #27263d;
+  --gauge-from: #7069ef;
+  --gauge-to: #b0acff;
+}
+html[data-mode="dark"][data-accent="teal"] {
+  --accent: #3fd1c1;
+  --glow: #0f322e;
+  --gauge-from: #229a8f;
+  --gauge-to: #5cd8ca;
+}
+html[data-mode="dark"][data-accent="amber"] {
+  --accent: #fbab4b;
+  --glow: #3c2912;
+  --gauge-from: #d07623;
+  --gauge-to: #fcb866;
+}
+html[data-mode="dark"][data-accent="nord"] {
+  --accent: #a3bcd6;
+  --glow: #272d33;
+  --gauge-from: #6f8ba8;
+  --gauge-to: #b1c6dc;
 }
 html[data-mode="light"][data-accent="default"] {
   --accent: #0b7a5c;
-  --glow: #cfeee2;
+  --glow: #cee4de;
   --gauge-from: #0b7a5c;
-  --gauge-to: #4fd1a0;
+  --gauge-to: #36c898;
 }
-html[data-mode="light"][data-accent="mono"] {
-  --accent: #3a3a3c;
-  --glow: #e2e2e6;
-  --gauge-from: #3a3a3c;
-  --gauge-to: #a1a1a6;
+html[data-mode="light"][data-accent="ocean"] {
+  --accent: #1d5fd1;
+  --glow: #d2dff6;
+  --gauge-from: #1d5fd1;
+  --gauge-to: #5e9df8;
 }
-html[data-mode="light"][data-accent="tide"] {
-  --accent: #3e4bc6;
-  --glow: #dde1fb;
-  --gauge-from: #3e4bc6;
-  --gauge-to: #8c9aff;
+html[data-mode="light"][data-accent="sunset"] {
+  --accent: #c23c2c;
+  --glow: #f3d8d5;
+  --gauge-from: #c23c2c;
+  --gauge-to: #f68c6b;
 }
-html[data-mode="light"][data-accent="olive"] {
-  --accent: #4d6a1c;
-  --glow: #e3edd0;
-  --gauge-from: #4d6a1c;
-  --gauge-to: #a8c96a;
-}
-html[data-mode="light"][data-accent="ember"] {
-  --accent: #b4500a;
-  --glow: #f8dfc8;
-  --gauge-from: #c4560a;
-  --gauge-to: #ffa94d;
-}
-html[data-mode="light"][data-accent="blossom"] {
-  --accent: #8b35d6;
-  --glow: #f0dcfb;
-  --gauge-from: #8b35d6;
-  --gauge-to: #e09bff;
-}
-html[data-mode="light"][data-accent="sky"] {
-  --accent: #1767a8;
-  --glow: #d6ebfb;
-  --gauge-from: #1767a8;
-  --gauge-to: #6cc4ff;
-}
-html[data-mode="light"][data-accent="coral"] {
-  --accent: #c23a3a;
-  --glow: #fde0da;
-  --gauge-from: #c23a3a;
-  --gauge-to: #ff8f80;
+html[data-mode="light"][data-accent="forest"] {
+  --accent: #2f6b3f;
+  --glow: #d5e1d9;
+  --gauge-from: #2f6b3f;
+  --gauge-to: #79c08b;
 }
 html[data-mode="light"][data-accent="lavender"] {
   --accent: #6448c4;
-  --glow: #e7e1fb;
+  --glow: #e0daf3;
   --gauge-from: #6448c4;
-  --gauge-to: #b8a5ff;
+  --gauge-to: #ab97f6;
+}
+html[data-mode="light"][data-accent="blossom"] {
+  --accent: #b8287a;
+  --glow: #f1d4e4;
+  --gauge-from: #b8287a;
+  --gauge-to: #f47dbc;
+}
+html[data-mode="light"][data-accent="sky"] {
+  --accent: #1767a8;
+  --glow: #d1e1ee;
+  --gauge-from: #1767a8;
+  --gauge-to: #5fb6f2;
+}
+html[data-mode="light"][data-accent="coral"] {
+  --accent: #c23a3a;
+  --glow: #f3d8d8;
+  --gauge-from: #c23a3a;
+  --gauge-to: #f68276;
 }
 html[data-mode="light"][data-accent="gold"] {
   --accent: #8a5f00;
-  --glow: #f8ecc4;
-  --gauge-from: #a87300;
-  --gauge-to: #f2c14a;
+  --glow: #e8dfcc;
+  --gauge-from: #8a5f00;
+  --gauge-to: #e2b23f;
+}
+html[data-mode="light"][data-accent="slate"] {
+  --accent: #475569;
+  --glow: #dadde1;
+  --gauge-from: #475569;
+  --gauge-to: #a4afc0;
+}
+html[data-mode="light"][data-accent="rose"] {
+  --accent: #be3455;
+  --glow: #f2d6dd;
+  --gauge-from: #be3455;
+  --gauge-to: #f5819c;
+}
+html[data-mode="light"][data-accent="indigo"] {
+  --accent: #4f46e5;
+  --glow: #dcdafa;
+  --gauge-from: #4f46e5;
+  --gauge-to: #9690fb;
+}
+html[data-mode="light"][data-accent="teal"] {
+  --accent: #0f766e;
+  --glow: #cfe4e2;
+  --gauge-from: #0f766e;
+  --gauge-to: #38c3b5;
+}
+html[data-mode="light"][data-accent="amber"] {
+  --accent: #b45309;
+  --glow: #f0ddce;
+  --gauge-from: #b45309;
+  --gauge-to: #f09e41;
+}
+html[data-mode="light"][data-accent="nord"] {
+  --accent: #4c6a8a;
+  --glow: #dbe1e8;
+  --gauge-from: #4c6a8a;
+  --gauge-to: #96b0cb;
 }
 html[data-mode] {
   --accent-press: color-mix(in srgb, var(--accent) 82%, var(--text));
@@ -945,41 +1005,263 @@ html[data-mode] .theme-row > span:not(.ui-tile):not(.g-chev) {
   flex-direction: column;
 }
 
-/* ── Theme page ───────────────────────────────────────────────────────── */
+/* ── Theme page ───────────────────────────────────────────────────────
+   Header card with a Preview toggle, a live sample card, then the colours
+   as two columns of tinted glass tiles: glossy orb, name, four swatch dots.
+   Each tile carries its own --tile-tint (js/theme.js).                     */
 html[data-mode] .theme-page .g-section:first-child {
   margin-top: 6px;
 }
-html[data-mode] .theme-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-html[data-mode] .theme-tile {
+html[data-mode] .theme-hero {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 28px 6px 22px;
-  border-radius: 26px;
-  border: 1px solid var(--card-border);
-  background: var(--card);
-  color: var(--text);
-  font: 700 16px/1.1 var(--font);
-  cursor: pointer;
-  transition: transform 140ms var(--ease-spring), border-color 160ms ease;
+  gap: 14px;
+  padding: 16px;
 }
-html[data-mode] .theme-tile:active {
+html[data-mode] .theme-hero .ui-tile {
+  flex: none;
+}
+html[data-mode] .theme-hero > div {
+  flex: 1;
+  min-width: 0;
+}
+html[data-mode] .theme-hero b {
+  display: block;
+  font: 800 18px/1.2 var(--font);
+}
+html[data-mode] .theme-hero p {
+  margin: 3px 0 0;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+html[data-mode] .theme-preview-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: var(--card-solid);
+  color: var(--accent);
+  font: 700 14px/1 var(--font);
+  cursor: pointer;
+  transition: transform 140ms var(--ease-spring), background 160ms ease, color 160ms ease;
+}
+html[data-mode] .theme-preview-btn:active {
   transform: scale(0.95);
 }
+html[data-mode] .theme-preview-btn svg {
+  width: 18px;
+  height: 18px;
+}
+html[data-mode] .theme-preview-btn[aria-expanded="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+/* Live sample: painted only from theme tokens, so it follows every tap. */
+html[data-mode] .theme-preview {
+  margin-top: 12px;
+  padding: 16px 18px;
+  animation: m-fade-up 260ms var(--ease-spring) both;
+}
+html[data-mode] .theme-preview[hidden] {
+  display: none;
+}
+html[data-mode] .tp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+html[data-mode] .tp-top b {
+  display: block;
+  font: 800 18px/1.2 var(--font);
+}
+html[data-mode] .tp-top small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+html[data-mode] .tp-mark {
+  display: block;
+  margin-top: 2px;
+  color: var(--accent);
+  font: 800 30px/1.1 var(--font-num);
+}
+html[data-mode] .tp-mark small {
+  display: inline;
+  color: inherit;
+  font-size: 0.55em;
+}
+html[data-mode] .tp-ring {
+  flex: none;
+  width: 66px;
+  height: 66px;
+  transform: rotate(-90deg);
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+html[data-mode] .tp-ring circle:first-child {
+  stroke: var(--track);
+}
+html[data-mode] .tp-ring circle + circle {
+  stroke: var(--accent);
+  transition: stroke 300ms ease;
+}
+html[data-mode] .tp-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+html[data-mode] .tp-btn,
+html[data-mode] .tp-chip {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font: 700 14px/1 var(--font);
+}
+html[data-mode] .tp-btn {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+html[data-mode] .tp-chip {
+  background: var(--glow);
+  color: var(--text);
+}
+
+html[data-mode] .theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+html[data-mode] .theme-tile {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 78px;
+  padding: 12px 14px;
+  border-radius: 22px;
+  border: 1.5px solid color-mix(in srgb, var(--tile-tint) 75%, var(--card-border));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 60%),
+    linear-gradient(135deg, var(--tile-tint), color-mix(in srgb, var(--tile-tint) 35%, var(--card-solid)));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 4px 14px rgba(0, 0, 0, 0.05);
+  color: var(--text);
+  font: 700 15px/1.15 var(--font);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 140ms var(--ease-spring), border-color 160ms ease, box-shadow 160ms ease;
+}
+html[data-mode="dark"] .theme-tile {
+  border-color: color-mix(in srgb, var(--tile-tint) 18%, var(--card-border));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 60%),
+    linear-gradient(135deg, color-mix(in srgb, var(--tile-tint) 16%, var(--card-solid)), var(--card-solid));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+html[data-mode] .theme-tile:active {
+  transform: scale(0.96);
+}
 html[data-mode] .theme-tile[aria-checked="true"] {
-  border: 2.5px solid var(--accent);
-  padding: 26.5px 4.5px 20.5px;
+  border-color: var(--accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+html[data-mode] .theme-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 html[data-mode] .theme-orb {
-  width: 42px;
-  height: 42px;
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    inset 0 -6px 10px rgba(0, 0, 0, 0.22),
+    inset 0 4px 6px rgba(255, 255, 255, 0.55),
+    0 6px 14px rgba(0, 0, 0, 0.22);
+}
+/* Specular highlight on the orb: the "glass" look. */
+html[data-mode] .theme-orb::after {
+  content: "";
+  position: absolute;
+  inset: 5px 11px auto 9px;
+  height: 13px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+}
+html[data-mode] .theme-tile-text {
+  min-width: 0;
+}
+html[data-mode] .theme-tile-text b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html[data-mode] .theme-dots {
+  display: flex;
+  gap: 4px;
+  margin-top: 7px;
+}
+html[data-mode] .theme-dots i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+html[data-mode] .theme-check {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  transform: scale(0);
+  transition: transform 200ms var(--ease-spring);
+}
+html[data-mode] .theme-check svg {
+  width: 13px;
+  height: 13px;
+}
+html[data-mode] .theme-tile[aria-checked="true"] .theme-check {
+  transform: scale(1);
+}
+/* Narrow phones: a smaller orb keeps every name on one line. */
+@media (max-width: 370px) {
+  html[data-mode] .theme-tile {
+    gap: 9px;
+    padding: 10px;
+  }
+  html[data-mode] .theme-orb {
+    width: 34px;
+    height: 34px;
+  }
+  html[data-mode] .theme-dots i {
+    width: 12px;
+    height: 12px;
+  }
+  html[data-mode] .theme-hero {
+    flex-wrap: wrap;
+  }
+  html[data-mode] .theme-hero > div {
+    flex-basis: calc(100% - 58px);
+  }
+  html[data-mode] .theme-preview-btn {
+    flex: 1;
+    justify-content: center;
+  }
 }
 
 /* ── Privacy: Hide grades blurs every mark ────────────────────────────── */
@@ -1113,37 +1395,6 @@ html[data-mode] .g-chg.down { color: #c62828; }
 .share-toggle input:checked::after { transform: translateX(20px); }
 /* While pressed the knob becomes a glass lens: see glass.css. */
 .preference-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-/* ── Theme tiles: each colour shown as a Liquid Glass swatch ──────────── */
-html[data-mode] .theme-tile {
-  position: relative;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, white 10%, transparent), transparent 55%),
-    var(--card);
-  box-shadow: inset 0 1px 0 var(--card-border);
-}
-html[data-mode] .theme-orb {
-  position: relative;
-  width: 46px;
-  height: 46px;
-  box-shadow:
-    inset 0 -6px 10px rgba(0, 0, 0, 0.22),
-    inset 0 4px 6px rgba(255, 255, 255, 0.55),
-    0 6px 16px rgba(0, 0, 0, 0.28);
-}
-/* Specular highlight on the orb: the "glass" look. */
-html[data-mode] .theme-orb::after {
-  content: "";
-  position: absolute;
-  inset: 5px 12px auto 9px;
-  height: 14px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
-}
-html[data-mode] .theme-tile[aria-checked="true"] {
-  box-shadow: inset 0 1px 0 var(--card-border), 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
-}
 
 /* ── Guidance: text was touching the card edge ────────────────────────── */
 html[data-mode] .disclosure > summary {
