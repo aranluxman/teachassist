@@ -256,7 +256,7 @@ function cssVar(block, name) {
 
 const v6 = read("frontend/css/v6.css");
 const themeJs = read("frontend/js/theme.js");
-const COLORS = ["default", "mono", "tide", "olive", "ember", "blossom", "sky", "coral", "lavender", "gold"];
+const COLORS = ["default", "ocean", "sunset", "forest", "lavender", "blossom", "sky", "coral", "gold", "slate", "rose", "indigo", "teal", "amber", "nord"];
 
 /** Body of the `html[data-mode="m"]...` block for a mode (+ accent). */
 function modeBlock(mode, accent = null) {
@@ -267,7 +267,7 @@ function modeBlock(mode, accent = null) {
   return m ? m[1] : null;
 }
 
-test("six colours × dark/light exist in CSS and the Theme page", () => {
+test("fifteen colours × dark/light exist in CSS and the Theme page", () => {
   for (const id of COLORS) {
     assert.match(themeJs, new RegExp(`id: "${id}"`), `colour "${id}" is pickable`);
     for (const mode of ["dark", "light"]) assert.ok(modeBlock(mode, id), `${mode} × ${id} is defined in v6.css`);

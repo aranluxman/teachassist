@@ -20,7 +20,7 @@ import {
   isDemo,
 } from "./ta-client.js";
 import { mountThumb, savedFeedback, stagger } from "./motion.js";
-import { APPEARANCES, COLORS, applyTheme, setTheme, themeChoice, themeLabel } from "./theme.js";
+import { APPEARANCES, COLORS, applyTheme, orbFill, setTheme, themeChoice, themeLabel } from "./theme.js";
 import { glassButton, pageHeader, GLYPHS, iconTile } from "./ui-kit.js";
 import { CONTACT_FORM_URL, CONTACT_EMAIL } from "./config.js";
 import { deleteCloudData } from "./cloud-store.js";
@@ -53,7 +53,7 @@ export function applyStoredTheme() {
   applyPreferences();
 }
 
-/** The Theme page: appearance segmented control + the colour tiles. */
+/** The Theme page: a live preview, the appearance switch and the colour tiles. */
 export function renderThemeSettings(container) {
   container.innerHTML = "";
   const head = el(pageHeader({ title: "Theme", left: glassButton("back", "Back to settings", "data-back") }));
@@ -61,18 +61,46 @@ export function renderThemeSettings(container) {
   container.append(head);
 
   const { appearance, color } = themeChoice();
+  const name = preferences().name;
+  // The sample card is drawn only from theme tokens, so it repaints live as
+  // a colour or appearance is tapped. Its mark is made up, never a real one.
   const body = el(`
     <div class="theme-page">
+      <section class="card theme-hero">
+        ${iconTile("palette")}
+        <div><b>${COLORS.length} themes</b><p>Choose a theme that fits your style.</p></div>
+        <button type="button" class="theme-preview-btn" aria-expanded="false" aria-controls="theme-preview">${GLYPHS.eye}Preview</button>
+      </section>
+      <div class="card theme-preview" id="theme-preview" hidden>
+        <div class="tp-top">
+          <div><b>Hi ${escapeHtml(name || "there")}</b><small>Overall average</small><span class="tp-mark">91.4<small>%</small></span></div>
+          <svg class="tp-ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18"/><circle cx="22" cy="22" r="18" pathLength="100" stroke-dasharray="91.4 100"/></svg>
+        </div>
+        <div class="tp-row"><span class="tp-btn">Refresh</span><span class="tp-chip">Sample</span></div>
+      </div>
       <h2 class="g-section">Appearance</h2>
       <div class="segmented g-segmented" role="radiogroup" aria-label="Appearance">
         ${APPEARANCES.map((a) => `<button type="button" role="radio" data-appearance="${a.id}" aria-checked="${a.id === appearance}" class="${a.id === appearance ? "active" : ""}">${a.name}</button>`).join("")}
       </div>
       <h2 class="g-section">Color</h2>
       <div class="theme-grid" role="radiogroup" aria-label="Color">
-        ${COLORS.map((c) => `<button type="button" role="radio" class="theme-tile" data-color="${c.id}" aria-checked="${c.id === color}"><span class="theme-orb" style="background:${c.orb}"></span><b>${c.name}</b></button>`).join("")}
+        ${COLORS.map(
+          (c) => `<button type="button" role="radio" class="theme-tile" data-color="${c.id}" aria-checked="${c.id === color}" style="--tile-tint:${c.tint}">
+          <span class="theme-orb" style="background:${orbFill(c)}"></span>
+          <span class="theme-tile-text"><b>${c.name}</b><span class="theme-dots" aria-hidden="true">${c.dots.map((d) => `<i style="background:${d}"></i>`).join("")}</span></span>
+          <span class="theme-check" aria-hidden="true">${GLYPHS.check}</span>
+        </button>`,
+        ).join("")}
       </div>
     </div>`);
   container.append(body);
+
+  const previewBtn = body.querySelector(".theme-preview-btn");
+  const preview = body.querySelector(".theme-preview");
+  previewBtn.addEventListener("click", () => {
+    preview.hidden = !preview.hidden;
+    previewBtn.setAttribute("aria-expanded", String(!preview.hidden));
+  });
 
   const seg = body.querySelector(".segmented");
   const moveThumb = mountThumb(seg, { inset: 5, radius: "999px" });

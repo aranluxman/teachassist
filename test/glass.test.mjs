@@ -15,7 +15,7 @@ const glass = read("frontend/css/glass.css");
 const appHtml = read("frontend/app.html") + read("frontend/js/app-main.js");
 const indexHtml = read("frontend/index.html") + read("frontend/js/sign-in.js");
 
-const COLORS = ["default", "mono", "tide", "olive", "ember", "blossom", "sky", "coral", "lavender", "gold"];
+const COLORS = ["default", "ocean", "sunset", "forest", "lavender", "blossom", "sky", "coral", "gold", "slate", "rose", "indigo", "teal", "amber", "nord"];
 
 // ── colour maths ────────────────────────────────────────────────────────────
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
