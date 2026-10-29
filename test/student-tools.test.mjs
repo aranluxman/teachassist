@@ -4,7 +4,8 @@ import { readStudentData, writeStudentData, forgetStudentData } from '../fronten
 import { readHistory, recordSnapshot, snapshotChanges } from '../frontend/js/history.js';
 import { notificationMessage } from '../frontend/js/notifications.js';
 import { issueSession, verifySession } from '../worker/src/session.js';
-import { COLORS, themeChoice, shadeTokens, contrast } from '../frontend/js/theme.js';
+import { COLORS, themeChoice, shadeTokens, contrast, courseShades } from '../frontend/js/theme.js';
+import { rememberCourseOrder, shadeIndex, subjectStyle } from '../frontend/js/subjects.js';
 
 beforeEach(() => {
   const storage = new Map();
@@ -87,4 +88,35 @@ test('a stored shade is kept only when valid', () => {
     localStorage.setItem('theme-shade', stored);
     assert.equal(themeChoice().shade, want, `shade "${stored}"`);
   }
+});
+test('course shades are readable under their icon and tell the four apart', () => {
+  // OKLab distance: about 0.02 is the smallest difference people notice.
+  const lab = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => { const v = parseInt(hex.slice(i, i + 2), 16) / 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+    const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b), m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b), q = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * q, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * q, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * q];
+  };
+  const bad = [];
+  for (const [mode, ink] of [['light', '#ffffff'], ['dark', '#111111']]) {
+    for (const c of COLORS) {
+      const shades = courseShades(c.dots, mode);
+      shades.forEach((x, i) => { if (contrast(ink, x) < 4.5) bad.push(`${mode} ${c.name} ${i + 1}: icon on ${x}`); });
+      for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
+        const [a, b] = [lab(shades[i]), lab(shades[j])];
+        if (Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < 0.04) bad.push(`${mode} ${c.name}: shades ${i + 1} and ${j + 1} look alike`);
+      }
+    }
+  }
+  assert.deepEqual(bad, []);
+});
+test('each course takes a theme shade by its place in the list', () => {
+  localStorage.setItem('ta_student_number', '111');
+  rememberCourseOrder(['SNC2D1-8', 'MPM2D1-2', 'ENG2D1-1', 'FSF2D1-3', 'CHC2D1-4']);
+  assert.deepEqual(['SNC2D1-8', 'mpm2d1-2', ' ENG2D1-1 ', 'FSF2D1-3', 'CHC2D1-4'].map(shadeIndex), [1, 2, 3, 4, 1]);
+  const lunch = shadeIndex('LUNCH');
+  assert.ok(lunch >= 1 && lunch <= 4 && shadeIndex('LUNCH') === lunch, 'a code not in the list still gets a fixed shade');
+  const sci = subjectStyle('SNC2D1-8');
+  assert.equal(sci.to, 'var(--shade-1)');
+  assert.match(sci.icon, /<svg/);
+  assert.doesNotMatch(sci.from + sci.to + sci.tint, /#(?!fff\b)[0-9a-f]{3,6}/i, 'no fixed subject colour is left');
 });

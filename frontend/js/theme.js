@@ -109,6 +109,25 @@ export function shadeTokens(dot, mode) {
     : { accent: dark, glow: mix(dark, "#000000", 0.24), gaugeFrom: mix(light, dark, 0.6), gaugeTo: mix(dark, "#ffffff", 0.85) };
 }
 
+// Course and K/T/C/A colours: one per dot, readable in the current mode
+// (deep with a white icon in light mode, bright with a dark one in dark
+// mode). Similar dots (Mint's are all one green) would land on the same
+// lightness once made readable, so, in lightness order, each is pushed
+// just far enough from the one before to tell them apart.
+const MIN_STEP = 0.055;
+export function courseShades(dots, mode) {
+  const dir = mode === "light" ? -1 : 1;
+  const out = dots.map((dot) => toOklch(readable(dot, mode)));
+  const order = out.map((_, i) => i).sort((i, j) => dir * (out[i][0] - out[j][0]));
+  order.forEach((i, k) => {
+    if (k) {
+      const prev = out[order[k - 1]][0];
+      out[i][0] = dir < 0 ? Math.min(out[i][0], prev - MIN_STEP) : Math.max(out[i][0], prev + MIN_STEP);
+    }
+  });
+  return out.map(([L, C, h]) => fromOklch(L, C, h));
+}
+
 /** The CSS gradient for a shade's glossy orb: the dot, lit from above. */
 export function orbFill(dot) {
   return `radial-gradient(circle at 35% 30%, ${mix(dot, "#ffffff", 0.55)}, ${mix(readable(dot, "light"), "#000000", 0.85)} 72%)`;
@@ -220,6 +239,7 @@ export function applyTheme({ crossfade = false } = {}) {
   root.style.setProperty("--glow", tokens.glow);
   root.style.setProperty("--gauge-from", tokens.gaugeFrom);
   root.style.setProperty("--gauge-to", tokens.gaugeTo);
+  courseShades(COLORS.find((c) => c.id === color).dots, mode).forEach((hex, i) => root.style.setProperty(`--shade-${i + 1}`, hex));
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", mode === "dark" ? "#000000" : "#f4f2f0");
 }

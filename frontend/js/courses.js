@@ -2,7 +2,7 @@ import { preferences, savePreferences } from "./personalization.js";
 import { mySchool, studentSite, icon } from "./schools.js";
 import { syncFromCloud } from "./cloud-store.js";
 import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct } from "./ui-kit.js";
-import { fullCode, subjectBadge, subjectStyle } from "./subjects.js";
+import { fullCode, rememberCourseOrder, subjectBadge, subjectStyle } from "./subjects.js";
 // ============================================================================
 // Courses screen + shared UI helpers
 // ----------------------------------------------------------------------------
@@ -352,6 +352,8 @@ export async function renderCourses(container, { refresh = false } = {}) {
     container.appendChild(footer);
     return;
   }
+  // The list's order picks each course's theme shade on every screen.
+  rememberCourseOrder(courses.map((c) => c.code || courseLabel(c)));
   const list = el(`<div class="g-list course-grid"></div>`);
   courses.forEach((c, i) => {
     const big = displayMark(c);
