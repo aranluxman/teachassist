@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ca.intelligentautomations.tadashboard",
+      "sha256_cert_fingerprints": [
+        "1A:3E:3F:DF:C5:A1:1A:98:2F:5D:F9:0A:74:58:81:02:A3:22:86:F8:FA:B7:4C:89:9F:3F:4F:C3:18:D2:9D:84"
+      ]
+    }
+  }
+]
