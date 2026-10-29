@@ -3,12 +3,15 @@
 // (period, room, term dates) read from a course row.
 // ----------------------------------------------------------------------------
 // Ontario course codes start with a subject prefix (SNC = science, FIF/FSF =
-// French, TDJ = tech design, CHC = history…). That prefix picks the icon and
-// colour, so the same course looks the same on every screen.
+// French, TDJ = tech design, CHC = history…). That prefix picks the icon.
+// The colour comes from the theme: each course takes one of its four shades
+// (--shade-1…4, set by js/theme.js) by its place in the course list, so the
+// courses look different from each other and every screen matches the theme.
 // ============================================================================
 
 import { courseTerm } from "./term.js";
 import { courseOverride } from "./class-times.js";
+import { readStudentData, writeStudentData } from "./student-store.js";
 
 const svg = (body) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
@@ -32,33 +35,63 @@ const ICONS = {
   study: svg('<path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/>'),
 };
 
-// [code prefix pattern, icon, gradient from, gradient to, card tint]
+// [code prefix pattern, icon]
 const SUBJECTS = [
-  [/^LUNCH/, "fork", "#ff6b81", "#e11d48", "#e11d48"],
-  [/^S(NC|BI|CH|PH|ES|VN)/, "atom", "#8b8cff", "#5b50e6", "#5b50e6"],
-  [/^F(IF|SF|EF|RE)/, "globe", "#5ea8ff", "#2f6fe4", "#2f6fe4"],
-  [/^L(K|W|V|D|B|N|Y)/, "globe", "#5ec8ff", "#2f8fe4", "#2f8fe4"],
-  [/^T(DJ|EJ|GJ|IJ|MJ|TJ|CJ|HJ|FJ|D|E|G|I|M|T|C|H|F)/, "wrench", "#38d0ff", "#0896dd", "#0891b2"],
-  [/^C(HC|HV|HW|HA|HT|LU|IE)/, "clock", "#b38bff", "#8a4dff", "#8a4dff"],
-  [/^CG/, "map", "#4fdc9c", "#12a26a", "#12a26a"],
-  [/^M(TH|PM|FM|CR|CF|HF|DM|CV|BF|EL)/, "sigma", "#ffb547", "#f2780c", "#f2780c"],
-  [/^(ENG|ENL|EN|ESL|NBE|OLC)/, "book", "#ff7eb6", "#e3368a", "#e3368a"],
-  [/^P(PL|AF|SE|AI|SK|PZ|AD)/, "run", "#6ee08a", "#22a447", "#22a447"],
-  [/^A(VI|WQ|MU|MI|DA|TC|EA|WS|SM|V|D|T|W)/, "palette", "#ff9a6b", "#ef5a2a", "#ef5a2a"],
-  [/^AM/, "music", "#ff9a6b", "#ef5a2a", "#ef5a2a"],
-  [/^I(CS|CD|CT|DC)/, "chip", "#7ee0d4", "#0f9d8f", "#0f9d8f"],
-  [/^B(AF|BI|BT|TT|MI|OH|AT|DI)/, "briefcase", "#ffd166", "#d99a06", "#d99a06"],
-  [/^G(LC|LE|LS|PP|WL)/, "compass", "#7dd3fc", "#0284c7", "#0284c7"],
-  [/^H(HS|RE|SP|PC|ZT|SB|FN|PW|IF)/, "people", "#fca5a5", "#dc2626", "#dc2626"],
+  [/^LUNCH/, "fork"],
+  [/^S(NC|BI|CH|PH|ES|VN)/, "atom"],
+  [/^F(IF|SF|EF|RE)/, "globe"],
+  [/^L(K|W|V|D|B|N|Y)/, "globe"],
+  [/^T(DJ|EJ|GJ|IJ|MJ|TJ|CJ|HJ|FJ|D|E|G|I|M|T|C|H|F)/, "wrench"],
+  [/^C(HC|HV|HW|HA|HT|LU|IE)/, "clock"],
+  [/^CG/, "map"],
+  [/^M(TH|PM|FM|CR|CF|HF|DM|CV|BF|EL)/, "sigma"],
+  [/^(ENG|ENL|EN|ESL|NBE|OLC)/, "book"],
+  [/^P(PL|AF|SE|AI|SK|PZ|AD)/, "run"],
+  [/^A(VI|WQ|MU|MI|DA|TC|EA|WS|SM|V|D|T|W)/, "palette"],
+  [/^AM/, "music"],
+  [/^I(CS|CD|CT|DC)/, "chip"],
+  [/^B(AF|BI|BT|TT|MI|OH|AT|DI)/, "briefcase"],
+  [/^G(LC|LE|LS|PP|WL)/, "compass"],
+  [/^H(HS|RE|SP|PC|ZT|SB|FN|PW|IF)/, "people"],
 ];
-const FALLBACK = ["study", "#9ca3af", "#4b5563", "#6b7280"];
+const FALLBACK_ICON = "study";
+
+// ── Colour: the course's theme shade ─────────────────────────────────────
+const codeKey = (code) => String(code || "").trim().toUpperCase();
+let courseOrder = null;
+
+/** Remember the course list's order, which decides each course's shade. */
+export function rememberCourseOrder(codes) {
+  const next = codes.map(codeKey).filter(Boolean);
+  if (JSON.stringify(next) === JSON.stringify(courseOrder)) return;
+  courseOrder = next;
+  writeStudentData("course-order", next);
+}
+
+/** 1–4: the course's place in the list, or (for anything not in it, like
+ *  Lunch) a fixed pick from its code. */
+export function shadeIndex(code) {
+  courseOrder ??= readStudentData("course-order", []);
+  const key = codeKey(code);
+  const at = courseOrder.indexOf(key);
+  if (at >= 0) return (at % 4) + 1;
+  let h = 0;
+  for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return (h % 4) + 1;
+}
+
+/** CSS colours for theme shade `n` (1–4; 0 is the accent itself): a lighter
+ *  start, the shade, its tint. */
+export function shadeColors(n) {
+  const shade = n ? `var(--shade-${n})` : "var(--accent)";
+  return { from: `color-mix(in srgb, ${shade} 72%, #fff)`, to: shade, tint: shade };
+}
 
 /** { icon, from, to, tint } for a course code like "SNC2D1-8". */
 export function subjectStyle(code) {
-  const c = String(code || "").trim().toUpperCase();
-  const hit = SUBJECTS.find(([re]) => re.test(c));
-  const [icon, from, to, tint] = hit ? hit.slice(1) : FALLBACK;
-  return { icon: ICONS[icon], from, to, tint };
+  const c = codeKey(code);
+  const icon = SUBJECTS.find(([re]) => re.test(c))?.[1] || FALLBACK_ICON;
+  return { icon: ICONS[icon], ...shadeColors(shadeIndex(c)) };
 }
 
 /** The round gradient icon used on cards, sheets and the course header. */
@@ -67,8 +100,9 @@ export function subjectBadge(code, size = "") {
   return `<span class="g-badge ${size}" style="--b-from:${s.from};--b-to:${s.to}">${s.icon}</span>`;
 }
 
-/** A round gradient badge with letters instead of an icon (K/U, T, C, A, P). */
-export function letterBadge(text, from, to) {
+/** A round badge with letters instead of an icon (K/U, T, C, A) in shade `n`. */
+export function letterBadge(text, n) {
+  const { from, to } = shadeColors(n);
   return `<span class="g-badge g-letter" style="--b-from:${from};--b-to:${to}">${text}</span>`;
 }
 

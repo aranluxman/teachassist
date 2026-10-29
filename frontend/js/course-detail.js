@@ -10,7 +10,7 @@
 
 import { achievementLevel, courseLabel, courseTitle, el, escapeHtml, fmtPercent, openSheet, trendChartEl } from "./courses.js";
 import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct } from "./ui-kit.js";
-import { fmtDay, fullCode, letterBadge, scheduleOf, subjectBadge, subjectStyle } from "./subjects.js";
+import { fmtDay, fullCode, letterBadge, scheduleOf, shadeColors, subjectBadge, subjectStyle } from "./subjects.js";
 import { courseMeta } from "./course-names.js";
 import { teacherFor, editTeacher } from "./teachers.js";
 import { preferences } from "./personalization.js";
@@ -37,23 +37,30 @@ function fmtDate(iso) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-// Strand letter-badge gradients (TeachAssist's yellow / green / blue / orange,
-// plus pink for Final/Culminating and other categories).
+// Strand letters and their theme shade: K/U, T, C, A take shades 1–4 of the
+// theme; Final/Culminating (and anything else) takes the accent.
 const STRAND_STYLE = {
-  k: ["K/U", "#ffcf4a", "#f59e0b"],
-  t: ["T", "#3ee0a1", "#10a37a"],
-  c: ["C", "#8f96ff", "#5b5ff0"],
-  a: ["A", "#ffa25a", "#f2640c"],
-  f: ["F", "#ff7aa0", "#e8336a"],
+  k: ["K/U", 1],
+  t: ["T", 2],
+  c: ["C", 3],
+  a: ["A", 4],
+  f: ["F", 0],
 };
-function strandBadge(category) {
-  const key = strandKey(category) || "f";
-  const [letter, from, to] = STRAND_STYLE[key];
-  const text = strandKey(category) ? letter : (String(category || "?").trim().charAt(0).toUpperCase() || "?");
-  return letterBadge(escapeHtml(text), from, to);
+/** The strand's shade: 1–4, or 0 for the accent. Expectations like "C2" or
+ *  "B3" use their number, so C1, C2 and C3 look different. */
+function strandShade(category) {
+  const key = strandKey(category);
+  if (key) return STRAND_STYLE[key][1];
+  const n = /^[a-z]\s?(\d+)$/i.exec(String(category || "").trim())?.[1];
+  return n ? ((Number(n) - 1) % 4) + 1 : 0;
 }
-/** The strand's badge colour, used to tint its mark pill. */
-const strandTint = (category) => STRAND_STYLE[strandKey(category) || "f"][1];
+function strandBadge(category) {
+  const key = strandKey(category);
+  const text = key ? STRAND_STYLE[key][0] : String(category || "?").trim().charAt(0).toUpperCase() || "?";
+  return letterBadge(escapeHtml(text), strandShade(category));
+}
+/** The strand's colour, used to tint its mark pill. */
+const strandTint = (category) => shadeColors(strandShade(category)).tint;
 
 /** "24 / 24" when TeachAssist gave raw marks, else "". */
 // "18 / 20" — left out entirely while Hide grades is on.
@@ -288,7 +295,8 @@ function strandTile(category, weight, right, percent, i = 0, rightIsMark = true)
   const name = String(category || "Mark");
   const letter = strandLetter(name);
   const width = marksHidden() || typeof percent !== "number" ? 0 : Math.max(0, Math.min(100, percent));
-  return `<div class="ev-strand" aria-label="${escapeHtml(name)}" style="--m-i:${i}">
+  const c = shadeColors(strandShade(name));
+  return `<div class="ev-strand" aria-label="${escapeHtml(name)}" style="--m-i:${i};--tint:${c.tint};--b-from:${c.from};--b-to:${c.to}">
     <span class="ev-letter${letter.length > 2 ? " ev-letter-sm" : ""}" aria-hidden="true">${escapeHtml(letter)}</span>
     <span class="ev-strand-label">${letter.toUpperCase() !== name.toUpperCase() ? `<b>${escapeHtml(name).replace(/\//g, "/<wbr>")}</b>` : ""}${weight != null ? `<span>Weight: ${escapeHtml(String(weight))}</span>` : ""}</span>
     <span class="ev-raw g-mono${rightIsMark ? " private-mark" : ""}">${right}</span>

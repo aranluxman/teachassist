@@ -30,6 +30,7 @@ html[data-mode="dark"] {
   --glass: rgba(255, 255, 255, 0.075);
   --glass-hi: rgba(255, 255, 255, 0.13);
   --accent-contrast: #111111;
+  --on-shade: #111111; /* icon or letter on a course shade (bright in dark mode) */
   --good: #34d399;
   --danger: #ff6b6b;
   --strand-k-bar: #fbbf24;
@@ -60,6 +61,7 @@ html[data-mode="light"] {
   --glass: rgba(255, 255, 255, 0.72);
   --glass-hi: rgba(0, 0, 0, 0.06);
   --accent-contrast: #ffffff;
+  --on-shade: #ffffff;
   --good: #11804f;
   --danger: #c0262d;
   --strand-k-bar: #e8a70c;
@@ -75,187 +77,308 @@ html[data-mode="light"] {
 }
 
 /* ── Colour per accent × mode: each colour's first shade ───────────────────
-   js/theme.js sets the chosen shade inline on <html> (shadeTokens); these
-   are the same values for its first shade, so the first paint matches.   */
+   js/theme.js sets the chosen shade (and the four course shades) inline on
+   <html>; these are the same values for the first shade, so the first paint
+   matches. Generated from js/theme.js: shadeTokens and courseShades.     */
 html[data-mode="dark"][data-accent="default"] {
   --accent: #6ee7b7;
   --glow: #1a372c;
   --gauge-from: #2cac80;
   --gauge-to: #84ebc2;
+  --shade-1: #7cf5c4;
+  --shade-2: #169271;
+  --shade-3: #4fd1a0;
+  --shade-4: #80ddb9;
 }
 html[data-mode="dark"][data-accent="ocean"] {
   --accent: #22c3ee;
   --glow: #082f39;
   --gauge-from: #0e99c3;
   --gauge-to: #43ccf1;
+  --shade-1: #22c3ee;
+  --shade-2: #4a91ff;
+  --shade-3: #6b70fc;
+  --shade-4: #aebdff;
 }
 html[data-mode="dark"][data-accent="sunset"] {
   --accent: #fdba74;
   --glow: #3d2d1c;
   --gauge-from: #c8883d;
   --gauge-to: #fdc489;
+  --shade-1: #ffcb84;
+  --shade-2: #fb7185;
+  --shade-3: #f0abfc;
+  --shade-4: #c5a2f6;
 }
 html[data-mode="dark"][data-accent="forest"] {
   --accent: #5a8d69;
   --glow: #162219;
   --gauge-from: #50835f;
   --gauge-to: #739e80;
+  --shade-1: #5a8d69;
+  --shade-2: #769a7c;
+  --shade-3: #a3bfa0;
+  --shade-4: #a8a68a;
 }
 html[data-mode="dark"][data-accent="lavender"] {
   --accent: #896af0;
   --glow: #21193a;
   --gauge-from: #8162e6;
   --gauge-to: #9b80f2;
+  --shade-1: #896af0;
+  --shade-2: #907cff;
+  --shade-3: #ac96f5;
+  --shade-4: #c4b5fd;
 }
 html[data-mode="dark"][data-accent="blossom"] {
   --accent: #f472b6;
   --glow: #3b1b2c;
   --gauge-from: #d7579c;
   --gauge-to: #f687c1;
+  --shade-1: #ff82c6;
+  --shade-2: #e879b9;
+  --shade-3: #ffbcff;
+  --shade-4: #d9b5ff;
 }
 html[data-mode="dark"][data-accent="sky"] {
   --accent: #3b82f6;
   --glow: #0e1f3b;
   --gauge-from: #3177eb;
   --gauge-to: #5895f7;
+  --shade-1: #3b82f6;
+  --shade-2: #5596fc;
+  --shade-3: #7aa7ff;
+  --shade-4: #bfdbfe;
 }
 html[data-mode="dark"][data-accent="coral"] {
   --accent: #f87171;
   --glow: #3c1b1b;
   --gauge-from: #dc585a;
   --gauge-to: #f98686;
+  --shade-1: #ff807f;
+  --shade-2: #fb6b5b;
+  --shade-3: #fda7a7;
+  --shade-4: #fecaca;
 }
 html[data-mode="dark"][data-accent="gold"] {
   --accent: #eab308;
   --glow: #382b02;
   --gauge-from: #bc8703;
   --gauge-to: #edbe2d;
+  --shade-1: #fbc32f;
+  --shade-2: #e5b23a;
+  --shade-3: #f5dc97;
+  --shade-4: #ffefc1;
 }
 html[data-mode="dark"][data-accent="slate"] {
   --accent: #788392;
   --glow: #1d1f23;
   --gauge-from: #5d6776;
   --gauge-to: #8c96a2;
+  --shade-1: #8893a2;
+  --shade-2: #72839a;
+  --shade-3: #95a4b9;
+  --shade-4: #cbd5e1;
 }
 html[data-mode="dark"][data-accent="rose"] {
   --accent: #f08ca0;
   --glow: #3a2226;
   --gauge-from: #cc6c81;
   --gauge-to: #f29dae;
+  --shade-1: #fd98ac;
+  --shade-2: #f05470;
+  --shade-3: #ef7fae;
+  --shade-4: #fdb6c2;
 }
 html[data-mode="dark"][data-accent="indigo"] {
   --accent: #9163fd;
   --glow: #23183d;
   --gauge-from: #8a5bf5;
   --gauge-to: #a27afd;
+  --shade-1: #a073ff;
+  --shade-2: #856af5;
+  --shade-3: #ae92ff;
+  --shade-4: #c4b5fd;
 }
 html[data-mode="dark"][data-accent="teal"] {
   --accent: #14b8a6;
   --glow: #052c28;
   --gauge-from: #089988;
   --gauge-to: #37c3b3;
+  --shade-1: #2ac2b0;
+  --shade-2: #2aaea2;
+  --shade-3: #7dd3c8;
+  --shade-4: #a2e1d8;
 }
 html[data-mode="dark"][data-accent="amber"] {
   --accent: #fb923c;
   --glow: #3c230e;
   --gauge-from: #d56f18;
   --gauge-to: #fca259;
+  --shade-1: #fb923c;
+  --shade-2: #ffac2b;
+  --shade-3: #ffe15e;
+  --shade-4: #ffc863;
 }
 html[data-mode="dark"][data-accent="nord"] {
   --accent: #6b8db5;
   --glow: #1a222b;
   --gauge-from: #5e80a7;
   --gauge-to: #819ec0;
+  --shade-1: #6b8db5;
+  --shade-2: #8fa9c8;
+  --shade-3: #b9c7d9;
+  --shade-4: #d0d8e2;
 }
 html[data-mode="light"][data-accent="default"] {
   --accent: #00855b;
   --glow: #cce7de;
   --gauge-from: #00855b;
   --gauge-to: #5ed8a9;
+  --shade-1: #00653d;
+  --shade-2: #005438;
+  --shade-3: #00865a;
+  --shade-4: #007355;
 }
 html[data-mode="light"][data-accent="ocean"] {
   --accent: #007da6;
   --glow: #cce5ed;
   --gauge-from: #007da6;
   --gauge-to: #1db8e3;
+  --shade-1: #00537a;
+  --shade-2: #1a61d3;
+  --shade-3: #6063ed;
+  --shade-4: #495393;
 }
 html[data-mode="light"][data-accent="sunset"] {
   --accent: #a46619;
   --glow: #ede0d1;
   --gauge-from: #a46619;
   --gauge-to: #f0ad66;
+  --shade-1: #763b00;
+  --shade-2: #cb455e;
+  --shade-3: #8d4e98;
+  --shade-4: #6a4894;
 }
 html[data-mode="light"][data-accent="forest"] {
   --accent: #4a7c59;
   --glow: #dbe5de;
   --gauge-from: #4a7c59;
   --gauge-to: #588a67;
+  --shade-1: #205232;
+  --shade-2: #4c6e52;
+  --shade-3: #445d42;
+  --shade-4: #78765b;
 }
 html[data-mode="light"][data-accent="lavender"] {
   --accent: #7c5ce0;
   --glow: #e5def9;
   --gauge-from: #7c5ce0;
   --gauge-to: #8768ee;
+  --shade-1: #7c5ce0;
+  --shade-2: #4a21b3;
+  --shade-3: #5f469e;
+  --shade-4: #6d5d9e;
 }
 html[data-mode="light"][data-accent="blossom"] {
   --accent: #c3458b;
   --glow: #f3dae8;
   --gauge-from: #c3458b;
   --gauge-to: #ed6bb0;
+  --shade-1: #c3458b;
+  --shade-2: #a73e7f;
+  --shade-3: #7d3f88;
+  --shade-4: #5c3b7b;
 }
 html[data-mode="light"][data-accent="sky"] {
   --accent: #2a70e3;
   --glow: #d4e2f9;
   --gauge-from: #2a70e3;
   --gauge-to: #387ff3;
+  --shade-1: #2a70e3;
+  --shade-2: #00409f;
+  --shade-3: #3b63b4;
+  --shade-4: #415976;
 }
 html[data-mode="light"][data-accent="coral"] {
   --accent: #ca474b;
   --glow: #f4dadb;
   --gauge-from: #ca474b;
   --gauge-to: #f16b6b;
+  --shade-1: #b8353c;
+  --shade-2: #d04337;
+  --shade-3: #8c4144;
+  --shade-4: #693f40;
 }
 html[data-mode="light"][data-accent="gold"] {
   --accent: #9e6a00;
   --glow: #ece1cc;
   --gauge-from: #9e6a00;
   --gauge-to: #dfa807;
+  --shade-1: #8d5a00;
+  --shade-2: #9c6c00;
+  --shade-3: #5b4500;
+  --shade-4: #65552d;
 }
 html[data-mode="light"][data-accent="slate"] {
   --accent: #4b5563;
   --glow: #dbdde0;
   --gauge-from: #4b5563;
   --gauge-to: #717c8b;
+  --shade-1: #3e4855;
+  --shade-2: #47576d;
+  --shade-3: #68768a;
+  --shade-4: #5d6671;
 }
 html[data-mode="light"][data-accent="rose"] {
   --accent: #b4576c;
   --glow: #f0dde2;
   --gauge-from: #b4576c;
   --gauge-to: #e78498;
+  --shade-1: #92384f;
+  --shade-2: #d33859;
+  --shade-3: #a93f70;
+  --shade-4: #723744;
 }
 html[data-mode="light"][data-accent="indigo"] {
   --accent: #8555ef;
   --glow: #e7ddfc;
   --gauge-from: #8555ef;
   --gauge-to: #8f61fb;
+  --shade-1: #8555ef;
+  --shade-2: #4f27b0;
+  --shade-3: #7354bd;
+  --shade-4: #604f90;
 }
 html[data-mode="light"][data-accent="teal"] {
   --accent: #008474;
   --glow: #cce6e3;
   --gauge-from: #008474;
   --gauge-to: #11b09f;
+  --shade-1: #007465;
+  --shade-2: #00544b;
+  --shade-3: #00625a;
+  --shade-4: #417f77;
 }
 html[data-mode="light"][data-accent="amber"] {
   --accent: #bc5800;
   --glow: #f2decc;
   --gauge-from: #bc5800;
   --gauge-to: #f28933;
+  --shade-1: #bc5800;
+  --shade-2: #a15000;
+  --shade-3: #674200;
+  --shade-4: #814b00;
 }
 html[data-mode="light"][data-accent="nord"] {
   --accent: #55779d;
   --glow: #dde4eb;
   --gauge-from: #55779d;
   --gauge-to: #688ab1;
+  --shade-1: #37587c;
+  --shade-2: #5e7794;
+  --shade-3: #596676;
+  --shade-4: #41474f;
 }
 html[data-mode] {
   --accent-press: color-mix(in srgb, var(--accent) 82%, var(--text));
@@ -717,7 +840,7 @@ html[data-mode] .g-badge {
   display: inline-grid;
   place-items: center;
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-shade);
   background: linear-gradient(160deg, var(--b-from), var(--b-to));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),

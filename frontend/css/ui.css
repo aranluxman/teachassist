@@ -120,14 +120,15 @@ html[data-mode="dark"] .ui-tile {
   width: 22px;
   height: 22px;
 }
+/* Coloured tiles take the theme's shades (js/theme.js), so they match it. */
 .ui-tile[data-tone="blue"],
-.feature-dot[data-tone="blue"] { --tone: var(--tone-blue); }
+.feature-dot[data-tone="blue"] { --tone: var(--shade-1, var(--tone-blue)); }
 .ui-tile[data-tone="purple"],
-.feature-dot[data-tone="purple"] { --tone: var(--tone-purple); }
+.feature-dot[data-tone="purple"] { --tone: var(--shade-3, var(--tone-purple)); }
 .ui-tile[data-tone="pink"],
-.feature-dot[data-tone="pink"] { --tone: var(--tone-pink); }
+.feature-dot[data-tone="pink"] { --tone: var(--shade-2, var(--tone-pink)); }
 .ui-tile[data-tone="orange"],
-.feature-dot[data-tone="orange"] { --tone: var(--tone-orange); }
+.feature-dot[data-tone="orange"] { --tone: var(--shade-4, var(--tone-orange)); }
 
 /* A field with its icon tile beside it. */
 html[data-mode] .ui-iconfield {
