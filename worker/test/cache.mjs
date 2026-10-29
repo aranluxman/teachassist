@@ -95,7 +95,7 @@ const KEY = { headers: { "x-api-key": "test-key" } };
 
   const res = await mf.dispatchFetch(`${base}/api/cached`, KEY);
   assert.strictEqual(res.status, 200, "populated cache -> 200");
-  assert.match(res.headers.get("access-control-allow-origin") || "", /pages\.dev/, "CORS header present");
+  assert.match(res.headers.get("access-control-allow-origin") || "", /ta\.intelligentautomations\.ca/, "CORS header present");
   const body = await res.json();
   assert.strictEqual(body.scrapedAt, payload.scrapedAt, "scrapedAt round-trips");
   assert.strictEqual(body.courses.length, 2, "courses round-trip");

@@ -327,3 +327,17 @@ test("pages run no inline scripts or ads, and the CSP forbids inline scripts", (
   }
   assert.equal(existsSync(new URL("../frontend/ads.txt", import.meta.url)), false);
 });
+
+test("the old pages.dev address forwards to the site's own domain", () => {
+  const site = read("frontend/js/site-address.js");
+  assert.match(site, /SITE_ORIGIN = "https:\/\/ta\.intelligentautomations\.ca"/);
+  // Only the exact old host moves; branch previews (x.teachassist.pages.dev) stay.
+  assert.match(site, /location\?\.hostname === OLD_HOST/);
+  assert.match(site, /location\.replace\(SITE_ORIGIN \+ location\.pathname \+ location\.search \+ location\.hash\)/);
+  for (const boot of ["frontend/js/sign-in.js", "frontend/js/app-main.js"]) {
+    assert.match(read(boot), /^(\/\/.*\n)*import "\.\/site-address\.js";/, `${boot} checks the address before anything else`);
+  }
+  for (const file of ["frontend/index.html", "frontend/sitemap.xml", "frontend/robots.txt", "frontend/llms.txt", "frontend/ai-catalog.json", "frontend/.well-known/ai-catalog.json", "frontend/legal/delete.html", "frontend/js/config.js"]) {
+    assert.doesNotMatch(read(file), /teachassist\.pages\.dev/, `${file} links to the new domain`);
+  }
+});

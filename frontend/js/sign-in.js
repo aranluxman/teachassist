@@ -1,5 +1,6 @@
 // Sign-in page: form, demo mode and install prompt (moved out of index.html so
 // the Content-Security-Policy can forbid inline scripts).
+import "./site-address.js";
 import { applyTheme } from "./theme.js";
 import { registerServiceWorker, installMode, promptInstall, onInstallChange } from "./install.js";
 import {
