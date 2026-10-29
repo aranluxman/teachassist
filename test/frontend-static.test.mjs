@@ -341,3 +341,16 @@ test("the old pages.dev address forwards to the site's own domain", () => {
     assert.doesNotMatch(read(file), /teachassist\.pages\.dev/, `${file} links to the new domain`);
   }
 });
+
+test("Digital Asset Links let the Play Store app open the site full screen", () => {
+  // The upload key's fingerprint; Google Play App Signing's own key is added
+  // here too once the first build is in Play Console (App integrity page).
+  const links = JSON.parse(read("frontend/.well-known/assetlinks.json"));
+  assert.equal(links.length, 1);
+  const [{ relation, target }] = links;
+  assert.deepEqual(relation, ["delegate_permission/common.handle_all_urls"]);
+  assert.equal(target.namespace, "android_app");
+  assert.equal(target.package_name, "ca.intelligentautomations.tadashboard");
+  assert.ok(target.sha256_cert_fingerprints.length >= 1);
+  for (const fp of target.sha256_cert_fingerprints) assert.match(fp, /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/, `${fp} is a SHA-256 fingerprint`);
+});
