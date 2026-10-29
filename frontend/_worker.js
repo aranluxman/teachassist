@@ -452,7 +452,7 @@ var vaultKeys = (env) => distinct(env.VAULT_SECRET, env.API_KEY);
 var idKey = (env) => env.API_KEY || "";
 
 // worker/src/index.js
-var DASHBOARD_ORIGIN = "https://teachassist.pages.dev";
+var DASHBOARD_ORIGIN = "https://ta.intelligentautomations.ca";
 var REQUIRE_API_KEY = true;
 var API_KEY_HEADER = "x-api-key";
 var TA_ORIGIN = "https://ta.yrdsb.ca";

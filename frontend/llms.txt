@@ -4,6 +4,6 @@
 
 ## Pages
 
-- [Home and sign-in](https://teachassist.pages.dev/): Sign in with a YRDSB student number or explore the demo with sample data
-- [Privacy](https://teachassist.pages.dev/legal/privacy.html): How student credentials and marks are handled
-- [Terms](https://teachassist.pages.dev/legal/terms.html): Terms of use
+- [Home and sign-in](https://ta.intelligentautomations.ca/): Sign in with a YRDSB student number or explore the demo with sample data
+- [Privacy](https://ta.intelligentautomations.ca/legal/privacy.html): How student credentials and marks are handled
+- [Terms](https://ta.intelligentautomations.ca/legal/terms.html): Terms of use

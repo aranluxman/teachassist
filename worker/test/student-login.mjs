@@ -19,7 +19,7 @@ const mf = new Miniflare({modules:true,script:bundle.outputFiles[0].text,compati
   }
   throw new Error('Unexpected upstream request');
 }});
-const post = body => mf.dispatchFetch('https://worker.test/api/marks',{method:'POST',headers:{Origin:'https://teachassist.pages.dev','content-type':'application/json'},body:JSON.stringify(body)});
+const post = body => mf.dispatchFetch('https://worker.test/api/marks',{method:'POST',headers:{Origin:'https://ta.intelligentautomations.ca','content-type':'application/json'},body:JSON.stringify(body)});
 try {
   const kv = await mf.getKVNamespace('MARKS');
   const owner = JSON.stringify({scrapedAt:'2026-10-01',courses:[{code:'OWNER',currentMark:99}]});

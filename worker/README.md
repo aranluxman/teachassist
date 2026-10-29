@@ -9,7 +9,7 @@ The owner-only `GET /api/marks`, debug routes, and `GET /api/cached` retain thei
 API-key gate. The optional owner cron still uses `TA_USERNAME` / `TA_PASSWORD`.
 A missing or invalid POST body is rejected, never replaced with owner secrets.
 All responses use `Cache-Control: no-store`. Browser requests are restricted to
-`DASHBOARD_ORIGIN`, currently `https://teachassist.pages.dev`.
+`DASHBOARD_ORIGIN`, currently `https://ta.intelligentautomations.ca`.
 
 Successful student sign-ins return an `X-TeachAssist-Session` header containing
 a one-hour session for cloud saving (`/api/store`). It is signed using the

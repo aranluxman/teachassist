@@ -18,7 +18,7 @@ import { sessionKeys, vaultKeys, idKey } from "./keys.js";
 // a browser. Use the exact scheme + host (+ port). Use "*" ONLY for quick
 // throwaway testing — locking this down is one of the hard requirements.
 // Origin only (scheme + host, no path, no trailing slash) — CORS matches origin.
-const DASHBOARD_ORIGIN = "https://teachassist.pages.dev";
+const DASHBOARD_ORIGIN = "https://ta.intelligentautomations.ca";
 
 // --- Optional shared-secret gate -------------------------------------------
 // When true, owner GET/debug/cache requests must send API_KEY.

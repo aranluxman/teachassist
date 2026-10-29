@@ -1,10 +1,10 @@
 {
   "name": "TeachAssist",
   "description": "Student-made dashboard for YRDSB TeachAssist marks. Requires a student login; a demo with sample data is available without one.",
-  "url": "https://teachassist.pages.dev/",
+  "url": "https://ta.intelligentautomations.ca/",
   "resources": [
-    { "type": "documentation", "url": "https://teachassist.pages.dev/llms.txt" },
-    { "type": "privacy-policy", "url": "https://teachassist.pages.dev/legal/privacy.html" },
-    { "type": "terms", "url": "https://teachassist.pages.dev/legal/terms.html" }
+    { "type": "documentation", "url": "https://ta.intelligentautomations.ca/llms.txt" },
+    { "type": "privacy-policy", "url": "https://ta.intelligentautomations.ca/legal/privacy.html" },
+    { "type": "terms", "url": "https://ta.intelligentautomations.ca/legal/terms.html" }
   ]
 }

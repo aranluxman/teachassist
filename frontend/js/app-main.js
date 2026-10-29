@@ -1,5 +1,6 @@
 // App shell boot: routing, tabs and screen rendering (moved out of app.html so the
 // Content-Security-Policy can forbid inline scripts).
+import "./site-address.js";
 import { registerServiceWorker } from "./install.js";
 import { renderProfile } from "./profile.js";
 import { startNotificationChecks } from "./notifications.js";

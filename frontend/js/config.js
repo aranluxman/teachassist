@@ -8,7 +8,7 @@
 
 // Sign-in deploys with this site through Cloudflare Pages advanced mode and
 // always goes to this same site.
-export const WORKER_URL = globalThis.location?.origin || "https://teachassist.pages.dev";
+export const WORKER_URL = globalThis.location?.origin || "https://ta.intelligentautomations.ca";
 
 // Settings → Help & feedback. The Google Form's share link; if it's ever
 // cleared, the button opens an email to CONTACT_EMAIL instead.
