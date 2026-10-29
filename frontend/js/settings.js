@@ -60,7 +60,7 @@ export function renderThemeSettings(container) {
   head.querySelector("[data-back]").onclick = () => window.AppNav.toSettings();
   container.append(head);
 
-  const { appearance, color } = themeChoice();
+  const { appearance } = themeChoice();
   const name = preferences().name;
   // The sample card is drawn only from theme tokens, so it repaints live as
   // a colour or appearance is tapped. Its mark is made up, never a real one.
@@ -83,13 +83,15 @@ export function renderThemeSettings(container) {
         ${APPEARANCES.map((a) => `<button type="button" role="radio" data-appearance="${a.id}" aria-checked="${a.id === appearance}" class="${a.id === appearance ? "active" : ""}">${a.name}</button>`).join("")}
       </div>
       <h2 class="g-section">Color</h2>
+      <p class="theme-hint">Tap a colour again for its next shade, or tap a dot.</p>
       <div class="theme-grid" role="radiogroup" aria-label="Color">
         ${COLORS.map(
-          (c) => `<button type="button" role="radio" class="theme-tile" data-color="${c.id}" aria-checked="${c.id === color}" style="--tile-tint:${c.tint}">
-          <span class="theme-orb" style="background:${orbFill(c)}"></span>
-          <span class="theme-tile-text"><b>${c.name}</b><span class="theme-dots" aria-hidden="true">${c.dots.map((d) => `<i style="background:${d}"></i>`).join("")}</span></span>
+          (c) => `<div class="theme-tile" data-color="${c.id}" style="--tile-tint:${c.tint}">
+          <button type="button" role="radio" class="theme-pick" aria-checked="false"><span class="theme-orb"></span></button>
+          <b class="theme-name" aria-hidden="true">${c.name}</b>
+          <span class="theme-dots">${c.dots.map((d, i) => `<button type="button" class="theme-dot" data-shade="${i}" aria-pressed="false" aria-label="${c.name}, shade ${i + 1} of ${c.dots.length}" style="--dot:${d}"></button>`).join("")}</span>
           <span class="theme-check" aria-hidden="true">${GLYPHS.check}</span>
-        </button>`,
+        </div>`,
         ).join("")}
       </div>
     </div>`);
@@ -115,12 +117,39 @@ export function renderThemeSettings(container) {
       moveThumb(b);
     }),
   );
-  body.querySelectorAll(".theme-tile").forEach((tile) =>
-    tile.addEventListener("click", () => {
-      setTheme({ color: tile.dataset.color });
-      body.querySelectorAll(".theme-tile").forEach((x) => x.setAttribute("aria-checked", String(x === tile)));
-    }),
-  );
+  // Tapping a colour picks its first shade; tapping it again steps through
+  // the four, back to the first. A dot jumps straight to its shade.
+  const tiles = body.querySelectorAll(".theme-tile");
+  const showChoice = () => {
+    const now = themeChoice();
+    tiles.forEach((tile) => {
+      const c = COLORS.find((x) => x.id === tile.dataset.color);
+      const on = c.id === now.color;
+      const shade = on ? now.shade : 0;
+      tile.classList.toggle("is-on", on);
+      const pick = tile.querySelector(".theme-pick");
+      pick.setAttribute("aria-checked", String(on));
+      pick.setAttribute("aria-label", on ? `${c.name}, shade ${shade + 1} of ${c.dots.length}. Tap for the next shade.` : c.name);
+      tile.querySelector(".theme-orb").style.background = orbFill(c.dots[shade]);
+      tile.querySelectorAll(".theme-dot").forEach((dot) => dot.setAttribute("aria-pressed", String(on && Number(dot.dataset.shade) === shade)));
+    });
+  };
+  tiles.forEach((tile) => {
+    const id = tile.dataset.color;
+    const count = COLORS.find((c) => c.id === id).dots.length;
+    tile.querySelector(".theme-pick").addEventListener("click", () => {
+      const now = themeChoice();
+      setTheme(now.color === id ? { shade: (now.shade + 1) % count } : { color: id, shade: 0 });
+      showChoice();
+    });
+    tile.querySelectorAll(".theme-dot").forEach((dot) =>
+      dot.addEventListener("click", () => {
+        setTheme({ color: id, shade: Number(dot.dataset.shade) });
+        showChoice();
+      }),
+    );
+  });
+  showChoice();
   stagger(container.children);
 }
 

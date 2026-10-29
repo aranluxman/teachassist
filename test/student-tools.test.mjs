@@ -4,7 +4,7 @@ import { readStudentData, writeStudentData, forgetStudentData } from '../fronten
 import { readHistory, recordSnapshot, snapshotChanges } from '../frontend/js/history.js';
 import { notificationMessage } from '../frontend/js/notifications.js';
 import { issueSession, verifySession } from '../worker/src/session.js';
-import { COLORS, themeChoice } from '../frontend/js/theme.js';
+import { COLORS, themeChoice, shadeTokens, contrast } from '../frontend/js/theme.js';
 
 beforeEach(() => {
   const storage = new Map();
@@ -62,7 +62,7 @@ test('theme picker has fifteen colours and old colour names carry over', () => {
   assert.equal(COLORS.length, 15);
   assert.equal(new Set(COLORS.map(c => c.id)).size, 15, 'ids are unique');
   for (const c of COLORS) assert.equal(c.dots.length, 4, `${c.name} has four swatch dots`);
-  assert.deepEqual(themeChoice(), { appearance: 'light', color: 'default' }, 'first run is Mint on Light');
+  assert.deepEqual(themeChoice(), { appearance: 'light', color: 'default', shade: 0 }, 'first run is Mint, first shade, on Light');
   for (const [old, now] of [['mono','slate'],['tide','indigo'],['olive','forest'],['ember','amber']]) {
     localStorage.setItem('theme-color', old);
     assert.equal(themeChoice().color, now, `${old} becomes ${now}`);
@@ -70,4 +70,21 @@ test('theme picker has fifteen colours and old colour names carry over', () => {
   }
   localStorage.setItem('theme-color', 'nonsense');
   assert.equal(themeChoice().color, 'default');
+});
+test('every shade of every colour is readable in light and dark', () => {
+  const bad = [];
+  for (const c of COLORS) c.dots.forEach((dot, i) => {
+    for (const [mode, card, onAccent] of [['light', '#ffffff', '#ffffff'], ['dark', '#161618', '#111111']]) {
+      const { accent } = shadeTokens(dot, mode);
+      if (contrast(accent, card) < 4.5 || contrast(onAccent, accent) < 4.5) bad.push(`${c.name} ${i + 1} ${mode}: ${accent}`);
+    }
+  });
+  assert.deepEqual(bad, []);
+});
+test('a stored shade is kept only when valid', () => {
+  localStorage.setItem('theme-color', 'sky');
+  for (const [stored, want] of [['2', 2], ['3', 3], ['4', 0], ['-1', 0], ['1.5', 0], ['x', 0]]) {
+    localStorage.setItem('theme-shade', stored);
+    assert.equal(themeChoice().shade, want, `shade "${stored}"`);
+  }
 });
