@@ -8,6 +8,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { COLORS as PICKER, shadeTokens } from "../frontend/js/theme.js";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const v6 = read("frontend/css/v6.css");
@@ -62,15 +63,19 @@ const firstAlpha = (name) => parseFloat(val(glassBase, name).match(/rgba\([^)]*,
 const accentText = (t) => mix(pm(t.accent), accentIn("--glass-accent-text"), pm(t.text)).c;
 
 function theme(mode, accentId) {
-  const base = block(v6, `html[data-mode="${mode}"]`);
   const acc = block(v6, `html[data-mode="${mode}"][data-accent="${accentId}"]`);
+  return withAccent(mode, val(acc, "--accent"), val(acc, "--glow"));
+}
+/** A mode's base tokens with a given accent and glow (#rrggbb). */
+function withAccent(mode, accent, glow) {
+  const base = block(v6, `html[data-mode="${mode}"]`);
   return {
     text: hex(val(base, "--text")),
     text2: hex(val(base, "--text-secondary")),
     surface: hex(val(base, "--card-solid")),
     bg: hex(val(base, "--bg")),
-    accent: hex(val(acc, "--accent")),
-    glow: hex(val(acc, "--glow")),
+    accent: hex(accent),
+    glow: hex(glow),
   };
 }
 
@@ -92,10 +97,18 @@ function check(label, fg, bg, min) {
   if (r < min) failures.push(`${label}: ${r.toFixed(2)}:1 (needs ${min})`);
 }
 
+// Every theme's CSS block, plus every shade js/theme.js can set inline.
+const shades = (mode) => [
+  ...COLORS.map((id) => [id, theme(mode, id)]),
+  ...PICKER.flatMap((c) => c.dots.map((dot, i) => {
+    const t = shadeTokens(dot, mode);
+    return [`${c.id} shade ${i + 1}`, withAccent(mode, t.accent, t.glow)];
+  })),
+];
+
 test("text on glass passes WCAG AA over the lightest and darkest content", () => {
   for (const mode of ["light", "dark"]) {
-    for (const id of COLORS) {
-      const t = theme(mode, id);
+    for (const [id, t] of shades(mode)) {
       for (const [name, back] of [["white", WHITE], ["black", BLACK]]) {
         const tag = `${mode} ${id} over ${name}`;
         const regular = glassOver(t, mode, "--glass-alpha", "--glass-bg", back);

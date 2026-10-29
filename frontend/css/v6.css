@@ -74,186 +74,188 @@ html[data-mode="light"] {
   color-scheme: light;
 }
 
-/* ── Colour per accent × mode (15 themes; see js/theme.js) ──────────────── */
+/* ── Colour per accent × mode: each colour's first shade ───────────────────
+   js/theme.js sets the chosen shade inline on <html> (shadeTokens); these
+   are the same values for its first shade, so the first paint matches.   */
 html[data-mode="dark"][data-accent="default"] {
-  --accent: #3dd6a3;
-  --glow: #0f3327;
-  --gauge-from: #1f9f78;
-  --gauge-to: #5adcb1;
+  --accent: #6ee7b7;
+  --glow: #1a372c;
+  --gauge-from: #2cac80;
+  --gauge-to: #84ebc2;
 }
 html[data-mode="dark"][data-accent="ocean"] {
-  --accent: #6aa8ff;
-  --glow: #19283d;
-  --gauge-from: #3c7ce3;
-  --gauge-to: #80b5ff;
+  --accent: #22c3ee;
+  --glow: #082f39;
+  --gauge-from: #0e99c3;
+  --gauge-to: #43ccf1;
 }
 html[data-mode="dark"][data-accent="sunset"] {
-  --accent: #ff9a76;
-  --glow: #3d251c;
-  --gauge-from: #da624a;
-  --gauge-to: #ffa98b;
+  --accent: #fdba74;
+  --glow: #3d2d1c;
+  --gauge-from: #c8883d;
+  --gauge-to: #fdc489;
 }
 html[data-mode="dark"][data-accent="forest"] {
-  --accent: #86cf98;
-  --glow: #203224;
-  --gauge-from: #529363;
-  --gauge-to: #98d6a7;
+  --accent: #5a8d69;
+  --glow: #162219;
+  --gauge-from: #50835f;
+  --gauge-to: #739e80;
 }
 html[data-mode="dark"][data-accent="lavender"] {
-  --accent: #b8a5ff;
-  --glow: #2c283d;
-  --gauge-from: #866ddc;
-  --gauge-to: #c3b3ff;
+  --accent: #896af0;
+  --glow: #21193a;
+  --gauge-from: #8162e6;
+  --gauge-to: #9b80f2;
 }
 html[data-mode="dark"][data-accent="blossom"] {
-  --accent: #ff8cc8;
-  --glow: #3d2230;
-  --gauge-from: #d45099;
-  --gauge-to: #ff9dd0;
+  --accent: #f472b6;
+  --glow: #3b1b2c;
+  --gauge-from: #d7579c;
+  --gauge-to: #f687c1;
 }
 html[data-mode="dark"][data-accent="sky"] {
-  --accent: #6cc4ff;
-  --glow: #1a2f3d;
-  --gauge-from: #398ccb;
-  --gauge-to: #82cdff;
+  --accent: #3b82f6;
+  --glow: #0e1f3b;
+  --gauge-from: #3177eb;
+  --gauge-to: #5895f7;
 }
 html[data-mode="dark"][data-accent="coral"] {
-  --accent: #ff8f80;
-  --glow: #3d221f;
-  --gauge-from: #da5c56;
-  --gauge-to: #ffa093;
+  --accent: #f87171;
+  --glow: #3c1b1b;
+  --gauge-from: #dc585a;
+  --gauge-to: #f98686;
 }
 html[data-mode="dark"][data-accent="gold"] {
-  --accent: #f2c14a;
-  --glow: #3a2e12;
-  --gauge-from: #b4861e;
-  --gauge-to: #f4ca65;
+  --accent: #eab308;
+  --glow: #382b02;
+  --gauge-from: #bc8703;
+  --gauge-to: #edbe2d;
 }
 html[data-mode="dark"][data-accent="slate"] {
-  --accent: #b4bfcf;
-  --glow: #2b2e32;
-  --gauge-from: #737f92;
-  --gauge-to: #bfc9d6;
+  --accent: #788392;
+  --glow: #1d1f23;
+  --gauge-from: #5d6776;
+  --gauge-to: #8c96a2;
 }
 html[data-mode="dark"][data-accent="rose"] {
-  --accent: #ff8fa8;
-  --glow: #3d2228;
-  --gauge-from: #d85876;
-  --gauge-to: #ffa0b5;
+  --accent: #f08ca0;
+  --glow: #3a2226;
+  --gauge-from: #cc6c81;
+  --gauge-to: #f29dae;
 }
 html[data-mode="dark"][data-accent="indigo"] {
-  --accent: #a29dff;
-  --glow: #27263d;
-  --gauge-from: #7069ef;
-  --gauge-to: #b0acff;
+  --accent: #9163fd;
+  --glow: #23183d;
+  --gauge-from: #8a5bf5;
+  --gauge-to: #a27afd;
 }
 html[data-mode="dark"][data-accent="teal"] {
-  --accent: #3fd1c1;
-  --glow: #0f322e;
-  --gauge-from: #229a8f;
-  --gauge-to: #5cd8ca;
+  --accent: #14b8a6;
+  --glow: #052c28;
+  --gauge-from: #089988;
+  --gauge-to: #37c3b3;
 }
 html[data-mode="dark"][data-accent="amber"] {
-  --accent: #fbab4b;
-  --glow: #3c2912;
-  --gauge-from: #d07623;
-  --gauge-to: #fcb866;
+  --accent: #fb923c;
+  --glow: #3c230e;
+  --gauge-from: #d56f18;
+  --gauge-to: #fca259;
 }
 html[data-mode="dark"][data-accent="nord"] {
-  --accent: #a3bcd6;
-  --glow: #272d33;
-  --gauge-from: #6f8ba8;
-  --gauge-to: #b1c6dc;
+  --accent: #6b8db5;
+  --glow: #1a222b;
+  --gauge-from: #5e80a7;
+  --gauge-to: #819ec0;
 }
 html[data-mode="light"][data-accent="default"] {
-  --accent: #0b7a5c;
-  --glow: #cee4de;
-  --gauge-from: #0b7a5c;
-  --gauge-to: #36c898;
+  --accent: #00855b;
+  --glow: #cce7de;
+  --gauge-from: #00855b;
+  --gauge-to: #5ed8a9;
 }
 html[data-mode="light"][data-accent="ocean"] {
-  --accent: #1d5fd1;
-  --glow: #d2dff6;
-  --gauge-from: #1d5fd1;
-  --gauge-to: #5e9df8;
+  --accent: #007da6;
+  --glow: #cce5ed;
+  --gauge-from: #007da6;
+  --gauge-to: #1db8e3;
 }
 html[data-mode="light"][data-accent="sunset"] {
-  --accent: #c23c2c;
-  --glow: #f3d8d5;
-  --gauge-from: #c23c2c;
-  --gauge-to: #f68c6b;
+  --accent: #a46619;
+  --glow: #ede0d1;
+  --gauge-from: #a46619;
+  --gauge-to: #f0ad66;
 }
 html[data-mode="light"][data-accent="forest"] {
-  --accent: #2f6b3f;
-  --glow: #d5e1d9;
-  --gauge-from: #2f6b3f;
-  --gauge-to: #79c08b;
+  --accent: #4a7c59;
+  --glow: #dbe5de;
+  --gauge-from: #4a7c59;
+  --gauge-to: #588a67;
 }
 html[data-mode="light"][data-accent="lavender"] {
-  --accent: #6448c4;
-  --glow: #e0daf3;
-  --gauge-from: #6448c4;
-  --gauge-to: #ab97f6;
+  --accent: #7c5ce0;
+  --glow: #e5def9;
+  --gauge-from: #7c5ce0;
+  --gauge-to: #8768ee;
 }
 html[data-mode="light"][data-accent="blossom"] {
-  --accent: #b8287a;
-  --glow: #f1d4e4;
-  --gauge-from: #b8287a;
-  --gauge-to: #f47dbc;
+  --accent: #c3458b;
+  --glow: #f3dae8;
+  --gauge-from: #c3458b;
+  --gauge-to: #ed6bb0;
 }
 html[data-mode="light"][data-accent="sky"] {
-  --accent: #1767a8;
-  --glow: #d1e1ee;
-  --gauge-from: #1767a8;
-  --gauge-to: #5fb6f2;
+  --accent: #2a70e3;
+  --glow: #d4e2f9;
+  --gauge-from: #2a70e3;
+  --gauge-to: #387ff3;
 }
 html[data-mode="light"][data-accent="coral"] {
-  --accent: #c23a3a;
-  --glow: #f3d8d8;
-  --gauge-from: #c23a3a;
-  --gauge-to: #f68276;
+  --accent: #ca474b;
+  --glow: #f4dadb;
+  --gauge-from: #ca474b;
+  --gauge-to: #f16b6b;
 }
 html[data-mode="light"][data-accent="gold"] {
-  --accent: #8a5f00;
-  --glow: #e8dfcc;
-  --gauge-from: #8a5f00;
-  --gauge-to: #e2b23f;
+  --accent: #9e6a00;
+  --glow: #ece1cc;
+  --gauge-from: #9e6a00;
+  --gauge-to: #dfa807;
 }
 html[data-mode="light"][data-accent="slate"] {
-  --accent: #475569;
-  --glow: #dadde1;
-  --gauge-from: #475569;
-  --gauge-to: #a4afc0;
+  --accent: #4b5563;
+  --glow: #dbdde0;
+  --gauge-from: #4b5563;
+  --gauge-to: #717c8b;
 }
 html[data-mode="light"][data-accent="rose"] {
-  --accent: #be3455;
-  --glow: #f2d6dd;
-  --gauge-from: #be3455;
-  --gauge-to: #f5819c;
+  --accent: #b4576c;
+  --glow: #f0dde2;
+  --gauge-from: #b4576c;
+  --gauge-to: #e78498;
 }
 html[data-mode="light"][data-accent="indigo"] {
-  --accent: #4f46e5;
-  --glow: #dcdafa;
-  --gauge-from: #4f46e5;
-  --gauge-to: #9690fb;
+  --accent: #8555ef;
+  --glow: #e7ddfc;
+  --gauge-from: #8555ef;
+  --gauge-to: #8f61fb;
 }
 html[data-mode="light"][data-accent="teal"] {
-  --accent: #0f766e;
-  --glow: #cfe4e2;
-  --gauge-from: #0f766e;
-  --gauge-to: #38c3b5;
+  --accent: #008474;
+  --glow: #cce6e3;
+  --gauge-from: #008474;
+  --gauge-to: #11b09f;
 }
 html[data-mode="light"][data-accent="amber"] {
-  --accent: #b45309;
-  --glow: #f0ddce;
-  --gauge-from: #b45309;
-  --gauge-to: #f09e41;
+  --accent: #bc5800;
+  --glow: #f2decc;
+  --gauge-from: #bc5800;
+  --gauge-to: #f28933;
 }
 html[data-mode="light"][data-accent="nord"] {
-  --accent: #4c6a8a;
-  --glow: #dbe1e8;
-  --gauge-from: #4c6a8a;
-  --gauge-to: #96b0cb;
+  --accent: #55779d;
+  --glow: #dde4eb;
+  --gauge-from: #55779d;
+  --gauge-to: #688ab1;
 }
 html[data-mode] {
   --accent-press: color-mix(in srgb, var(--accent) 82%, var(--text));
@@ -1134,19 +1136,28 @@ html[data-mode] .tp-chip {
   color: var(--text);
 }
 
+html[data-mode] .theme-hint {
+  margin: -4px 4px 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
 html[data-mode] .theme-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
+/* A tile is one big button (the whole card: picks the colour, then steps
+   through its shades) with the four dot buttons layered on top of it. */
 html[data-mode] .theme-tile {
+  --orb: 44px;
+  --dot-size: 13px;
+  --dot-hit: 21px;
   position: relative;
-  overflow: hidden;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  justify-content: center;
   min-height: 78px;
-  padding: 12px 14px;
+  padding: 12px 10px 12px calc(14px + var(--orb) + 12px);
   border-radius: 22px;
   border: 1.5px solid color-mix(in srgb, var(--tile-tint) 75%, var(--card-border));
   background:
@@ -1154,9 +1165,6 @@ html[data-mode] .theme-tile {
     linear-gradient(135deg, var(--tile-tint), color-mix(in srgb, var(--tile-tint) 35%, var(--card-solid)));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 4px 14px rgba(0, 0, 0, 0.05);
   color: var(--text);
-  font: 700 15px/1.15 var(--font);
-  text-align: left;
-  cursor: pointer;
   transition: transform 140ms var(--ease-spring), border-color 160ms ease, box-shadow 160ms ease;
 }
 html[data-mode="dark"] .theme-tile {
@@ -1166,27 +1174,41 @@ html[data-mode="dark"] .theme-tile {
     linear-gradient(135deg, color-mix(in srgb, var(--tile-tint) 16%, var(--card-solid)), var(--card-solid));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
-html[data-mode] .theme-tile:active {
+html[data-mode] .theme-tile:has(.theme-pick:active) {
   transform: scale(0.96);
 }
-html[data-mode] .theme-tile[aria-checked="true"] {
+html[data-mode] .theme-tile.is-on {
   border-color: var(--accent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
 }
-html[data-mode] .theme-tile:focus-visible {
+html[data-mode] .theme-pick {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-mode] .theme-pick:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 html[data-mode] .theme-orb {
-  position: relative;
-  flex: none;
-  width: 44px;
-  height: 44px;
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: var(--orb);
+  height: var(--orb);
+  margin-top: calc(var(--orb) / -2);
   border-radius: 50%;
   box-shadow:
     inset 0 -6px 10px rgba(0, 0, 0, 0.22),
     inset 0 4px 6px rgba(255, 255, 255, 0.55),
     0 6px 14px rgba(0, 0, 0, 0.22);
+  transition: background 200ms ease;
 }
 /* Specular highlight on the orb: the "glass" look. */
 html[data-mode] .theme-orb::after {
@@ -1197,60 +1219,106 @@ html[data-mode] .theme-orb::after {
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
 }
-html[data-mode] .theme-tile-text {
-  min-width: 0;
-}
-html[data-mode] .theme-tile-text b {
-  display: block;
+html[data-mode] .theme-name {
   overflow: hidden;
+  font: 700 15px/1.15 var(--font);
   text-overflow: ellipsis;
   white-space: nowrap;
+  pointer-events: none;
 }
 html[data-mode] .theme-dots {
+  position: relative;
   display: flex;
-  gap: 4px;
-  margin-top: 7px;
+  align-self: flex-start;
+  margin: 3px 0 0 calc((var(--dot-hit) - var(--dot-size)) / -2);
+  pointer-events: none; /* taps between dots fall through to the tile */
 }
-html[data-mode] .theme-dots i {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
-}
-html[data-mode] .theme-check {
-  position: absolute;
-  top: 7px;
-  right: 7px;
+html[data-mode] .theme-dot {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: var(--dot-hit);
+  height: var(--dot-hit);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-mode] .theme-dot::before {
+  content: "";
+  width: var(--dot-size);
+  height: var(--dot-size);
+  border-radius: 50%;
+  background: var(--dot);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 160ms ease, transform 160ms var(--ease-spring);
+}
+/* The shade in use: a darker ring of its own colour around the dot. */
+html[data-mode] .theme-dot[aria-pressed="true"]::before {
+  transform: scale(1.08);
+  box-shadow:
+    0 0 0 2px var(--card-solid),
+    0 0 0 4px color-mix(in srgb, var(--dot) 55%, #000);
+}
+html[data-mode="dark"] .theme-dot[aria-pressed="true"]::before {
+  box-shadow:
+    0 0 0 2px var(--card-solid),
+    0 0 0 4px color-mix(in srgb, var(--dot) 70%, #fff);
+}
+html[data-mode] .theme-dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+/* The check sits on the orb's lower-right edge, like a badge. */
+html[data-mode] .theme-check {
+  position: absolute;
+  left: calc(14px + var(--orb) - 15px);
+  top: calc(50% + var(--orb) / 2 - 17px);
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--card-solid);
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-contrast);
   transform: scale(0);
   transition: transform 200ms var(--ease-spring);
+  pointer-events: none;
 }
 html[data-mode] .theme-check svg {
-  width: 13px;
-  height: 13px;
+  width: 11px;
+  height: 11px;
 }
-html[data-mode] .theme-tile[aria-checked="true"] .theme-check {
+html[data-mode] .theme-tile.is-on .theme-check {
   transform: scale(1);
 }
-/* Narrow phones: a smaller orb keeps every name on one line. */
+/* Narrow phones: a smaller orb and dots keep every name on one line. */
 @media (max-width: 370px) {
   html[data-mode] .theme-tile {
-    gap: 9px;
-    padding: 10px;
+    --orb: 34px;
+    --dot-size: 11px;
+    --dot-hit: 18px;
+    padding: 10px 6px 10px calc(10px + var(--orb) + 9px);
   }
   html[data-mode] .theme-orb {
-    width: 34px;
-    height: 34px;
+    left: 10px;
   }
-  html[data-mode] .theme-dots i {
-    width: 12px;
-    height: 12px;
+  html[data-mode] .theme-check {
+    left: calc(10px + var(--orb) - 17px);
+  }
+  html[data-mode] .theme-dot[aria-pressed="true"]::before {
+    box-shadow:
+      0 0 0 1.5px var(--card-solid),
+      0 0 0 3px color-mix(in srgb, var(--dot) 55%, #000);
+  }
+  html[data-mode="dark"] .theme-dot[aria-pressed="true"]::before {
+    box-shadow:
+      0 0 0 1.5px var(--card-solid),
+      0 0 0 3px color-mix(in srgb, var(--dot) 70%, #fff);
   }
   html[data-mode] .theme-hero {
     flex-wrap: wrap;
