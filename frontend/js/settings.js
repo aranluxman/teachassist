@@ -340,7 +340,7 @@ function legalCard() {
     openSheet("Credits", el(`<div class="credits">
       <p><b>Developer</b><br><a href="https://intelligentautomations.ca" target="_blank" rel="noopener">Intelligent Automations</a>, Markham, Ontario</p>
       <p><b>Design</b><br>Ethan, Grant&nbsp;C., Esaam and Vaishnavan</p>
-      <p><b>Beta testers</b><br>Keshavan&nbsp;V., Aadavan&nbsp;M., Kavin&nbsp;S., Allen&nbsp;W., Rayaan&nbsp;S., Kiefer&nbsp;J., Zyam&nbsp;U., Vaishnavan and Yash&nbsp;P.</p>
+      <p><b>Beta testers</b><br>Keshavan&nbsp;V., Aadavan&nbsp;M., Kavin&nbsp;S., Allen&nbsp;W., Rayaan&nbsp;S., Kiefer&nbsp;J., Zyam&nbsp;U., Vaishnavan, Yash&nbsp;P., Aijai&nbsp;K., Athieban&nbsp;B. and Nathaniel&nbsp;V.</p>
       <p><b>Special thanks</b><br>Athiban, Mythil, Bhavik, Allen&nbsp;W., Erdem&nbsp;I., Derek&nbsp;M., Hari&nbsp;K. and Cameron&nbsp;W.</p>
       <p class="muted small">An independent student project. Not affiliated with or endorsed by the York Region District School Board or the TeachAssist Foundation. Your official marks are always on TeachAssist.</p>
       <p class="muted small">Made with the Inter and JetBrains Mono fonts, and hosted on Cloudflare.</p>

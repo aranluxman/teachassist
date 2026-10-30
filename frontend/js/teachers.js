@@ -21,11 +21,6 @@ export function teacherFor(course) {
   };
 }
 
-/** Every course teacher the student knows about, for the Profile search. */
-export function savedTeachers() {
-  return Object.entries(all()).filter(([, t]) => t.name).map(([code, t]) => ({ code, teacher: t.name, room: t.room, email: t.email }));
-}
-
 const validEmail = (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
 /** Bottom sheet to add or edit the teacher for one course. */

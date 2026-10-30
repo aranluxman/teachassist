@@ -506,10 +506,12 @@ h2 {
   font-size: 14px;
   text-align: right;
 }
+/* Call · Website · Student site · Directions · Boundary on one row. */
 .action-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-  gap: 8px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 6px;
 }
 .action-tile {
   display: flex;
@@ -517,16 +519,28 @@ h2 {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 68px;
-  padding: 10px 6px;
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px 2px;
   border-radius: 14px;
   border: 0;
   background: var(--accent-tint-2);
   color: var(--accent);
   font: 650 12px var(--font);
+  line-height: 1.15;
+  text-align: center;
   text-decoration: none;
   cursor: pointer;
   transition: transform 140ms var(--ease-out), background 160ms;
+}
+.action-tile > span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 400px) {
+  .action-tile {
+    font-size: 11px;
+  }
 }
 .action-tile:hover {
   background: var(--accent-tint);

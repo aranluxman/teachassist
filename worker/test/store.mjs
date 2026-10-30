@@ -38,6 +38,7 @@ const script = await readFile(new URL('../../frontend/_worker.js', import.meta.u
 const rows = new Map();
 let supabaseDown = false;
 let taEmpty = false;
+let taCalls = 0;
 const calls = [];
 const upstream = async (request) => {
   const url = new URL(request.url);
@@ -55,6 +56,7 @@ const upstream = async (request) => {
     }
   }
   if (url.pathname === '/yrdsb/index.php') {
+    taCalls++;
     if (request.method === 'GET') return new Response('<form action="/yrdsb/index.php"><input name="username"><input type="password" name="password"></form>');
     const username = new URLSearchParams(await request.text()).get('username');
     return new Response('', { status: 302, headers: { 'set-cookie': `session_token=${username}; Path=/`, location: `https://ta.yrdsb.ca/live/students/listReports.php?student_id=${username}` } });
@@ -110,6 +112,25 @@ try {
   assert.equal(down.body[0].currentMark, 81);
   supabaseDown = false;
 
+  // Saved marks load instantly with a saved login, without calling TeachAssist.
+  const savedMarks = (body) => mf.dispatchFetch(`${base}/api/saved-marks`, { method: 'POST', headers: { Origin: base, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const cred111 = first.res.headers.get('X-TeachAssist-Cred');
+  assert.ok(cred111, 'sign-in issues a saved login');
+  const before = taCalls;
+  const quick = await savedMarks({ username: '111', cred: cred111 });
+  assert.equal(quick.status, 200);
+  const quickBody = await quick.json();
+  assert.equal(quickBody.courses[0].currentMark, 81, 'the last saved marks come back');
+  assert.ok(quickBody.savedAt, 'with when they were saved');
+  assert.equal(taCalls, before, 'TeachAssist is never contacted');
+  assert.equal((await savedMarks({ username: '222', cred: cred111 })).status, 401, "one student's login can't read another's marks");
+  assert.equal((await savedMarks({ username: '111', cred: 'forged' })).status, 401, 'a forged login is refused');
+  assert.equal((await savedMarks({ username: '111' })).status, 400);
+  assert.equal((await mf.dispatchFetch(`${base}/api/saved-marks`, { method: 'GET', headers: { Origin: base } })).status, 405);
+  supabaseDown = true;
+  assert.deepEqual((await (await savedMarks({ username: '111', cred: cred111 })).json()).courses, [], 'Supabase down: nothing saved, no error');
+  supabaseDown = false;
+
   // Dreams + goals round trip, scoped to the student.
   const { token } = await signIn('111');
   const dreams = { career: 'Engineer', school: 'Waterloo', motivation: 'Build things', target: 92, goals: { 'ENG4U-01': 95 }, dreamDone: true, gradesDone: true, updatedAt: 1000, goalsAt: 1000 };
@@ -139,5 +160,5 @@ try {
   supabaseDown = false;
   assert.equal((await store(token, 'POST', {})).status, 405, 'other methods are refused');
   assert.equal((await mf.dispatchFetch(`${base}/api/store`, { method: 'GET', headers: { Origin: 'https://evil.example' } })).status, 403);
-  console.log('Cloud saving: auth, per-student isolation, marks fallback, Supabase outage, dreams and goals, and delete-my-data passed.');
+  console.log('Cloud saving: auth, per-student isolation, marks fallback, instant saved marks, Supabase outage, dreams and goals, and delete-my-data passed.');
 } finally { await mf.dispose(); }

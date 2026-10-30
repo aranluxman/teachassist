@@ -176,16 +176,8 @@
     transform: rotate(360deg);
   }
 }
-@keyframes m-orbit-counter {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(-360deg);
-  }
-}
-/* Opacity only: each sparkle's transform belongs to its counter-rotation, and
-   two animations on one property would fight (the last one silently wins). */
+/* Opacity only, so it can share an element with a transform animation
+   without the two fighting (the last one silently wins). */
 @keyframes m-twinkle {
   0%,
   100% {
@@ -406,7 +398,8 @@ html[data-tab-hidden="true"] .m-loop::after {
   justify-content: center;
 }
 
-/* Dream card — sparkles orbit the ✧ mark. */
+/* Dream card — sparkles sit around the ✧ mark. They stay still: a moving
+   mark under the thumb made the Courses screen feel hard to scroll. */
 .m-on .dream-preview .dream-orbit {
   position: relative;
 }
@@ -414,9 +407,6 @@ html[data-tab-hidden="true"] .m-loop::after {
   position: absolute;
   inset: 0;
   pointer-events: none;
-}
-.m-on .m-orbit-ring {
-  animation: m-orbit 30s linear infinite;
 }
 /* The arm holds the sparkle out at its radius and never animates … */
 .m-orbit-arm {
@@ -428,8 +418,7 @@ html[data-tab-hidden="true"] .m-loop::after {
   margin: -6px 0 0 -6px;
   transform: rotate(var(--m-a)) translateY(calc(var(--m-r, 46px) * -1));
 }
-/* … so the glyph is free to counter-rotate (staying upright as the ring
-   turns) while its opacity twinkles on a separate, staggered cycle. */
+/* … and the glyph inside it stays upright and still. */
 .m-orbit-arm > i {
   display: block;
   width: 100%;
@@ -440,12 +429,6 @@ html[data-tab-hidden="true"] .m-loop::after {
   text-align: center;
   color: var(--accent);
   opacity: 0.6;
-}
-.m-on .m-orbit-arm > i {
-  animation:
-    m-orbit-counter 30s linear infinite,
-    m-twinkle 3.2s ease-in-out infinite;
-  animation-delay: 0s, calc(var(--m-i, 0) * 0.5s);
 }
 .m-on .dream-preview .btn {
   transition: transform var(--m-base) var(--m-ease);

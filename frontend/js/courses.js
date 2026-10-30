@@ -36,6 +36,8 @@ import {
   lastSyncedAt,
   showingSavedCopy,
   isDemo,
+  hasLiveCourses,
+  getSavedCourses,
 } from "./ta-client.js";
 
 /** Human "Updated 3h ago" string from an ISO timestamp (for the top bar). */
@@ -251,7 +253,14 @@ export function skeletonCards(n = 4) {
 // ─────────────────────────── Courses rendering ─────────────────────────────
 
 /** Render the Courses screen. Pass {refresh:true} to re-scrape from TeachAssist. */
-export async function renderCourses(container, { refresh = false } = {}) {
+let loads = 0;
+/**
+ * The Courses screen. A TeachAssist sign-in can take 10+ seconds, so on first
+ * open the student's last saved marks (this device, else the cloud) are shown
+ * straight away and swapped for live marks when they arrive. `saved` draws one
+ * of those saved copies: { courses, status }.
+ */
+export async function renderCourses(container, { refresh = false, saved = null } = {}) {
   const header = (subtitle, dot = false) =>
     pageHeader({
       title: "TA Dashboard",
@@ -265,9 +274,25 @@ export async function renderCourses(container, { refresh = false } = {}) {
     container.querySelector(".g-header-title p").textContent = "Refreshing…";
   }
 
-  let courses;
-  try {
-    courses = await getCourses({ refresh });
+  let courses = saved?.courses;
+  if (!saved) try {
+    const load = (container.dataset.load = String(++loads));
+    const live = getCourses({ refresh });
+    if (!refresh && !hasLiveCourses()) {
+      live.catch(() => {}); // a failure is handled once the saved copy is up
+      const copy = await getSavedCourses();
+      const current = () => container.isConnected && container.dataset.load === load;
+      if (copy && !hasLiveCourses() && current()) {
+        const when = copy.savedAt ? relativeUpdated(copy.savedAt).replace(/^Updated\s*/i, "") : "";
+        renderCourses(container, { saved: { courses: copy.courses, status: `${when ? `Saved ${when}` : "Saved marks"}…` } });
+        live.then(
+          () => current() && renderCourses(container),
+          () => current() && renderCourses(container, { saved: { courses: copy.courses, status: "Saved · tap to retry" } }),
+        );
+        return;
+      }
+    }
+    courses = await live;
   } catch (err) {
     container.innerHTML = header("Couldn't refresh");
     container.appendChild(
@@ -293,7 +318,7 @@ export async function renderCourses(container, { refresh = false } = {}) {
 
   // ── Header: schedule · TeachAssist / Updated… (tap to refresh) · updates ──
   const top = el(header("", changes.length > 0));
-  const status = isDemo() ? "Demo · bundled snapshot" : showingSavedCopy() ? `Last saved marks · ${relativeUpdated(lastSyncedAt()).replace(/^Updated\s*/i, "")}` : relativeUpdated(lastSyncedAt());
+  const status = saved ? saved.status : isDemo() ? "Demo · bundled snapshot" : showingSavedCopy() ? `Last saved marks · ${relativeUpdated(lastSyncedAt()).replace(/^Updated\s*/i, "")}` : relativeUpdated(lastSyncedAt());
   const sub = top.querySelector(".g-header-title");
   sub.insertAdjacentHTML(
     "beforeend",

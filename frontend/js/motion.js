@@ -333,7 +333,7 @@ export function initTopbarShadow() {
 
 // ─────────────────────────────── sparkles ──────────────────────────────────
 
-/** Tiny ✦ sparkles that orbit the dream card's mark. */
+/** Tiny ✦ sparkles placed around the dream card's mark (they stay still). */
 export function orbitSparkles(host, count = 4) {
   if (!host || host.querySelector(".m-orbit-ring")) return;
   const ring = document.createElement("div");

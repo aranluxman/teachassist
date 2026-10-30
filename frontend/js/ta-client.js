@@ -14,6 +14,7 @@
 import { readHistory, recordSnapshot } from "./history.js";
 import { WORKER_URL } from "./config.js";
 import { DEMO_COURSES, DEMO_SCRAPED_AT } from "./demo-data.js";
+import { readStudentData, writeStudentData } from "./student-store.js";
 
 const LS = {
   url: "ta_worker_url", // legacy custom server; cleared, never used
@@ -28,6 +29,7 @@ let cache = null; // last fetched courses (this page load)
 let cachedAt = null; // ISO time of the active student’s successful refresh
 let savedCopyAt = null; // set when TeachAssist had no marks and the last saved copy is shown
 let issuedCred = ""; // sealed credential from the latest successful sign-in
+let inflight = null; // the TeachAssist request in progress, shared by every screen
 
 /** When the marks currently on screen were scraped (ISO string), or null. */
 export function lastSyncedAt() {
@@ -175,6 +177,7 @@ export async function login(num, pass) {
   cacheAccount = `${workerUrl()}:${studentNumber()}`;
   cachedAt = savedCopyAt || new Date().toISOString();
   if (!savedCopyAt) saveSnapshot(courses);
+  keepLastMarks(courses);
   return courses;
 }
 
@@ -188,7 +191,15 @@ export async function getCourses({ refresh = false } = {}) {
   }
   const account = `${workerUrl()}:${studentNumber()}`;
   if (cache && cacheAccount === account && !refresh) return cache;
+  // Opening a course while the Courses screen is still loading reuses that
+  // request instead of signing in to TeachAssist a second time.
+  if (inflight?.account === account) return inflight.promise;
+  const promise = fetchCourses(account, refresh).finally(() => { if (inflight?.promise === promise) inflight = null; });
+  inflight = { account, promise };
+  return promise;
+}
 
+async function fetchCourses(account, refresh) {
   if (!isLoggedIn()) throw new Error("Not signed in.");
   // Refresh with the sealed box. A phone from before sealing still holds the
   // password: send it once, then keepCredential swaps it for a box.
@@ -209,7 +220,41 @@ export async function getCourses({ refresh = false } = {}) {
   cacheAccount = account;
   cachedAt = savedCopyAt || new Date().toISOString();
   if (!savedCopyAt) saveSnapshot(cache, { checked: refresh });
+  keepLastMarks(cache);
   return cache;
+}
+
+/** True once this page load has live marks for the signed-in student. */
+export function hasLiveCourses() {
+  return isDemo() || (!!cache && cacheAccount === `${workerUrl()}:${studentNumber()}`);
+}
+
+// ---- last saved marks (shown instantly while TeachAssist loads) -------------
+const LAST = "last-marks";
+function keepLastMarks(courses) {
+  try { writeStudentData(LAST, { at: cachedAt, courses }); } catch { /* storage full: not needed to show marks */ }
+}
+/**
+ * The student's last recorded marks without waiting on TeachAssist: this
+ * device's copy, else the cloud copy (Supabase). { courses, savedAt } or null.
+ */
+export async function getSavedCourses() {
+  if (isDemo() || !isLoggedIn()) return null;
+  const local = readStudentData(LAST, null);
+  if (Array.isArray(local?.courses) && local.courses.length) return { courses: local.courses, savedAt: local.at || null };
+  const num = studentNumber(), cred = sealedCred();
+  if (!cred) return null;
+  try {
+    const res = await fetch(`${workerUrl()}/api/saved-marks`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: num, cred }),
+      signal: AbortSignal.timeout(8000),
+    });
+    const body = res.ok ? await res.json() : null;
+    if (num !== studentNumber() || !Array.isArray(body?.courses) || !body.courses.length) return null;
+    return { courses: body.courses, savedAt: body.savedAt || null };
+  } catch { return null; }
 }
 
 export function requireLogin() {

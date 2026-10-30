@@ -1,10 +1,11 @@
 // Pages advanced-mode entry point. Deploy the sign-in service with the site so
 // a frontend release cannot depend on an out-of-date standalone Worker.
 import worker from './index.js';
-import { handleStore, withSavedMarks, storeConfigured, storeKeyKind } from './store.js';
+import { handleStore, withSavedMarks, storeConfigured, storeKeyKind, loadRow, hasMark } from './store.js';
 import { loginBlocked, recordLoginFailure } from './login-limit.js';
-import { openCredentialBox, revokeLogin } from './vault.js';
-import { vaultKeys } from './keys.js';
+import { openCredentialBox, revokeLogin, loginRevoked } from './vault.js';
+import { vaultKeys, idKey } from './keys.js';
+import { subjectFor } from './session.js';
 
 /** A small JSON body read from a copy of the request; null if missing, over 8 KB or not JSON. */
 async function peekJson(request) {
@@ -50,6 +51,26 @@ async function signOut(request, env) {
   return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
 }
 
+/**
+ * POST /api/saved-marks { username, cred }: the student's last recorded marks
+ * from Supabase, so the app can show them in a second instead of waiting on a
+ * TeachAssist sign-in. Only the holder of a valid saved login gets them; no
+ * request is made to TeachAssist. { courses: [], savedAt: null } when none.
+ */
+async function savedMarks(request, env) {
+  const body = await peekJson(request);
+  const username = studentNumberIn(body);
+  if (!username || typeof body.cred !== 'string') return json({ error: 'Sign in again.' }, 400);
+  const opened = await openCredentialBox(vaultKeys(env), username, body.cred);
+  if (!opened || await loginRevoked(env.CHAT_LIMITS, opened.loginId)) {
+    return json({ error: 'Please sign in again.', code: 'TA_CRED_EXPIRED' }, 401);
+  }
+  if (!storeConfigured(env)) return json({ courses: [], savedAt: null });
+  const row = await loadRow(env, await subjectFor(idKey(env), username));
+  const courses = Array.isArray(row?.marks) ? row.marks.filter(hasMark) : [];
+  return json({ courses, savedAt: courses.length ? row.marks_at || row.updated_at || null : null });
+}
+
 function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 }
@@ -83,6 +104,10 @@ export default {
     if (url.pathname === '/api/signout' && !url.search) {
       if (request.method !== 'POST') return json({ error: 'Use POST.' }, 405);
       return signOut(request, env);
+    }
+    if (url.pathname === '/api/saved-marks' && !url.search) {
+      if (request.method !== 'POST') return json({ error: 'Use POST.' }, 405);
+      return savedMarks(request, env);
     }
     // Dreams + goals saved to Supabase (per student, token-authenticated).
     if (url.pathname === '/api/store' && !url.search) return handleStore(request, env);

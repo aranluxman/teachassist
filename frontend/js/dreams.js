@@ -10,7 +10,7 @@ import { getCourses, displayMark } from "./ta-client.js";
 import { preferences } from "./personalization.js";
 import { saveDreams, saveGoalList, syncFromCloud } from "./cloud-store.js";
 import { splitByTerm } from "./term.js";
-import { GLYPHS, iconTile } from "./ui-kit.js";
+import { GLYPHS, iconTile, minimizable } from "./ui-kit.js";
 import {
   countUp,
   initDisclosure,
@@ -262,6 +262,7 @@ function goalsBlock(p) {
     </form><ul class="goal-items" aria-label="Your goals"></ul></section>`);
   const form = card.querySelector(".goal-form");
   const ul = card.querySelector(".goal-items");
+  minimizable(card.querySelector(".dream-head"), [form, ul], "goals", "personal and school goals");
 
   const draw = () => {
     const goals = [...preferences().goalsList].sort((a, b) => Number(a.done) - Number(b.done) || (a.date || "9999").localeCompare(b.date || "9999"));

@@ -1295,6 +1295,19 @@ async function signOut(request, env) {
   }
   return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
 }
+async function savedMarks(request, env) {
+  const body = await peekJson(request);
+  const username = studentNumberIn(body);
+  if (!username || typeof body.cred !== "string") return json3({ error: "Sign in again." }, 400);
+  const opened = await openCredentialBox(vaultKeys(env), username, body.cred);
+  if (!opened || await loginRevoked(env.CHAT_LIMITS, opened.loginId)) {
+    return json3({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
+  }
+  if (!storeConfigured(env)) return json3({ courses: [], savedAt: null });
+  const row = await loadRow(env, await subjectFor(idKey(env), username));
+  const courses = Array.isArray(row?.marks) ? row.marks.filter(hasMark) : [];
+  return json3({ courses, savedAt: courses.length ? row.marks_at || row.updated_at || null : null });
+}
 function json3(body, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
@@ -1323,6 +1336,10 @@ var pages_default = {
     if (url.pathname === "/api/signout" && !url.search) {
       if (request.method !== "POST") return json3({ error: "Use POST." }, 405);
       return signOut(request, env);
+    }
+    if (url.pathname === "/api/saved-marks" && !url.search) {
+      if (request.method !== "POST") return json3({ error: "Use POST." }, 405);
+      return savedMarks(request, env);
     }
     if (url.pathname === "/api/store" && !url.search) return handleStore(request, env);
     if (url.pathname !== "/api/marks" || url.search) {
