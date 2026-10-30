@@ -7,10 +7,12 @@
 //   pct()           a mark as big monospaced digits with a small "%"
 //   arcGauge()      the semicircle gauge with a gradient stroke
 //   pager()         a swipeable row of panels with dots underneath
+//   minimizable()   a ⌃/⌄ button that folds a card down to its heading
 // ============================================================================
 
-import { escapeHtml } from "./courses.js";
+import { el, escapeHtml } from "./courses.js";
 import { marksHidden, motionEnabled } from "./motion.js";
+import { readStudentData, writeStudentData } from "./student-store.js";
 
 export const GLYPHS = {
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>',
@@ -133,4 +135,26 @@ export function pager(track, labels, onChange) {
   };
   track.addEventListener("scroll", sync, { passive: true });
   return dots;
+}
+
+/**
+ * Add a minimize button to `head` that hides `parts` (the card's body). The
+ * choice is remembered per student under `key`, so a folded card stays folded.
+ */
+export function minimizable(head, parts, key, label) {
+  const btn = el(`<button type="button" class="icon-btn minimize-btn">${GLYPHS.chevron}</button>`);
+  const set = (open) => {
+    parts.forEach((p) => (p.hidden = !open));
+    btn.setAttribute("aria-expanded", String(open));
+    btn.setAttribute("aria-label", `${open ? "Minimize" : "Expand"} ${label}`);
+    head.closest(".card")?.classList.toggle("is-minimized", !open);
+  };
+  btn.onclick = () => {
+    const open = btn.getAttribute("aria-expanded") !== "true";
+    set(open);
+    try { writeStudentData("minimized", { ...readStudentData("minimized", {}), [key]: !open }); } catch { /* storage full: still folds */ }
+  };
+  head.append(btn);
+  set(!readStudentData("minimized", {})[key]);
+  return btn;
 }

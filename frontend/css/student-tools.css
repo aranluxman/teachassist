@@ -32,3 +32,14 @@
 .profile-avatar svg { width: 48px; height: 48px; }
 .profile-shortcut { display: flex; align-items: center; gap: 8px; }
 .profile-shortcut svg { width: 20px; height: 20px; }
+
+/* Minimize button (goals, guidance reminders): ⌃ folds the card, ⌄ opens it. */
+.minimize-btn { display: grid; place-items: center; margin-left: auto; width: 40px; height: 40px; min-width: 40px; padding: 0; }
+.minimize-btn svg { width: 18px; height: 18px; transform: rotate(-90deg); transition: transform 200ms ease; }
+.minimize-btn[aria-expanded="false"] svg { transform: rotate(90deg); }
+.is-minimized > [hidden] { display: none !important; }
+.is-minimized .dream-head { margin-bottom: 0; align-items: center; }
+.is-minimized .dream-head p { display: none; }
+.appointments > .tool-heading { margin-top: 0; }
+.is-minimized > .tool-heading { margin-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .minimize-btn svg { transition: none; } }
