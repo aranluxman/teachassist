@@ -720,8 +720,8 @@ async function scrapeMarks(env, creds) {
   return courses.map((c) => ({
     code: c.code,
     name: c.name,
-    currentMark: c.currentMark,
-    midterm: c.midterm ?? null,
+    currentMark: realMark(c.currentMark),
+    midterm: realMark(c.midterm),
     evaluations: c.evaluations,
     ...c.reportError ? { reportError: c.reportError } : {}
   }));
@@ -762,9 +762,7 @@ async function runDailySync(env) {
   }
 }
 function displayMarkOf(c) {
-  if (c && typeof c.currentMark === "number") return c.currentMark;
-  if (c && typeof c.midterm === "number") return c.midterm;
-  return null;
+  return realMark(c?.currentMark) ?? realMark(c?.midterm);
 }
 function overallOf(courses) {
   const m = (courses || []).map(displayMarkOf).filter((x) => x != null);
@@ -831,17 +829,20 @@ function extractCourseCode(text2) {
 }
 function extractCurrentMark(text2) {
   const m = text2.match(/current mark\s*=\s*([\d.]+)\s*%/i);
-  return m ? parseFloat(m[1]) : null;
+  return m ? realMark(parseFloat(m[1])) : null;
+}
+function realMark(n) {
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 function extractMidterm(text2) {
   const m = text2.match(/midterm\s*mark\s*:?\s*([\d.]+)\s*%/i);
-  return m ? parseFloat(m[1]) : null;
+  return m ? realMark(parseFloat(m[1])) : null;
 }
 function parseReportCourseMark(html) {
   const m = html.match(
     /([\d.]+)\s*%\s*<\/div>\s*<\/td>\s*<td>\s*<div[^>]*>\s*Course\s*<\/div>/i
   );
-  return m ? parseFloat(m[1]) : null;
+  return m ? realMark(parseFloat(m[1])) : null;
 }
 async function parseEvaluations(html) {
   const evaluations = [];
@@ -1094,21 +1095,29 @@ async function deleteRow(env, subject) {
     return false;
   }
 }
-var hasMark = (c) => !!c && (Number.isFinite(c.currentMark) || Number.isFinite(c.midterm));
+var realMark2 = (n) => Number.isFinite(n) && n > 0;
+var hasMark = (c) => !!c && (realMark2(c.currentMark) || realMark2(c.midterm));
+function withoutZeroMarks(c) {
+  if (!c || typeof c !== "object") return c;
+  const out = { ...c };
+  for (const k of ["currentMark", "midterm"]) if (out[k] != null && !realMark2(out[k])) out[k] = null;
+  return out;
+}
+function savedCourses(saved) {
+  return Array.isArray(saved) ? saved.filter(hasMark).map(withoutZeroMarks) : [];
+}
 function mergeMarks(fresh, saved) {
-  const now = Array.isArray(fresh) ? fresh : [];
-  const old = Array.isArray(saved) ? saved.filter(hasMark) : [];
+  const now = Array.isArray(fresh) ? fresh.map(withoutZeroMarks) : [];
+  const old = savedCourses(saved);
   if (!now.some(hasMark)) return old.length ? { courses: old, stale: true } : { courses: now, stale: false };
-  let stale = false;
   const courses = now.map((c) => {
     if (hasMark(c)) return c;
     const before = old.find((o) => o.code === c.code);
     if (!before) return c;
-    stale = true;
     return { ...c, saved: true, currentMark: before.currentMark ?? null, midterm: before.midterm ?? null, evaluations: c.evaluations?.length ? c.evaluations : before.evaluations || [] };
   });
   const gone = old.filter((o) => !now.some((c) => c.code === o.code)).map((o) => ({ ...o, saved: true }));
-  return { courses: [...courses, ...gone], stale };
+  return { courses: [...courses, ...gone], stale: false };
 }
 async function withSavedMarks(response, env, ctx) {
   try {
@@ -1123,7 +1132,7 @@ async function withSavedMarks(response, env, ctx) {
     if (fresh.some(hasMark) && JSON.stringify(courses).length <= MAX_MARKS_JSON) {
       ctx?.waitUntil?.(saveRow(env, session.subject, { marks: courses, marks_at: (/* @__PURE__ */ new Date()).toISOString() }));
     }
-    if (!stale && courses.length === fresh.length) return response;
+    if (!stale && JSON.stringify(courses) === JSON.stringify(fresh)) return response;
     const headers = new Headers(response.headers);
     if (stale) headers.set("X-TeachAssist-Saved-At", row?.marks_at || row?.updated_at || "");
     return new Response(JSON.stringify(courses), { status: 200, headers });
@@ -1305,7 +1314,7 @@ async function savedMarks(request, env) {
   }
   if (!storeConfigured(env)) return json3({ courses: [], savedAt: null });
   const row = await loadRow(env, await subjectFor(idKey(env), username));
-  const courses = Array.isArray(row?.marks) ? row.marks.filter(hasMark) : [];
+  const courses = savedCourses(row?.marks);
   return json3({ courses, savedAt: courses.length ? row.marks_at || row.updated_at || null : null });
 }
 function json3(body, status = 200) {

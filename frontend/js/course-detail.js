@@ -15,6 +15,7 @@ import { courseMeta } from "./course-names.js";
 import { teacherFor, editTeacher } from "./teachers.js";
 import { preferences } from "./personalization.js";
 import { displayMark, markKind } from "./ta-client.js";
+import { realMark } from "./history.js";
 import { animateGauge, countUp, marksHidden, motionEnabled, mountThumb, previousValue, rememberValue, replay } from "./motion.js";
 
 let activeSeg = "evals";
@@ -109,7 +110,7 @@ export async function openCourseDetail(container, course) {
         ${arcGauge(mark, { id: "course" })}
         <div class="g-gauge-center">
           <div class="g-hero-num private-mark">${pct(mark)}</div>
-          ${course.midterm != null && kind !== "midterm" ? `<div class="g-delta">Midterm ${pct(Number(course.midterm))}</div>` : ""}
+          ${realMark(course.midterm) != null && kind !== "midterm" ? `<div class="g-delta">Midterm ${pct(course.midterm)}</div>` : ""}
         </div>
       </div>
       <p class="g-caption">${kind === "midterm" ? "Midterm Mark" : "Current Mark"}</p>
@@ -151,7 +152,7 @@ export async function openCourseDetail(container, course) {
         <div class="g-chips">${chips.join("") || chip("clock", "Timetable details not listed")}</div>
       </div>
       <div class="g-stats">
-        ${stat("percent", course.midterm, "Midterm")}
+        ${stat("percent", realMark(course.midterm), "Midterm")}
         ${stat("seal", course.final ?? course.finalMark ?? null, "Final")}
       </div>
     </section>`),

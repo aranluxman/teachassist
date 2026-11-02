@@ -11,7 +11,7 @@
 //   { code, name, currentMark, midterm, evaluations: [{ name, category, percent, weight }] }
 // ============================================================================
 
-import { readHistory, recordSnapshot } from "./history.js";
+import { readHistory, recordSnapshot, realMark } from "./history.js";
 import { WORKER_URL } from "./config.js";
 import { DEMO_COURSES, DEMO_SCRAPED_AT } from "./demo-data.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
@@ -91,16 +91,17 @@ export function enterDemo() {
 }
 
 // ---- marks helpers ---------------------------------------------------------
-/** The mark to show for a course: live current mark, else midterm, else null. */
+/**
+ * The mark to show for a course: live current mark, else midterm, else null.
+ * A 0% is a teacher's placeholder, not a mark, so it counts as no mark.
+ */
 export function displayMark(c) {
-  if (c && typeof c.currentMark === "number") return c.currentMark;
-  if (c && typeof c.midterm === "number") return c.midterm;
-  return null;
+  return realMark(c?.currentMark) ?? realMark(c?.midterm);
 }
 /** "current" / "midterm" / "" — which value displayMark returned. */
 export function markKind(c) {
-  if (c && typeof c.currentMark === "number") return "current";
-  if (c && typeof c.midterm === "number") return "midterm";
+  if (realMark(c?.currentMark) != null) return "current";
+  if (realMark(c?.midterm) != null) return "midterm";
   return "";
 }
 /** Simple average of every course's display mark. */
@@ -216,12 +217,32 @@ async function fetchCourses(account, refresh) {
     throw new Error("Your account changed. Open your courses again.");
   }
   keepCredential(legacy);
-  cache = courses;
+  cache = withLastRealMarks(courses);
   cacheAccount = account;
   cachedAt = savedCopyAt || new Date().toISOString();
   if (!savedCopyAt) saveSnapshot(cache, { checked: refresh });
   keepLastMarks(cache);
   return cache;
+}
+
+/**
+ * A course TeachAssist shows with no mark (or 0%), that the server had no
+ * saved mark for either, gets the last real mark this device recorded for it,
+ * flagged `saved` so the card says "Last saved mark".
+ */
+export function lastRealMarks(courses, snapshots) {
+  if (!Array.isArray(courses)) return courses;
+  return courses.map((c) => {
+    if (!c || displayMark(c) != null) return c;
+    for (let i = snapshots.length - 1; i >= 0; i--) {
+      const m = realMark(snapshots[i].marks?.[c.code]);
+      if (m != null) return { ...c, currentMark: m, saved: true };
+    }
+    return c;
+  });
+}
+function withLastRealMarks(courses) {
+  try { return lastRealMarks(courses, getSnapshots()); } catch { return courses; }
 }
 
 /** True once this page load has live marks for the signed-in student. */

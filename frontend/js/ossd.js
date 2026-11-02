@@ -11,6 +11,7 @@
 import { courseLabel } from "./courses.js";
 import { parseCourseCode } from "./course-names.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
+import { realMark } from "./history.js";
 
 export const TOTAL_CREDITS = 30;
 
@@ -44,7 +45,7 @@ export function saveOssd(next) {
 export function ossdProgress(courses = []) {
   const state = ossdState();
   const passing = courses
-    .map((c) => ({ c, p: parseCourseCode(courseLabel(c)), mark: c.currentMark ?? c.midterm }))
+    .map((c) => ({ c, p: parseCourseCode(courseLabel(c)), mark: realMark(c.currentMark) ?? realMark(c.midterm) }))
     .filter((x) => x.p && (x.mark == null || Number(x.mark) >= 50));
   const used = new Set();
   const slots = COMPULSORY.map((req) => {

@@ -1,8 +1,24 @@
 import { readStudentData, writeStudentData } from './student-store.js';
 
+/**
+ * TeachAssist shows 0% when a teacher enters a placeholder or nothing is
+ * graded yet; it is never a real course average. A real mark is above 0,
+ * anything else is "no mark" (null) and stays out of every average.
+ */
+export const realMark = (n) => (Number.isFinite(n) && n > 0 ? n : null);
+
+/** Older snapshots may hold a 0%: drop it and recompute that day's average. */
+function withoutZeroMarks(s) {
+  const marks = Object.values(s.marks);
+  if (!marks.includes(0) && s.overall !== 0) return s;
+  const clean = Object.fromEntries(Object.entries(s.marks).map(([code, m]) => [code, realMark(m)]));
+  const real = Object.values(clean).filter((m) => m != null);
+  return { ...s, marks: clean, overall: real.length ? real.reduce((a, b) => a + b, 0) / real.length : null };
+}
+
 export function readHistory(source) {
   const rows = readStudentData(`history:${source}`, []);
-  return Array.isArray(rows) ? rows.filter(s => s && Number.isFinite(Date.parse(s.date)) && s.marks && typeof s.marks === 'object').slice(-60) : [];
+  return Array.isArray(rows) ? rows.filter(s => s && Number.isFinite(Date.parse(s.date)) && s.marks && typeof s.marks === 'object').slice(-60).map(withoutZeroMarks) : [];
 }
 export function snapshotChanges(previous, current) {
   if (!previous) return [];
