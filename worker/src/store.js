@@ -84,31 +84,47 @@ export async function deleteRow(env, subject) {
 }
 
 // ---- marks snapshot --------------------------------------------------------
-export const hasMark = (c) => !!c && (Number.isFinite(c.currentMark) || Number.isFinite(c.midterm));
+// TeachAssist shows 0% for a placeholder or nothing graded yet, never a real
+// course average, so 0 counts as "no mark" and the last real mark is used.
+const realMark = (n) => Number.isFinite(n) && n > 0;
+export const hasMark = (c) => !!c && (realMark(c.currentMark) || realMark(c.midterm));
+
+/** A course with any 0% (or junk) mark field set to null; other fields untouched. */
+export function withoutZeroMarks(c) {
+  if (!c || typeof c !== 'object') return c;
+  const out = { ...c };
+  for (const k of ['currentMark', 'midterm']) if (out[k] != null && !realMark(out[k])) out[k] = null;
+  return out;
+}
+
+/** Saved courses that still have a real mark, cleaned of old 0% values. */
+export function savedCourses(saved) {
+  return Array.isArray(saved) ? saved.filter(hasMark).map(withoutZeroMarks) : [];
+}
 
 /**
  * Combine fresh TeachAssist data with the last saved snapshot so a student
- * never loses a mark: a course with no mark now keeps its last recorded one,
- * a course TeachAssist stopped listing stays with its last mark, and when
+ * never loses a mark: a course with no mark now (or a 0%) keeps its last real
+ * one, a course TeachAssist stopped listing stays with its last mark, and when
  * TeachAssist returns nothing at all the saved snapshot is returned.
- * `stale` says whether a listed course's mark came from the saved copy.
+ * `stale` says the whole answer is the saved copy (TeachAssist had no marks).
  */
 export function mergeMarks(fresh, saved) {
-  const now = Array.isArray(fresh) ? fresh : [];
-  const old = Array.isArray(saved) ? saved.filter(hasMark) : [];
+  const now = Array.isArray(fresh) ? fresh.map(withoutZeroMarks) : [];
+  const old = savedCourses(saved);
   if (!now.some(hasMark)) return old.length ? { courses: old, stale: true } : { courses: now, stale: false };
-  let stale = false;
+  // One course falling back (a 0% or a blank) is flagged on that course only;
+  // the rest are live, so the screen still reads "Updated just now".
   const courses = now.map((c) => {
     if (hasMark(c)) return c;
     const before = old.find((o) => o.code === c.code);
     if (!before) return c;
-    stale = true;
     return { ...c, saved: true, currentMark: before.currentMark ?? null, midterm: before.midterm ?? null, evaluations: c.evaluations?.length ? c.evaluations : before.evaluations || [] };
   });
   // Kept courses are flagged `saved` so the app can say the mark is from
   // TeachAssist's past, without marking the whole screen as a saved copy.
   const gone = old.filter((o) => !now.some((c) => c.code === o.code)).map((o) => ({ ...o, saved: true }));
-  return { courses: [...courses, ...gone], stale };
+  return { courses: [...courses, ...gone], stale: false };
 }
 
 /**
@@ -130,7 +146,7 @@ export async function withSavedMarks(response, env, ctx) {
     if (fresh.some(hasMark) && JSON.stringify(courses).length <= MAX_MARKS_JSON) {
       ctx?.waitUntil?.(saveRow(env, session.subject, { marks: courses, marks_at: new Date().toISOString() }));
     }
-    if (!stale && courses.length === fresh.length) return response;
+    if (!stale && JSON.stringify(courses) === JSON.stringify(fresh)) return response;
     const headers = new Headers(response.headers);
     if (stale) headers.set('X-TeachAssist-Saved-At', row?.marks_at || row?.updated_at || '');
     return new Response(JSON.stringify(courses), { status: 200, headers });

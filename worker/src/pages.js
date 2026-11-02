@@ -1,7 +1,7 @@
 // Pages advanced-mode entry point. Deploy the sign-in service with the site so
 // a frontend release cannot depend on an out-of-date standalone Worker.
 import worker from './index.js';
-import { handleStore, withSavedMarks, storeConfigured, storeKeyKind, loadRow, hasMark } from './store.js';
+import { handleStore, withSavedMarks, storeConfigured, storeKeyKind, loadRow, savedCourses } from './store.js';
 import { loginBlocked, recordLoginFailure } from './login-limit.js';
 import { openCredentialBox, revokeLogin, loginRevoked } from './vault.js';
 import { vaultKeys, idKey } from './keys.js';
@@ -67,7 +67,7 @@ async function savedMarks(request, env) {
   }
   if (!storeConfigured(env)) return json({ courses: [], savedAt: null });
   const row = await loadRow(env, await subjectFor(idKey(env), username));
-  const courses = Array.isArray(row?.marks) ? row.marks.filter(hasMark) : [];
+  const courses = savedCourses(row?.marks);
   return json({ courses, savedAt: courses.length ? row.marks_at || row.updated_at || null : null });
 }
 

@@ -413,8 +413,8 @@ async function scrapeMarks(env, creds) {
   return courses.map((c) => ({
     code: c.code,
     name: c.name,
-    currentMark: c.currentMark,
-    midterm: c.midterm ?? null,
+    currentMark: realMark(c.currentMark),
+    midterm: realMark(c.midterm),
     evaluations: c.evaluations,
     ...(c.reportError ? { reportError: c.reportError } : {}),
   }));
@@ -473,9 +473,7 @@ async function runDailySync(env) {
 
 /** The mark to record for a course: live current mark, else midterm, else null. */
 function displayMarkOf(c) {
-  if (c && typeof c.currentMark === "number") return c.currentMark;
-  if (c && typeof c.midterm === "number") return c.midterm;
-  return null;
+  return realMark(c?.currentMark) ?? realMark(c?.midterm);
 }
 
 /** Simple average of every course's display mark, rounded to 0.1 (or null). */
@@ -611,14 +609,23 @@ function extractCourseCode(text) {
 /** Pull the "current mark = 95.5%" number out of row text, else null. */
 function extractCurrentMark(text) {
   const m = text.match(/current mark\s*=\s*([\d.]+)\s*%/i);
-  return m ? parseFloat(m[1]) : null;
+  return m ? realMark(parseFloat(m[1])) : null;
+}
+
+/**
+ * TeachAssist shows 0% when a teacher has entered a placeholder (or nothing
+ * graded yet), not a real course average. Treat 0 as "no mark" so it never
+ * drags the overall average down; the last saved mark is shown instead.
+ */
+function realMark(n) {
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 /** Pull the "MIDTERM MARK: 85%" number out of row text, else null. This value
  *  lives on the course-list page (a red cell), not on the report page. */
 function extractMidterm(text) {
   const m = text.match(/midterm\s*mark\s*:?\s*([\d.]+)\s*%/i);
-  return m ? parseFloat(m[1]) : null;
+  return m ? realMark(parseFloat(m[1])) : null;
 }
 
 /**
@@ -631,7 +638,7 @@ function parseReportCourseMark(html) {
   const m = html.match(
     /([\d.]+)\s*%\s*<\/div>\s*<\/td>\s*<td>\s*<div[^>]*>\s*Course\s*<\/div>/i
   );
-  return m ? parseFloat(m[1]) : null;
+  return m ? realMark(parseFloat(m[1])) : null;
 }
 
 // ============================================================================

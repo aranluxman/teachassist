@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare } from 'miniflare';
 import { issueSession, subjectFor } from '../src/session.js';
-import { mergeMarks, hasMark, cleanDreams, cleanGoals, storeKeyKind } from '../src/store.js';
+import { mergeMarks, hasMark, savedCourses, cleanDreams, cleanGoals, storeKeyKind } from '../src/store.js';
 
 // ---- pure helpers -----------------------------------------------------------
 // Which key cloud saving uses is reported by type only, never by value.
@@ -16,7 +16,21 @@ assert.equal(storeKeyKind({ SUPABASE_SERVICE_KEY: 'sb_publishable_fake' }), 'pub
 assert.equal(storeKeyKind({ SUPABASE_SERVICE_KEY: fakeJwt('service_role') }), 'secret', 'legacy service_role key');
 assert.equal(storeKeyKind({ SUPABASE_SERVICE_KEY: fakeJwt('anon') }), 'publishable', 'legacy anon key');
 const old = [{ code: 'MTH1W1-01', name: 'Math', currentMark: 91, evaluations: [{ name: 'Quiz' }] }, { code: 'ENG1D1-01', name: 'English', currentMark: 85 }];
-assert.equal(hasMark({ currentMark: 0 }), true, 'a mark of 0 is still a mark');
+assert.equal(hasMark({ currentMark: 0 }), false, 'a 0% from TeachAssist is not a real mark');
+{
+  // A teacher's 0% must not replace the last real mark, in Supabase or on screen.
+  const zero = mergeMarks([{ code: 'MTH1W1-01', currentMark: 0, midterm: null }, { code: 'ENG1D1-01', currentMark: 88 }], old);
+  const math = zero.courses.find((c) => c.code === 'MTH1W1-01');
+  assert.equal(math.currentMark, 91, 'a 0% shows the last saved mark instead');
+  assert.equal(math.saved, true, 'and is labelled as the last saved mark');
+  assert.equal(zero.stale, false, 'the other courses are live, so the screen is not a saved copy');
+  const none = mergeMarks([{ code: 'CHC2DF-01', currentMark: 0, midterm: 0 }, { code: 'ENG1D1-01', currentMark: 88 }], old);
+  assert.equal(none.courses.find((c) => c.code === 'CHC2DF-01').currentMark, null, 'a 0% with no saved mark becomes "No Mark"');
+  assert.equal(none.courses.find((c) => c.code === 'CHC2DF-01').midterm, null);
+  const poisoned = [{ code: 'CHC2DF-01', currentMark: 0, midterm: 0 }, { code: 'SNC2D1-01', currentMark: 0, midterm: 82 }];
+  assert.deepEqual(savedCourses(poisoned), [{ code: 'SNC2D1-01', currentMark: null, midterm: 82 }], 'old 0% values saved in Supabase are dropped');
+  assert.equal(mergeMarks([{ code: 'CHC2DF-01', currentMark: 0 }, { code: 'ENG1D1-01', currentMark: 88 }], poisoned).courses.find((c) => c.code === 'CHC2DF-01').currentMark, null, 'a saved 0% is never brought back');
+}
 assert.deepEqual(mergeMarks([], old), { courses: old, stale: true }, 'empty TeachAssist falls back to the saved marks');
 assert.deepEqual(mergeMarks([{ code: 'MTH1W1-01', currentMark: null, midterm: null }], old).courses[0].currentMark, 91, 'a course with no mark keeps its last mark');
 assert.equal(mergeMarks([{ code: 'MTH1W1-01', currentMark: 88 }], old).stale, false, 'fresh marks are not replaced');
@@ -38,6 +52,7 @@ const script = await readFile(new URL('../../frontend/_worker.js', import.meta.u
 const rows = new Map();
 let supabaseDown = false;
 let taEmpty = false;
+let taZero = false;
 let taCalls = 0;
 const calls = [];
 const upstream = async (request) => {
@@ -62,6 +77,7 @@ const upstream = async (request) => {
     return new Response('', { status: 302, headers: { 'set-cookie': `session_token=${username}; Path=/`, location: `https://ta.yrdsb.ca/live/students/listReports.php?student_id=${username}` } });
   }
   if (url.pathname.endsWith('listReports.php')) {
+    if (taZero) return new Response('<table><tr><td>ENG4U-01</td><td>current mark = 0%</td></tr><tr><td>SNC2D1-01</td><td>current mark = 90%</td></tr></table>');
     return new Response(taEmpty ? '<html><body><table></table></body></html>' : '<table><tr><td>ENG4U-01</td><td>current mark = 81%</td></tr></table>');
   }
   throw new Error(`Unexpected upstream request ${url}`);
@@ -105,6 +121,18 @@ try {
   assert.deepEqual(other.body, [], 'no saved marks for a different student');
   assert.equal(other.res.headers.get('X-TeachAssist-Saved-At'), null);
   taEmpty = false;
+
+  // A teacher's 0% → the last real mark is shown, and Supabase keeps it.
+  taZero = true;
+  const zeroed = await signIn('111');
+  const eng = zeroed.body.find((c) => c.code === 'ENG4U');
+  assert.equal(eng.currentMark, 81, 'a 0% shows the last saved mark');
+  assert.equal(eng.saved, true, 'labelled as the last saved mark');
+  assert.equal(zeroed.body.find((c) => c.code === 'SNC2D1').currentMark, 90, 'other live marks are untouched');
+  assert.equal(zeroed.res.headers.get('X-TeachAssist-Saved-At'), null, 'the screen still reads as live, not a saved copy');
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(rows.get(subject).marks.find((c) => c.code === 'ENG4U').currentMark, 81, 'the 0% never overwrites the saved mark');
+  taZero = false;
 
   // Supabase down → sign-in still works with live marks.
   supabaseDown = true;
