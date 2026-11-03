@@ -39,3 +39,16 @@ test('formative (weight 0) work only counts when nothing else is weighted', () =
   ] };
   assert.equal(estimatedMark(c), 90);
 });
+
+test('French with weights from TeachAssist: only the weighted mini-test counts', () => {
+  const s = (category, percent, weight) => ({ category, percent, weight });
+  const c = { currentMark: null, evaluations: [
+    { name: 'écoute', strands: [s('Knowledge/Understanding', 63.6, 0)] },
+    { name: 'Lecture', strands: [s('Knowledge/Understanding', 100, 0)] },
+    { name: 'grammaire', strands: [s('Application', 43.9, 0)] },
+    { name: 'écriture', strands: [s('Communication', 68, 0)] },
+    { name: 'mini-test 1', strands: [s('Knowledge/Understanding', 100, 10), s('Thinking', 100, 10), s('Communication', 80, 10), s('Application', 87.5, 10)] },
+  ] };
+  // (100 + 100 + 80 + 87.5) / 4
+  assert.equal(estimatedMark(c), 91.9);
+});

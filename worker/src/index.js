@@ -795,7 +795,8 @@ function parseAssignments(html) {
       strands.push({
         category: (colour && (STRAND_COLOURS[colour] || EXTRA_STRAND_COLOURS[colour])) || "Other",
         percent: round1((got / max) * 100),
-        weight: wm ? parseFloat(wm[1]) : 1,
+        // TeachAssist prints "no weight" for work that doesn't count (0).
+        weight: /no\s*weight/i.test(text) ? 0 : wm ? parseFloat(wm[1]) : 1,
         mark: got,
         outOf: max,
       });

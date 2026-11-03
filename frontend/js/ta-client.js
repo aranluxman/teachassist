@@ -119,7 +119,11 @@ export function estimatedMark(c) {
     }
   }
   if (!groups.size) return null;
-  const avgs = [...groups.values()].map((g) => (g.w > 0 ? g.sum / g.w : g.plain / g.n));
+  // Like TeachAssist: once anything is weighted, categories that only hold
+  // "no weight" work don't count at all.
+  const all = [...groups.values()];
+  const weighted = all.filter((g) => g.w > 0);
+  const avgs = (weighted.length ? weighted : all).map((g) => (g.w > 0 ? g.sum / g.w : g.plain / g.n));
   return Math.round((avgs.reduce((a, b) => a + b, 0) / avgs.length) * 10) / 10;
 }
 /** "current" / "midterm" / "" — which value displayMark returned. */

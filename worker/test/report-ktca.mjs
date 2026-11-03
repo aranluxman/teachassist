@@ -36,4 +36,12 @@ const oe = readFileSync(new URL("./fixtures/report-oe.html", import.meta.url), "
 assert.deepStrictEqual(parseAssignments(oe), []);
 assert.deepStrictEqual(parseOEEvaluations(html), []);
 
+// "no weight" means the work doesn't count: weight 0, not 1.
+const noWeight = parseAssignments(html.replace(
+  '<td bgcolor="#ffffaa" id="e,11170980" align="center">19 / 20								: 95%				<br><font size="-2">\nweight=1',
+  '<td bgcolor="#ffffaa" id="e,11170980" align="center">19 / 20								: 95%				<br><font size="-2">\nno weight'
+))[0];
+assert.strictEqual(noWeight.strands[0].weight, 0);
+assert.strictEqual(noWeight.strands[1].weight, 1);
+
 console.log("report-ktca tests passed");
