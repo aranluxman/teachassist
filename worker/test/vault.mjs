@@ -10,7 +10,9 @@ assert.notEqual(await sealCredential('secret-a', '123456789', 'hunter2', now), b
 assert.equal(await openCredential('secret-a', '987654321', box, now), null, "another student's number can't open it");
 assert.equal(await openCredential('secret-b', '123456789', box, now), null, 'a different API_KEY cannot open it');
 assert.equal(await openCredential('secret-a', '123456789', box, now + (CRED_TTL_DAYS * 86400 + 1) * 1000), null, 'expired boxes do not open');
-const tampered = box.slice(0, -2) + (box.endsWith('A') ? 'B' : 'A') + box.slice(-1);
+// Swap the second-to-last character for a different one (always a real change; about 1 box in 64 already has an 'A' there).
+const tampered = box.slice(0, -2) + (box[box.length - 2] === 'A' ? 'B' : 'A') + box.slice(-1);
+assert.notEqual(tampered, box, 'the tampered box really differs');
 assert.equal(await openCredential('secret-a', '123456789', tampered, now), null, 'a changed box does not open');
 for (const bad of ['', 'garbage', 'v2.a.b', null, 'v1.!!.!!']) assert.equal(await openCredential('secret-a', '123456789', bad, now), null);
 assert.equal(await sealCredential('', '123456789', 'x', now), '', 'no secret, no box');
