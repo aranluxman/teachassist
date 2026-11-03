@@ -44,4 +44,17 @@ const noWeight = parseAssignments(html.replace(
 assert.strictEqual(noWeight.strands[0].weight, 0);
 assert.strictEqual(noWeight.strands[1].weight, 1);
 
+// French layout: every mark sits in its own nested table.
+const nested = parseAssignments(readFileSync(new URL("./fixtures/report-nested.html", import.meta.url), "utf8"));
+assert.deepStrictEqual(nested.map((e) => e.name), ["écoute", "écriture", "mini-test 1"]);
+assert.deepStrictEqual(nested[0].strands.map((x) => [x.category, x.mark, x.outOf, x.weight]), [["Knowledge/Understanding", 7, 11, 0]]);
+assert.deepStrictEqual(nested[1].strands.map((x) => [x.category, x.mark, x.weight]), [["Communication", 6.8, 0]]);
+const mini = nested[2];
+assert.deepStrictEqual(mini.strands.map((x) => [x.category, x.mark, x.outOf, x.weight]), [
+  ["Knowledge/Understanding", 6, 6, 10], ["Thinking", 6, 6, 10], ["Communication", 8, 10, 10], ["Application", 7, 8, 10],
+]);
+assert.strictEqual(mini.weight, 40);
+assert.strictEqual(mini.mark, undefined); // strands differ, so no single "6 / 6"
+assert.strictEqual(mini.feedback, "Bon travail");
+
 console.log("report-ktca tests passed");
