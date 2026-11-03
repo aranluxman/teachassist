@@ -96,12 +96,37 @@ export function enterDemo() {
  * A 0% is a teacher's placeholder, not a mark, so it counts as no mark.
  */
 export function displayMark(c) {
-  return realMark(c?.currentMark) ?? realMark(c?.midterm);
+  return realMark(c?.currentMark) ?? realMark(c?.midterm) ?? estimatedMark(c);
+}
+/**
+ * When TeachAssist hides the mark ("Please see teacher") but lists marked
+ * work, estimate it the way TeachAssist does: average each category
+ * (K/T/C/A, or each expectation) by its weights, then average the categories.
+ * Weight-0 (formative) work only counts when nothing else is weighted.
+ */
+export function estimatedMark(c) {
+  const evals = Array.isArray(c?.evaluations) ? c.evaluations : [];
+  const groups = new Map();
+  for (const e of evals) {
+    const parts = Array.isArray(e?.strands) && e.strands.length ? e.strands : [e];
+    for (const p of parts) {
+      if (typeof p?.percent !== "number" || !Number.isFinite(p.percent)) continue;
+      const key = String(p.category || "Other");
+      const w = typeof p.weight === "number" && p.weight >= 0 ? p.weight : 1;
+      const g = groups.get(key) || { sum: 0, w: 0, plain: 0, n: 0 };
+      g.sum += p.percent * w; g.w += w; g.plain += p.percent; g.n += 1;
+      groups.set(key, g);
+    }
+  }
+  if (!groups.size) return null;
+  const avgs = [...groups.values()].map((g) => (g.w > 0 ? g.sum / g.w : g.plain / g.n));
+  return Math.round((avgs.reduce((a, b) => a + b, 0) / avgs.length) * 10) / 10;
 }
 /** "current" / "midterm" / "" — which value displayMark returned. */
 export function markKind(c) {
   if (realMark(c?.currentMark) != null) return "current";
   if (realMark(c?.midterm) != null) return "midterm";
+  if (estimatedMark(c) != null) return "estimate";
   return "";
 }
 /** Simple average of every course's display mark. */

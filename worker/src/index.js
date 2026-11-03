@@ -376,7 +376,10 @@ async function scrapeMarks(env, creds) {
           const reportUrl =
             `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(c.subjectId)}` +
             `&student_id=${encodeURIComponent(c.studentId)}`;
-          const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL);
+          // TeachAssist is often slow; one failed report gets a second try
+          // instead of silently showing the course with no assignments.
+          const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL)
+            .catch(() => fetchWithSession(reportUrl, session, COURSE_LIST_URL));
           // Prefer the per-assignment table; fall back to category rows only
           // if there are no assignments and no OE tasks (below).
           c.evaluations = parseAssignments(reportHtml);

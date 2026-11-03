@@ -692,7 +692,7 @@ async function scrapeMarks(env, creds) {
         }
         try {
           const reportUrl = `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(c.subjectId)}&student_id=${encodeURIComponent(c.studentId)}`;
-          const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL);
+          const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL).catch(() => fetchWithSession(reportUrl, session, COURSE_LIST_URL));
           c.evaluations = parseAssignments(reportHtml);
           const cm = parseReportCourseMark(reportHtml);
           if (cm != null && c.currentMark == null) c.currentMark = cm;
@@ -1111,6 +1111,10 @@ function mergeMarks(fresh, saved) {
   const old = savedCourses(saved);
   if (!now.some(hasMark)) return old.length ? { courses: old, stale: true } : { courses: now, stale: false };
   const courses = now.map((c) => {
+    if (c.reportError && !c.evaluations?.length) {
+      const before2 = old.find((o) => o.code === c.code);
+      if (before2?.evaluations?.length) c = { ...c, evaluations: before2.evaluations, evaluationsSaved: true };
+    }
     if (hasMark(c)) return c;
     const before = old.find((o) => o.code === c.code);
     if (!before) return c;

@@ -104,7 +104,7 @@ export async function openCourseDetail(container, course) {
   // ── Pager: mark gauge · progression · course info ──
   const track = el(`<div class="g-pager" id="d-carousel"></div>`);
   const gaugePage = el(`
-    <section class="g-page g-hero" aria-label="${kind === "midterm" ? "Midterm mark" : "Current mark"} ${mark == null ? "not available" : fmtPercent(mark)}">
+    <section class="g-page g-hero" aria-label="${kind === "midterm" ? "Midterm mark" : kind === "estimate" ? "Estimated mark" : "Current mark"} ${mark == null ? "not available" : fmtPercent(mark)}">
       <div class="g-gauge-wrap">
         <span class="g-hero-badge" aria-hidden="true">${subjectBadge(course.code)}</span>
         ${arcGauge(mark, { id: "course" })}
@@ -113,7 +113,8 @@ export async function openCourseDetail(container, course) {
           ${realMark(course.midterm) != null && kind !== "midterm" ? `<div class="g-delta">Midterm ${pct(course.midterm)}</div>` : ""}
         </div>
       </div>
-      <p class="g-caption">${kind === "midterm" ? "Midterm Mark" : "Current Mark"}</p>
+      <p class="g-caption">${kind === "midterm" ? "Midterm Mark" : kind === "estimate" ? "Estimated Mark" : "Current Mark"}</p>
+      ${kind === "estimate" ? `<p class="g-empty-note">TeachAssist is hiding this mark ("please see teacher"), so this is worked out from your marked work below.</p>` : ""}
       ${mark != null && !marksHidden() ? `<p class="g-level private-mark">${achievementLevel(mark)}</p>` : ""}
     </section>`);
   track.appendChild(gaugePage);
@@ -247,6 +248,13 @@ function teacherCard(course) {
 function buildEvals(evals, kind, course) {
   const frag = document.createElement("div");
   frag.className = "g-list";
+  if (!evals.length && course?.reportError) {
+    frag.appendChild(el(`<div class="card empty-inline" role="status"><b>Couldn't load your assignments</b>TeachAssist was too slow to send this course's report just now. Refresh in a minute to try again.</div>`));
+    return frag;
+  }
+  if (course?.evaluationsSaved) {
+    frag.appendChild(el(`<p class="g-empty-note">TeachAssist didn't send this course's assignments this time, so these are from your last sync.</p>`));
+  }
   if (!evals.length) {
     frag.appendChild(
       el(`<div class="card empty-inline" role="status"><b>No evaluations yet</b>${

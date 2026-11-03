@@ -116,6 +116,12 @@ export function mergeMarks(fresh, saved) {
   // One course falling back (a 0% or a blank) is flagged on that course only;
   // the rest are live, so the screen still reads "Updated just now".
   const courses = now.map((c) => {
+    // A report that failed to load (reportError) must not wipe the
+    // assignments we already had for that course.
+    if (c.reportError && !c.evaluations?.length) {
+      const before = old.find((o) => o.code === c.code);
+      if (before?.evaluations?.length) c = { ...c, evaluations: before.evaluations, evaluationsSaved: true };
+    }
     if (hasMark(c)) return c;
     const before = old.find((o) => o.code === c.code);
     if (!before) return c;
