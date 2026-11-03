@@ -390,7 +390,7 @@ export async function renderCourses(container, { refresh = false, saved = null }
         ${subjectBadge(c.code || label)}
         <span class="g-row-main">
           <b>${escapeHtml(title)}</b>
-          <small>${escapeHtml([label, teacher, c.saved ? "Last saved mark" : ""].filter(Boolean).join(" · "))}</small>
+          <small>${escapeHtml([label, teacher, c.saved ? "Last saved mark" : markKind(c) === "estimate" ? "Estimated" : ""].filter(Boolean).join(" · "))}</small>
         </span>
         <span class="g-row-value cc-mark">${pct(big)}</span>
         <span class="g-chev">${GLYPHS.chevron}</span>

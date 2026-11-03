@@ -376,7 +376,10 @@ async function scrapeMarks(env, creds) {
           const reportUrl =
             `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(c.subjectId)}` +
             `&student_id=${encodeURIComponent(c.studentId)}`;
-          const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL);
+          // TeachAssist is often slow; one failed report gets a second try
+          // instead of silently showing the course with no assignments.
+          const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL)
+            .catch(() => fetchWithSession(reportUrl, session, COURSE_LIST_URL));
           // Prefer the per-assignment table; fall back to category rows only
           // if there are no assignments and no OE tasks (below).
           c.evaluations = parseAssignments(reportHtml);
@@ -773,30 +776,43 @@ function parseAssignments(html) {
   starts.forEach((m, i) => {
     const name = cellText(m[1]);
     const from = m.index + m[0].length;
-    const to = i + 1 < starts.length ? starts[i + 1].index : html.indexOf("</table>", from);
-    const block = html.slice(from, to < 0 ? undefined : to);
-    const rowEnd = block.search(/<\/tr>/i);
-    const markRow = rowEnd < 0 ? block : block.slice(0, rowEnd);
-    const rest = rowEnd < 0 ? "" : block.slice(rowEnd);
+    // Up to the next assignment; for the last one, the feedback cell below
+    // ends the row (a nested mark box has its own </table>, so don't stop there).
+    const to = i + 1 < starts.length ? starts[i + 1].index : html.length;
+    const block = html.slice(from, to);
+    // The mark row runs up to the feedback cell (colspan). Each mark may sit
+    // in its own nested <table>, so don't stop at the first </tr>.
+    const fbAt = block.search(/<td[^>]*colspan/i);
+    const markRow = decodeEntities(fbAt < 0 ? block : block.slice(0, fbAt));
+    const rest = fbAt < 0 ? "" : block.slice(fbAt);
 
+    // Walk the row in order: each strand colour (bgcolor) sets the category
+    // for the "x / y" marks after it; the text up to the next mark holds that
+    // mark's "weight=N" or "no weight".
     const strands = [];
-    for (const c of markRow.matchAll(/<td([^>]*)>([\s\S]*?)<\/td>/gi)) {
-      const text = cellText(c[2]);
-      const mm = text.match(/([\d.]+)\s*\/\s*([\d.]+)/);
-      if (!mm) continue;
-      const got = parseFloat(mm[1]);
-      const max = parseFloat(mm[2]);
-      if (!(max > 0)) continue;
-      const colour = normaliseHex((c[1].match(/bgcolor=["']?#?([0-9a-fA-F]{6})/) || [])[1] || "");
-      const wm = text.match(/weight\s*=\s*([\d.]+)/i);
+    const tokens = [...markRow.matchAll(/bgcolor=["']?#?([0-9a-fA-F]{6})|(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/g)];
+    let colour = null;
+    tokens.forEach((t, k) => {
+      if (t[1]) {
+        const hex = normaliseHex(t[1]);
+        if (hex && (STRAND_COLOURS[hex] || EXTRA_STRAND_COLOURS[hex])) colour = hex;
+        return;
+      }
+      const got = parseFloat(t[2]);
+      const max = parseFloat(t[3]);
+      if (!(max > 0)) return;
+      const next = tokens.slice(k + 1).find((u) => u[2]);
+      const after = cellText(markRow.slice(t.index + t[0].length, next ? next.index : undefined));
+      const wm = after.match(/weight\s*=\s*([\d.]+)/i);
       strands.push({
         category: (colour && (STRAND_COLOURS[colour] || EXTRA_STRAND_COLOURS[colour])) || "Other",
         percent: round1((got / max) * 100),
-        weight: wm ? parseFloat(wm[1]) : 1,
+        // TeachAssist prints "no weight" for work that doesn't count (0).
+        weight: /no\s*weight/i.test(after) ? 0 : wm ? parseFloat(wm[1]) : 1,
         mark: got,
         outOf: max,
       });
-    }
+    });
     if (!name || !strands.length) return;
 
     const total = strands.reduce((a, s) => a + s.weight, 0);

@@ -692,7 +692,7 @@ async function scrapeMarks(env, creds) {
         }
         try {
           const reportUrl = `${REPORT_URL_BASE}?subject_id=${encodeURIComponent(c.subjectId)}&student_id=${encodeURIComponent(c.studentId)}`;
-          const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL);
+          const reportHtml = await fetchWithSession(reportUrl, session, COURSE_LIST_URL).catch(() => fetchWithSession(reportUrl, session, COURSE_LIST_URL));
           c.evaluations = parseAssignments(reportHtml);
           const cm = parseReportCourseMark(reportHtml);
           if (cm != null && c.currentMark == null) c.currentMark = cm;
@@ -900,29 +900,35 @@ function parseAssignments(html) {
   starts.forEach((m, i) => {
     const name = cellText(m[1]);
     const from = m.index + m[0].length;
-    const to = i + 1 < starts.length ? starts[i + 1].index : html.indexOf("</table>", from);
-    const block = html.slice(from, to < 0 ? void 0 : to);
-    const rowEnd = block.search(/<\/tr>/i);
-    const markRow = rowEnd < 0 ? block : block.slice(0, rowEnd);
-    const rest = rowEnd < 0 ? "" : block.slice(rowEnd);
+    const to = i + 1 < starts.length ? starts[i + 1].index : html.length;
+    const block = html.slice(from, to);
+    const fbAt = block.search(/<td[^>]*colspan/i);
+    const markRow = decodeEntities(fbAt < 0 ? block : block.slice(0, fbAt));
+    const rest = fbAt < 0 ? "" : block.slice(fbAt);
     const strands = [];
-    for (const c of markRow.matchAll(/<td([^>]*)>([\s\S]*?)<\/td>/gi)) {
-      const text2 = cellText(c[2]);
-      const mm = text2.match(/([\d.]+)\s*\/\s*([\d.]+)/);
-      if (!mm) continue;
-      const got = parseFloat(mm[1]);
-      const max = parseFloat(mm[2]);
-      if (!(max > 0)) continue;
-      const colour = normaliseHex((c[1].match(/bgcolor=["']?#?([0-9a-fA-F]{6})/) || [])[1] || "");
-      const wm = text2.match(/weight\s*=\s*([\d.]+)/i);
+    const tokens = [...markRow.matchAll(/bgcolor=["']?#?([0-9a-fA-F]{6})|(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/g)];
+    let colour = null;
+    tokens.forEach((t, k) => {
+      if (t[1]) {
+        const hex3 = normaliseHex(t[1]);
+        if (hex3 && (STRAND_COLOURS[hex3] || EXTRA_STRAND_COLOURS[hex3])) colour = hex3;
+        return;
+      }
+      const got = parseFloat(t[2]);
+      const max = parseFloat(t[3]);
+      if (!(max > 0)) return;
+      const next = tokens.slice(k + 1).find((u) => u[2]);
+      const after = cellText(markRow.slice(t.index + t[0].length, next ? next.index : void 0));
+      const wm = after.match(/weight\s*=\s*([\d.]+)/i);
       strands.push({
         category: colour && (STRAND_COLOURS[colour] || EXTRA_STRAND_COLOURS[colour]) || "Other",
         percent: round1(got / max * 100),
-        weight: wm ? parseFloat(wm[1]) : 1,
+        // TeachAssist prints "no weight" for work that doesn't count (0).
+        weight: /no\s*weight/i.test(after) ? 0 : wm ? parseFloat(wm[1]) : 1,
         mark: got,
         outOf: max
       });
-    }
+    });
     if (!name || !strands.length) return;
     const total = strands.reduce((a, s) => a + s.weight, 0);
     const percent = total > 0 ? strands.reduce((a, s) => a + s.percent * s.weight, 0) / total : strands.reduce((a, s) => a + s.percent, 0) / strands.length;
@@ -1111,6 +1117,10 @@ function mergeMarks(fresh, saved) {
   const old = savedCourses(saved);
   if (!now.some(hasMark)) return old.length ? { courses: old, stale: true } : { courses: now, stale: false };
   const courses = now.map((c) => {
+    if (c.reportError && !c.evaluations?.length) {
+      const before2 = old.find((o) => o.code === c.code);
+      if (before2?.evaluations?.length) c = { ...c, evaluations: before2.evaluations, evaluationsSaved: true };
+    }
     if (hasMark(c)) return c;
     const before = old.find((o) => o.code === c.code);
     if (!before) return c;

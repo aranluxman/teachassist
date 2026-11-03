@@ -5,6 +5,17 @@ import { issueSession, subjectFor } from '../src/session.js';
 import { mergeMarks, hasMark, savedCourses, cleanDreams, cleanGoals, storeKeyKind } from '../src/store.js';
 
 // ---- pure helpers -----------------------------------------------------------
+// A report that failed to load must not wipe the assignments saved last time.
+{
+  const saved = [{ code: 'CHC2DF', currentMark: 84.8, evaluations: [{ name: 'Essay', percent: 85 }] }];
+  const fresh = [{ code: 'CHC2DF', currentMark: 84.8, evaluations: [], reportError: 'slow' }];
+  const [course] = mergeMarks(fresh, saved).courses;
+  assert.equal(course.evaluations[0].name, 'Essay');
+  assert.equal(course.evaluationsSaved, true);
+  // A report that loaded fine with no assignments is shown as it is.
+  const [clean] = mergeMarks([{ code: 'CHC2DF', currentMark: 84.8, evaluations: [] }], saved).courses;
+  assert.deepEqual(clean.evaluations, []);
+}
 // Which key cloud saving uses is reported by type only, never by value.
 // Fake legacy JWT keys, built here so no key-shaped string sits in the repo.
 const fakeJwt = (role) => ['header', btoa(JSON.stringify({ role })).replace(/=+$/, ''), 'sig'].join('.');
