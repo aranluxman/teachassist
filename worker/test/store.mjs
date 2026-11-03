@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare } from 'miniflare';
 import { issueSession, subjectFor } from '../src/session.js';
-import { mergeMarks, hasMark, savedCourses, cleanDreams, cleanGoals, storeKeyKind } from '../src/store.js';
+import { mergeMarks, hasMark, savedCourses, cleanDreams, cleanGoals, storeKeyKind, hasData } from '../src/store.js';
 
 // ---- pure helpers -----------------------------------------------------------
 // A report that failed to load must not wipe the assignments saved last time.
@@ -57,6 +57,26 @@ assert.equal(cleanDreams({ career: ' x '.repeat(100), target: 500, goals: { 'MTH
 assert.deepEqual(cleanDreams({ goals: { 'MTH1W1-01': 95, '../x': 50 } }).goals, { 'MTH1W1-01': 95 });
 assert.equal(cleanGoals([{ title: '  ', type: 'school' }, { title: 'Pass French', type: 'weird', date: '2026-12-01' }]).length, 1);
 assert.equal(cleanGoals([{ title: 'Pass French', type: 'weird', date: 'nope' }])[0].type, 'personal');
+
+{
+  // A course with only posted assessments (TeachAssist hides its mark; the app
+  // estimates it) is saved and kept like any other course.
+  const french = { code: 'FIF2DF', currentMark: null, midterm: null, evaluations: [{ name: 'mini-test 1', percent: 91.9 }] };
+  const science = { code: 'SNC2D1', currentMark: 94.7, evaluations: [{ name: 'Test 1', percent: 95 }] };
+  assert.equal(hasData(french), true, 'posted assessments are worth keeping');
+  assert.equal(hasData({ code: 'X', currentMark: null, evaluations: [{ percent: 0 }] }), false, 'all-0% assessments are not posted marks');
+  const saved = [science, french];
+  const empty = mergeMarks([], saved);
+  assert.deepEqual(empty.courses.map((c) => c.code), ['SNC2D1', 'FIF2DF'], 'TeachAssist sending nothing keeps both courses');
+  assert.equal(empty.stale, true);
+  const dropped = mergeMarks([{ code: 'CHC2DF', currentMark: 85 }], saved);
+  assert.deepEqual(dropped.courses.map((c) => `${c.code}${c.saved ? '*' : ''}`), ['CHC2DF', 'SNC2D1*', 'FIF2DF*'], 'courses TeachAssist stopped listing are kept, estimate-only ones too');
+  assert.equal(dropped.courses[2].evaluations[0].percent, 91.9, 'with their assessments');
+  const same = mergeMarks([{ ...french }], saved);
+  assert.equal(same.courses[0].saved, undefined, 'fresh assessments with no saved mark are not called "last saved"');
+  assert.equal(same.stale, false, 'assessments alone count as a live answer');
+  assert.deepEqual(mergeMarks([french], []).courses, [french], 'a first sign-in with only assessments keeps them');
+}
 
 // ---- worker with a fake Supabase ----------------------------------------------
 const script = await readFile(new URL('../../frontend/_worker.js', import.meta.url), 'utf8');

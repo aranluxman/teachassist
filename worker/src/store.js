@@ -97,9 +97,16 @@ export function withoutZeroMarks(c) {
   return out;
 }
 
-/** Saved courses that still have a real mark, cleaned of old 0% values. */
+/**
+ * Worth keeping: a real mark, or posted assessments (TeachAssist can list
+ * marked work while hiding the course mark, and the app estimates it).
+ */
+export const hasData = (c) =>
+  hasMark(c) || (Array.isArray(c?.evaluations) && c.evaluations.some((e) => Number.isFinite(e?.percent) && e.percent > 0));
+
+/** Saved courses that still have a real mark or posted assessments, cleaned of old 0% values. */
 export function savedCourses(saved) {
-  return Array.isArray(saved) ? saved.filter(hasMark).map(withoutZeroMarks) : [];
+  return Array.isArray(saved) ? saved.map(withoutZeroMarks).filter(hasData) : [];
 }
 
 /**
@@ -112,7 +119,7 @@ export function savedCourses(saved) {
 export function mergeMarks(fresh, saved) {
   const now = Array.isArray(fresh) ? fresh.map(withoutZeroMarks) : [];
   const old = savedCourses(saved);
-  if (!now.some(hasMark)) return old.length ? { courses: old, stale: true } : { courses: now, stale: false };
+  if (!now.some(hasData)) return old.length ? { courses: old, stale: true } : { courses: now, stale: false };
   // One course falling back (a 0% or a blank) is flagged on that course only;
   // the rest are live, so the screen still reads "Updated just now".
   const courses = now.map((c) => {
@@ -125,6 +132,8 @@ export function mergeMarks(fresh, saved) {
     if (hasMark(c)) return c;
     const before = old.find((o) => o.code === c.code);
     if (!before) return c;
+    // No mark saved either: the fresh assessments are the best we have.
+    if (!hasMark(before) && c.evaluations?.length) return c;
     return { ...c, saved: true, currentMark: before.currentMark ?? null, midterm: before.midterm ?? null, evaluations: c.evaluations?.length ? c.evaluations : before.evaluations || [] };
   });
   // Kept courses are flagged `saved` so the app can say the mark is from
@@ -149,7 +158,7 @@ export async function withSavedMarks(response, env, ctx) {
     if (!Array.isArray(fresh)) return response;
     const row = await loadRow(env, session.subject);
     const { courses, stale } = mergeMarks(fresh, row?.marks);
-    if (fresh.some(hasMark) && JSON.stringify(courses).length <= MAX_MARKS_JSON) {
+    if (fresh.some(hasData) && JSON.stringify(courses).length <= MAX_MARKS_JSON) {
       ctx?.waitUntil?.(saveRow(env, session.subject, { marks: courses, marks_at: new Date().toISOString() }));
     }
     if (!stale && JSON.stringify(courses) === JSON.stringify(fresh)) return response;

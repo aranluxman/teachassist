@@ -1109,13 +1109,14 @@ function withoutZeroMarks(c) {
   for (const k of ["currentMark", "midterm"]) if (out[k] != null && !realMark2(out[k])) out[k] = null;
   return out;
 }
+var hasData = (c) => hasMark(c) || Array.isArray(c?.evaluations) && c.evaluations.some((e) => Number.isFinite(e?.percent) && e.percent > 0);
 function savedCourses(saved) {
-  return Array.isArray(saved) ? saved.filter(hasMark).map(withoutZeroMarks) : [];
+  return Array.isArray(saved) ? saved.map(withoutZeroMarks).filter(hasData) : [];
 }
 function mergeMarks(fresh, saved) {
   const now = Array.isArray(fresh) ? fresh.map(withoutZeroMarks) : [];
   const old = savedCourses(saved);
-  if (!now.some(hasMark)) return old.length ? { courses: old, stale: true } : { courses: now, stale: false };
+  if (!now.some(hasData)) return old.length ? { courses: old, stale: true } : { courses: now, stale: false };
   const courses = now.map((c) => {
     if (c.reportError && !c.evaluations?.length) {
       const before2 = old.find((o) => o.code === c.code);
@@ -1124,6 +1125,7 @@ function mergeMarks(fresh, saved) {
     if (hasMark(c)) return c;
     const before = old.find((o) => o.code === c.code);
     if (!before) return c;
+    if (!hasMark(before) && c.evaluations?.length) return c;
     return { ...c, saved: true, currentMark: before.currentMark ?? null, midterm: before.midterm ?? null, evaluations: c.evaluations?.length ? c.evaluations : before.evaluations || [] };
   });
   const gone = old.filter((o) => !now.some((c) => c.code === o.code)).map((o) => ({ ...o, saved: true }));
@@ -1139,7 +1141,7 @@ async function withSavedMarks(response, env, ctx) {
     if (!Array.isArray(fresh)) return response;
     const row = await loadRow(env, session.subject);
     const { courses, stale } = mergeMarks(fresh, row?.marks);
-    if (fresh.some(hasMark) && JSON.stringify(courses).length <= MAX_MARKS_JSON) {
+    if (fresh.some(hasData) && JSON.stringify(courses).length <= MAX_MARKS_JSON) {
       ctx?.waitUntil?.(saveRow(env, session.subject, { marks: courses, marks_at: (/* @__PURE__ */ new Date()).toISOString() }));
     }
     if (!stale && JSON.stringify(courses) === JSON.stringify(fresh)) return response;
