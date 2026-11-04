@@ -6,10 +6,12 @@
 // verified resource links with icons that say where each one goes.
 // ============================================================================
 
-import { appointmentCard } from "./profile.js";
+import { appointmentCard, teacherSearch, examCalculator, profilePhoto, profileSchool } from "./profile.js";
+import { preferences } from "./personalization.js";
+import { openSchedule } from "./schedule.js";
 import { el, escapeHtml, openSheet, closeSheet } from "./courses.js";
-import { iconTile } from "./ui-kit.js";
-import { getCourses } from "./ta-client.js";
+import { iconTile, GLYPHS } from "./ui-kit.js";
+import { getCourses, isDemo } from "./ta-client.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
 import { mySchool, schoolCard, icon } from "./schools.js";
 import { ossdProgress, saveOssd, ossdState, TOTAL_CREDITS } from "./ossd.js";
@@ -76,30 +78,93 @@ export function linkRow(item) {
   return row;
 }
 
+
+// ── The hub at the top: header, profile card and Quick Tools ─────────────
+// (App Settings and Help & Legal live at the top of the Settings tab:
+// js/settings-panel.js.)
+// Liquid-glass cards drawn from theme tokens (css/guidance-hub.css), so they
+// pick up the chosen colour and Light/Dark. Only the tool and settings icon
+// colours are fixed, like app icons.
+const svg = (paths, w = 2) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+const HUB_ICONS = {
+  search: svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>', 2.2),
+  heart: svg('<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20Z"/>', 2.2),
+  classroom: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="19" height="16" rx="2" fill="#f6c026"/><rect x="4.5" y="6" width="15" height="12" rx="1" fill="#1e8e3e"/><circle cx="12" cy="10.3" r="1.7" fill="#fff"/><path d="M8.6 15.4a3.4 3.4 0 0 1 6.8 0z" fill="#fff"/><circle cx="7.6" cy="11.3" r="1.2" fill="#a8dab5"/><circle cx="16.4" cy="11.3" r="1.2" fill="#a8dab5"/><rect x="13.5" y="16.2" width="4" height="1" rx=".5" fill="#fff"/></svg>',
+  calendar: svg('<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+  calc: svg('<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7h7M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h3.5" stroke-width="2.4"/>'),
+  external: svg('<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>', 2.2),
+  compass: svg('<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/>'),
+  map: svg('<path d="m9 4-6 2.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/>'),
+  pencil: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m14.7 5.3 4 4L8.4 19.6 3.6 20.4l.8-4.8z"/><path d="m16.1 3.9 1.5-1.5a1.4 1.4 0 0 1 2 0l2 2a1.4 1.4 0 0 1 0 2l-1.5 1.5z"/></svg>',
+  gear: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.7 7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H10a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V10a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>', 1.9),
+  person: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="4.2"/><path d="M4 20.5a8 8 0 0 1 16 0z"/></svg>',
+};
+
+function hubHeader() {
+  const head = el(`<header class="gh-top">
+    <div class="gh-heading"><h1>Guidance</h1><p>Your student hub for learning, support, and school tools.</p></div>
+    <div class="gh-actions">
+      <button type="button" class="gh-round" data-bell aria-label="Notification settings">${GLYPHS.bell}</button>
+      <button type="button" class="gh-round" data-gear aria-label="Settings">${HUB_ICONS.gear}</button>
+    </div>
+  </header>`);
+  head.querySelector("[data-bell]").onclick = () => window.AppNav.toSettings("notifications");
+  head.querySelector("[data-gear]").onclick = () => window.AppNav.toSettings();
+  return head;
+}
+
+function profileCard(school) {
+  // No saved name yet: a friendly placeholder, never "Student" twice.
+  const name = preferences().name || (isDemo() ? "Demo student" : "Your profile");
+  const photo = profilePhoto();
+  const sub = school?.name || profileSchool() || "Student";
+  const card = el(`<section class="gh-glass gh-profile">
+    <span class="gh-avatar">${photo ? `<img src="${photo}" alt="">` : HUB_ICONS.person}</span>
+    <span class="gh-who"><b>${escapeHtml(name)}</b><small>${escapeHtml(sub)}</small></span>
+    <button type="button" class="gh-pill" data-edit>${HUB_ICONS.pencil}<span>Edit Profile</span>${GLYPHS.chevron}</button>
+  </section>`);
+  card.querySelector("[data-edit]").onclick = () => window.AppNav.toProfile();
+  return card;
+}
+
+function quickTools(school) {
+  const site = school?.website || "";
+  const tools = [
+    ["teacher", "Find a Teacher", HUB_ICONS.search, teacherSearch],
+    ["volunteer", "Volunteer Hours", HUB_ICONS.heart, () => window.AppNav.toGuidance("volunteer")],
+    ["classroom", "Google Classroom", HUB_ICONS.classroom, "https://classroom.google.com"],
+    ["schedule", "My Schedule", HUB_ICONS.calendar, async () => openSchedule(await getCourses().catch(() => []))],
+    ["exam", "Exam Calculator", HUB_ICONS.calc, examCalculator],
+    // No school picked yet: the tile takes you to the school map to choose one.
+    ["website", "School Website", HUB_ICONS.external, site || (() => window.AppNav.toGuidance("map"))],
+    ["blueprint", "myBlueprint", HUB_ICONS.compass, "https://myblueprint.ca"],
+    ["map", "School Map", HUB_ICONS.map, () => window.AppNav.toGuidance("map")],
+  ];
+  const wrap = el(`<section class="gh-section" aria-labelledby="gh-tools-title"><h2 class="gh-title" id="gh-tools-title">Quick Tools</h2><div class="gh-tools"></div></section>`);
+  for (const [id, label, glyph, action] of tools) {
+    const isLink = typeof action === "string";
+    const tile = el(isLink
+      ? `<a class="gh-glass gh-tool" data-tool="${id}" href="${escapeHtml(action)}" target="_blank" rel="noopener"></a>`
+      : `<button type="button" class="gh-glass gh-tool" data-tool="${id}"></button>`);
+    tile.innerHTML = `<span class="gh-tool-icon">${glyph}</span><span class="gh-tool-label">${escapeHtml(label)}</span>`;
+    if (isLink) tile.setAttribute("aria-label", `${label} (opens in a new tab)`);
+    else tile.onclick = action;
+    wrap.querySelector(".gh-tools").append(tile);
+  }
+  return wrap;
+}
+
 /** Render the Guidance screen. */
 export async function renderGuidance(container) {
   container.innerHTML = "";
-  container.append(el(`<div class="screen-header v5-header"><div><h1>Guidance</h1><p>Your school, your plans, and the people who can help.</p></div></div>`));
+  const school = await mySchool().catch(() => null);
 
-  const school = await mySchool();
-
-  // myBlueprint is used constantly (course selection, pathway planning), so it
-  // is the first thing on this page.
-  const blueprint = el(`<a class="blueprint-cta" href="https://myblueprint.ca" target="_blank" rel="noopener">
-    <span class="bp-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${KIND.plan.svg}</svg></span>
-    <span class="bp-text"><b>Open myBlueprint</b><small>Plan your courses, pathway and post-secondary goals</small></span>
-    <span class="bp-go" aria-hidden="true">↗</span>
-  </a>`);
-  container.append(blueprint);
-
-  const tiles = el(`<div class="tile-grid">
-    <button class="tile" data-go="map"><span class="tile-icon">${icon("map", 24)}</span><span><b>School map</b><span>Boundaries & info</span></span></button>
-  </div>`);
-  tiles.querySelector('[data-go="map"]').onclick = () => window.AppNav.toGuidance("map");
-  container.append(tiles);
+  const hub = el(`<div class="gh-hub"></div>`);
+  hub.append(hubHeader(), profileCard(school), quickTools(school));
+  container.append(hub);
 
   // School
-  container.append(el(`<h2 class="section-title">School information</h2>`));
   const schoolSection = el(`<section class="card my-school"><div class="tool-heading"><h2>My school</h2><button class="btn ghost" data-change>${school ? "Change" : "Choose"}</button></div></section>`);
   schoolSection.querySelector("[data-change]").onclick = () => window.AppNav.toGuidance("map");
   if (school) {
@@ -116,17 +181,16 @@ export async function renderGuidance(container) {
   // The diploma/credits tracker (ossdCard) is hidden for now.
 
   // People & appointments
-  container.append(el(`<h2 class="section-title">People & appointments</h2>`));
   container.append(counsellorCard());
   container.append(appointmentCard());
 
-  // Resources: grouped and collapsed so nobody has to scroll a long list.
-  container.append(el(`<h2 class="section-title">Resources</h2>`));
+  // Resources: grouped and all folded up, so the page stays short.
+  container.append(el(`<h2 class="gh-title gh-title-sub">Resources</h2>`));
   const blurbs = { Planning: "Graduation rules, myBlueprint, universities & colleges", Academics: "OSSLT, TVO Learn, summer and night school", Support: "Kids Help Phone, mental health, counselling" };
   const sectionTiles = { Planning: ["cap", "accent"], Academics: ["book", "purple"], Support: ["heart", "pink"] };
   for (const section of RESOURCES) {
     const [glyph, tone] = sectionTiles[section.group] || ["doc", "accent"];
-    const box = el(`<details class="card disclosure"${section.group === "Support" ? " open" : ""}><summary>${iconTile(glyph, tone)}<span>${escapeHtml(section.group)}<small>${escapeHtml(blurbs[section.group] || "")}</small></span></summary><div class="disclosure-body"><div class="link-list"></div></div></details>`);
+    const box = el(`<details class="card disclosure"><summary>${iconTile(glyph, tone)}<span>${escapeHtml(section.group)}<small>${escapeHtml(blurbs[section.group] || "")}</small></span></summary><div class="disclosure-body"><div class="link-list"></div></div></details>`);
     section.items.forEach((item) => box.querySelector(".link-list").append(linkRow(item)));
     container.append(box);
   }

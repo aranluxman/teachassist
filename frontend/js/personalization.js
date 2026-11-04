@@ -46,6 +46,10 @@ export function savePreferences(patch) {
 }
 export function applyPreferences() {
   const p = preferences();
-  for (const k of ["motion", "glass", "compact", "hideMarks", "largeText"])
-    document.documentElement.dataset[k] = String(p[k]);
+  const root = document.documentElement.dataset;
+  for (const k of ["motion", "glass", "hideMarks"]) root[k] = String(p[k]);
+  // "Compact layout" and "Larger text" were removed from Settings: a choice
+  // saved before then no longer applies.
+  delete root.compact;
+  delete root.largeText;
 }

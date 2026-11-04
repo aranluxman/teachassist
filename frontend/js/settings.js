@@ -1,3 +1,4 @@
+import { settingsPanel } from "./settings-panel.js";
 import { installCard } from "./install.js";
 import { notificationSettings } from "./notification-settings.js";
 import {
@@ -8,8 +9,10 @@ import {
 // ============================================================================
 // Settings
 // ----------------------------------------------------------------------------
-// Shows the signed-in student number (or demo state), the theme picker,
-// a refresh action, Sign Out, and Delete my data.
+// The main page is the App Settings panel + Help & Legal (settings-panel.js).
+// Each row opens its own page (#settings/<view>) with a back button:
+//   theme (Appearance) · accessibility · notifications · privacy · install
+//   · account · help
 // ============================================================================
 
 import { el, escapeHtml, openSheet } from "./courses.js";
@@ -19,7 +22,7 @@ import {
   getCourses,
   isDemo,
 } from "./ta-client.js";
-import { mountThumb, savedFeedback, stagger } from "./motion.js";
+import { mountThumb, stagger } from "./motion.js";
 import { APPEARANCES, COLORS, applyTheme, orbFill, setTheme, themeChoice, themeLabel } from "./theme.js";
 import { glassButton, pageHeader, GLYPHS, iconTile } from "./ui-kit.js";
 import { CONTACT_FORM_URL, CONTACT_EMAIL } from "./config.js";
@@ -56,7 +59,7 @@ export function applyStoredTheme() {
 /** The Theme page: a live preview, the appearance switch and the colour tiles. */
 export function renderThemeSettings(container) {
   container.innerHTML = "";
-  const head = el(pageHeader({ title: "Theme", left: glassButton("back", "Back to settings", "data-back") }));
+  const head = el(pageHeader({ title: "Appearance", left: glassButton("back", "Back to settings", "data-back") }));
   head.querySelector("[data-back]").onclick = () => window.AppNav.toSettings();
   container.append(head);
 
@@ -78,8 +81,8 @@ export function renderThemeSettings(container) {
         </div>
         <div class="tp-row"><span class="tp-btn">Refresh</span><span class="tp-chip">Sample</span></div>
       </div>
-      <h2 class="g-section">Appearance</h2>
-      <div class="segmented g-segmented" role="radiogroup" aria-label="Appearance">
+      <h2 class="g-section">Mode</h2>
+      <div class="segmented g-segmented" role="radiogroup" aria-label="Light or dark mode">
         ${APPEARANCES.map((a) => `<button type="button" role="radio" data-appearance="${a.id}" aria-checked="${a.id === appearance}" class="${a.id === appearance ? "active" : ""}">${a.name}</button>`).join("")}
       </div>
       <h2 class="g-section">Color</h2>
@@ -150,6 +153,56 @@ export function renderThemeSettings(container) {
     );
   });
   showChoice();
+
+  // Glass on/off lives with the look of the app.
+  const glass = switchGroup("", "", [["glass", "Translucent surfaces", "Frosted navigation and layered depth"]]);
+  body.append(el(`<h2 class="g-section">Style</h2>`), glass);
+  stagger(container.children);
+}
+
+/** A card of on/off preference rows. `title` "" leaves the heading out. */
+function switchGroup(title, note, rows) {
+  const prefs = preferences();
+  const row = ([id, name, desc]) =>
+    `<label class="preference-row"><span><b>${name}</b><small>${desc}</small></span><input type="checkbox" role="switch" data-pref="${id}" ${prefs[id] ? "checked" : ""}></label>`;
+  const node = el(`<section class="card settings-group preference-list">${title ? `<h2>${title}</h2>` : ""}${note ? `<p class="group-note">${note}</p>` : ""}${rows.map(row).join("")}</section>`);
+  node.querySelectorAll("input[data-pref]").forEach((input) =>
+    input.addEventListener("change", () => savePreferences({ [input.dataset.pref]: input.checked })),
+  );
+  return node;
+}
+
+// Each Settings row's own page: its title and what goes on it.
+const PAGES = {
+  accessibility: ["Accessibility", () => [switchGroup("", "Your device's reduce-motion setting is always respected too.", [
+    ["motion", "Interface animations", "Gentle transitions and press feedback"],
+  ])]],
+  notifications: ["Notifications", () => [notificationSettings()]],
+  privacy: ["Courses & Privacy", () => [switchGroup("", "", [
+    ["hideMarks", "Hide grades", "Conceal marks on the course dashboard"],
+    ["currentTermOnly", "Current semester only", "Hide courses from other semesters"],
+  ])]],
+  install: ["Install the App", () => [installCard() || el(`<section class="card settings-group"><p class="group-note">TeachAssist is already installed on this device.</p></section>`)]],
+  account: ["Account & Data", () => [accountCard()]],
+  help: ["Help & Legal", () => [contactCard(), legalCard()]],
+};
+export const SETTINGS_PAGES = ["theme", ...Object.keys(PAGES)];
+
+/** One Settings row's page: back button, title, its cards. */
+export function renderSettingsPage(container, view) {
+  if (view === "theme") return renderThemeSettings(container);
+  const [title, build] = PAGES[view];
+  container.innerHTML = "";
+  const head = el(pageHeader({ title, left: glassButton("back", "Back to settings", "data-back") }));
+  head.querySelector("[data-back]").onclick = () => window.AppNav.toSettings();
+  container.append(head);
+  for (const card of build()) {
+    // The page title already names it, so drop a card heading that repeats it.
+    const h = card.querySelector?.(":scope > h2, :scope .card > h2");
+    if (h && h.textContent.trim().toLowerCase() === title.toLowerCase()) h.remove();
+    container.append(card);
+  }
+  decorateGroups(container);
   stagger(container.children);
 }
 
@@ -160,56 +213,19 @@ export async function renderSettings(container) {
     el(`<div class="screen-header v5-header"><div><h1>Settings</h1><p>Saved on this device, separately for each account.</p></div></div>`),
   );
 
-  const prefs = preferences();
-  const switchRow = ([id, title, desc]) =>
-    `<label class="preference-row"><span><b>${title}</b><small>${desc}</small></span><input type="checkbox" role="switch" data-pref="${id}" ${prefs[id] ? "checked" : ""}></label>`;
-  const group = (title, note, rows) =>
-    el(`<section class="card settings-group preference-list"><h2>${title}</h2>${note ? `<p class="group-note">${note}</p>` : ""}${rows.map(switchRow).join("")}</section>`);
-  const bindSwitches = (node) =>
-    node.querySelectorAll("input[data-pref]").forEach((input) =>
-      input.addEventListener("change", () =>
-        savePreferences({ [input.dataset.pref]: input.checked }),
-      ),
-    );
-
-  // You — the name the app greets you with, plus profile & quick actions.
-  // Once a name is saved it folds into one slim row; tap it to change.
-  container.append(personalCard(prefs.name));
-
-  // Appearance — theme page and layout.
-  const appearance = group("Appearance", "", [
-    ["glass", "Translucent surfaces", "Frosted navigation and layered depth"],
-    ["compact", "Compact layout", "Fit more courses on screen"],
-  ]);
-  const themeRow = el(
-    `<button type="button" class="preference-row theme-row">${iconTile("palette")}<span><b>Theme</b><small>${escapeHtml(themeLabel())}</small></span><span class="g-chev">${GLYPHS.chevron}</span></button>`,
+  // App Settings + Help & Legal: each row opens its own page.
+  container.append(settingsPanel());
+  container.appendChild(
+    el(
+      `<div class="muted small" style="text-align:center;margin-top:18px">TeachAssist Dashboard · v${APP_VERSION}</div>`,
+    ),
   );
-  themeRow.onclick = () => window.AppNav.go("settings", "theme");
-  appearance.querySelector(".preference-row").before(themeRow);
-  container.append(appearance);
+  container.appendChild(el(MADE_BY));
+  stagger(container.children);
+}
 
-  // Accessibility & privacy on screen.
-  const access = group("Accessibility", "Your device's reduce-motion setting is always respected too.", [
-    ["motion", "Interface animations", "Gentle transitions and press feedback"],
-    ["largeText", "Larger text", "A little more room to read"],
-  ]);
-  const courseView = group("Courses & privacy", "", [
-    ["hideMarks", "Hide grades", "Conceal marks on the course dashboard"],
-    ["currentTermOnly", "Current semester only", "Hide courses from other semesters"],
-  ]);
-  [appearance, access, courseView].forEach(bindSwitches);
-  container.append(access, courseView);
-
-  // Install as an app (hidden once installed).
-  const install = installCard();
-  if (install) container.append(install);
-
-  // Notifications (existing card, unchanged behaviour).
-  const notes = notificationSettings();
-  notes.classList.add("settings-group");
-  container.append(notes);
-
-  // Account & data
+/** Account & Data: who is signed in, refresh, Sign Out, Delete my data. */
+function accountCard() {
   const account = el(`
     <section class="card settings-group"><h2>Account & data</h2>
     <div class="rows">
@@ -274,51 +290,7 @@ export async function renderSettings(container) {
     forgetStudentData(studentNumber());
     signOut();
   });
-  container.append(account);
-  container.append(contactCard());
-  container.append(legalCard());
-
-  container.appendChild(
-    el(
-      `<div class="muted small" style="text-align:center;margin-top:18px">TeachAssist Dashboard · v${APP_VERSION}</div>`,
-    ),
-  );
-  container.appendChild(el(MADE_BY));
-
-  decorateGroups(container);
-  stagger(container.children);
-}
-
-/** The "You" card: a name form, or a compact row once a name is saved. */
-function personalCard(name) {
-  if (name) {
-    const row = el(
-      `<section class="card settings-group you-compact"><button type="button" class="preference-row you-row">${iconTile("person")}<span><b>Hi, ${escapeHtml(name)}</b><small>Tap to change your name</small></span><span class="g-chev">${GLYPHS.chevron}</span></button><button type="button" class="btn secondary you-profile" data-profile>My profile & quick actions</button></section>`,
-    );
-    row.querySelector(".you-row").onclick = () => row.replaceWith(personalForm(name, true));
-    row.querySelector("[data-profile]").onclick = () => window.AppNav.toProfile();
-    return row;
-  }
-  return personalForm(name, false);
-}
-
-function personalForm(name, focus) {
-  const form = el(
-    `<form class="card settings-group"><h2>You</h2><div class="field"><label for="profile-name">What should we call you?</label><input id="profile-name" maxlength="50" value="${escapeHtml(name)}" placeholder="Your first name"></div><div class="tool-buttons"><button class="btn secondary">Save name</button><button type="button" class="btn secondary" data-profile>My profile & quick actions</button></div><p role="status" class="small muted"></p></form>`,
-  );
-  form.querySelector("h2").insertAdjacentHTML("afterbegin", `<span class="ui-h-icon" aria-hidden="true">${GLYPHS.person}</span>`);
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const next = form.querySelector("input").value.trim();
-    savePreferences({ name: next });
-    savedFeedback(form.querySelector("button"), "Saved ✓");
-    // Fold away once there is a name to keep.
-    setTimeout(() => form.isConnected && next && form.replaceWith(personalCard(next)), 700);
-    if (!next) form.querySelector("[role=status]").textContent = "Saved on this device.";
-  });
-  form.querySelector("[data-profile]").onclick = () => window.AppNav.toProfile();
-  if (focus) requestAnimationFrame(() => form.querySelector("input").focus());
-  return form;
+  return account;
 }
 
 // ── Legal: policies and credits, so students (and parents) know who runs this.

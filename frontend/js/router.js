@@ -2,12 +2,12 @@
 // Hash routes — every screen has its own address, so refresh, Back and
 // bookmarks keep you where you were:
 //   #courses  #course/MTH1W1  #guidance  #guidance/map  #guidance/volunteer
-//   #dreams   #settings  #settings/theme  #profile
+//   #dreams   #settings  #settings/theme (Appearance)  #settings/notifications…  #profile
 // ============================================================================
 
 const SCREENS = ["courses", "course", "guidance", "dreams", "settings", "profile"];
 const GUIDANCE_VIEWS = ["map", "volunteer"];
-const SETTINGS_VIEWS = ["theme"];
+const SETTINGS_VIEWS = ["theme", "accessibility", "notifications", "privacy", "install", "account", "help"];
 
 /** "#course/MTH1W1" → { screen: "course", arg: "MTH1W1" }. Unknown → courses. */
 export function parseRoute(hash) {

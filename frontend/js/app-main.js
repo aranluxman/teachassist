@@ -12,7 +12,7 @@ import { parseRoute, go } from "./router.js";
 import { openCourseDetail } from "./course-detail.js";
 import { renderGuidance } from "./guidance.js";
 import { renderDreams } from "./dreams.js";
-import { renderSettings, renderThemeSettings, applyStoredTheme } from "./settings.js";
+import { renderSettings, renderSettingsPage, applyStoredTheme } from "./settings.js";
 import {
   initMotion,
   enterScreen,
@@ -75,7 +75,7 @@ async function render({ screen, arg }) {
     if (arg === "volunteer") return renderVolunteer(target);
     return renderGuidance(target);
   }
-  if (screen === "settings" && arg === "theme") return renderThemeSettings(target);
+  if (screen === "settings" && arg) return renderSettingsPage(target, arg);
   return ({ courses: renderCourses, profile: renderProfile, dreams: renderDreams, settings: renderSettings })[screen](target);
 }
 const navigate = (screen, arg = "") => { if (!go(screen, arg)) return render({ screen, arg }); };
@@ -87,7 +87,8 @@ window.AppNav = {
   toCourses: () => navigate("courses"),
   toGuidance: (view = "") => navigate("guidance", typeof view === "string" ? view : ""),
   toDreams: () => navigate("dreams"),
-  toSettings: () => navigate("settings"),
+  // toSettings("notifications") opens that Settings page (#settings/notifications).
+  toSettings: (view = "") => navigate("settings", typeof view === "string" ? view : ""),
   toDetail: (course) => { pendingCourse = course; return navigate("course", courseLabel(course)); },
 };
 
