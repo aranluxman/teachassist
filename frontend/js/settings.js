@@ -1,3 +1,4 @@
+import { settingsPanel } from "./settings-panel.js";
 import { installCard } from "./install.js";
 import { notificationSettings } from "./notification-settings.js";
 import {
@@ -159,6 +160,9 @@ export async function renderSettings(container) {
   container.appendChild(
     el(`<div class="screen-header v5-header"><div><h1>Settings</h1><p>Saved on this device, separately for each account.</p></div></div>`),
   );
+
+  // App Settings + Help & Legal: jump links to the sections below.
+  container.append(settingsPanel(container));
 
   const prefs = preferences();
   const switchRow = ([id, title, desc]) =>

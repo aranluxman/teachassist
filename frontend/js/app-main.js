@@ -13,6 +13,7 @@ import { openCourseDetail } from "./course-detail.js";
 import { renderGuidance } from "./guidance.js";
 import { renderDreams } from "./dreams.js";
 import { renderSettings, renderThemeSettings, applyStoredTheme } from "./settings.js";
+import { revealSection } from "./settings-panel.js";
 import {
   initMotion,
   enterScreen,
@@ -81,21 +82,8 @@ async function render({ screen, arg }) {
   pendingSection = "";
 }
 
-// Guidance's App Settings rows open Settings at one section: scroll it into
-// view and give it a soft accent pulse so the eye lands on it.
+// The Guidance bell opens Settings at the Notifications section.
 let pendingSection = "";
-function revealSection(root, name) {
-  const node = name === "install"
-    ? root.querySelector("#settings-install")
-    : root.querySelector(`[data-section="${name}"]`);
-  if (!node) return;
-  requestAnimationFrame(() => {
-    node.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-    node.classList.remove("section-flash");
-    void node.offsetWidth;
-    node.classList.add("section-flash");
-  });
-}
 const navigate = (screen, arg = "") => { if (!go(screen, arg)) return render({ screen, arg }); };
 window.addEventListener("hashchange", () => render(parseRoute(location.hash)));
 

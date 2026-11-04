@@ -79,7 +79,9 @@ export function linkRow(item) {
 }
 
 
-// ── The hub at the top: profile, Quick Tools, App Settings, Help & Legal ──
+// ── The hub at the top: header, profile card and Quick Tools ─────────────
+// (App Settings and Help & Legal live at the top of the Settings tab:
+// js/settings-panel.js.)
 // Liquid-glass cards drawn from theme tokens (css/guidance-hub.css), so they
 // pick up the chosen colour and Light/Dark. Only the tool and settings icon
 // colours are fixed, like app icons.
@@ -92,10 +94,9 @@ const HUB_ICONS = {
   calendar: svg('<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
   calc: svg('<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7h7M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h3.5" stroke-width="2.4"/>'),
   external: svg('<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>', 2.2),
+  compass: svg('<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/>'),
+  map: svg('<path d="m9 4-6 2.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/>'),
   pencil: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m14.7 5.3 4 4L8.4 19.6 3.6 20.4l.8-4.8z"/><path d="m16.1 3.9 1.5-1.5a1.4 1.4 0 0 1 2 0l2 2a1.4 1.4 0 0 1 0 2l-1.5 1.5z"/></svg>',
-  download: svg('<path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/>', 2.3),
-  database: svg('<ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8"/>', 2.1),
-  help: svg('<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.3-2.4 3.7"/><path d="M12 17.3h.01" stroke-width="2.8"/>', 2.1),
   gear: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.7 7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H10a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V10a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>', 1.9),
   person: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="4.2"/><path d="M4 20.5a8 8 0 0 1 16 0z"/></svg>',
 };
@@ -137,6 +138,8 @@ function quickTools(school) {
     ["exam", "Exam Calculator", HUB_ICONS.calc, examCalculator],
     // No school picked yet: the tile takes you to the school map to choose one.
     ["website", "School Website", HUB_ICONS.external, site || (() => window.AppNav.toGuidance("map"))],
+    ["blueprint", "myBlueprint", HUB_ICONS.compass, "https://myblueprint.ca"],
+    ["map", "School Map", HUB_ICONS.map, () => window.AppNav.toGuidance("map")],
   ];
   const wrap = el(`<section class="gh-section" aria-labelledby="gh-tools-title"><h2 class="gh-title" id="gh-tools-title">Quick Tools</h2><div class="gh-tools"></div></section>`);
   for (const [id, label, glyph, action] of tools) {
@@ -152,78 +155,16 @@ function quickTools(school) {
   return wrap;
 }
 
-// Same check as install.js, kept here so this module has no load-time side effects.
-const isInstalled = () =>
-  window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
-
-const SETTINGS_ROWS = [
-  ["appearance", "Appearance", "Theme, colour, and style", GLYPHS.palette],
-  ["accessibility", "Accessibility", "Text size, animations, and more", GLYPHS.access],
-  ["notifications", "Notifications", "Reminders and updates", GLYPHS.bell],
-  ["privacy", "Courses & Privacy", "Grade visibility and preferences", GLYPHS.shield],
-  ["install", "Install the App", "Add to your home screen", HUB_ICONS.download],
-  ["account", "Account & Data", "Sign in, refresh, or delete data", HUB_ICONS.database],
-];
-
-function settingsRow([id, title, sub, glyph]) {
-  // Already installed: say so instead of offering it again.
-  if (id === "install" && isInstalled()) sub = "Installed on this device";
-  const row = el(`<button type="button" class="gh-row" data-row="${id}">
-    <span class="gh-row-icon" data-tone="${id}">${glyph}</span>
-    <span class="gh-row-text"><b>${escapeHtml(title)}</b><small>${escapeHtml(sub)}</small></span>
-    <span class="gh-chev">${GLYPHS.chevron}</span>
-  </button>`);
-  row.onclick = () => window.AppNav.toSettings(id === "install" && isInstalled() ? "" : id);
-  return row;
-}
-
-function appSettings() {
-  const wrap = el(`<section class="gh-section gh-settings" aria-labelledby="gh-settings-title">
-    <h2 class="gh-title" id="gh-settings-title">App Settings</h2>
-    <div class="gh-set-cols"><div class="gh-glass gh-set-card"></div><div class="gh-glass gh-set-card"></div></div>
-  </section>`);
-  const [left, right] = wrap.querySelectorAll(".gh-set-card");
-  SETTINGS_ROWS.forEach((row, i) => (i < 3 ? left : right).append(settingsRow(row)));
-  return wrap;
-}
-
-function helpCard() {
-  const card = el(`<button type="button" class="gh-glass gh-help">
-    <span class="gh-row-icon" data-tone="help">${HUB_ICONS.help}</span>
-    <span class="gh-row-text"><b>Help &amp; Legal</b><small>Get support, report a bug, or review our policies.</small></span>
-    <span class="gh-chev">${GLYPHS.chevron}</span>
-  </button>`);
-  card.onclick = () => window.AppNav.toSettings("help");
-  return card;
-}
-
 /** Render the Guidance screen. */
 export async function renderGuidance(container) {
   container.innerHTML = "";
   const school = await mySchool().catch(() => null);
 
   const hub = el(`<div class="gh-hub"></div>`);
-  hub.append(hubHeader(), profileCard(school), quickTools(school), appSettings(), helpCard());
+  hub.append(hubHeader(), profileCard(school), quickTools(school));
   container.append(hub);
-  container.append(el(`<h2 class="gh-title gh-title-school">School &amp; planning</h2>`));
-
-  // myBlueprint is used constantly (course selection, pathway planning), so it
-  // is the first thing on this page.
-  const blueprint = el(`<a class="blueprint-cta" href="https://myblueprint.ca" target="_blank" rel="noopener">
-    <span class="bp-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${KIND.plan.svg}</svg></span>
-    <span class="bp-text"><b>Open myBlueprint</b><small>Plan your courses, pathway and post-secondary goals</small></span>
-    <span class="bp-go" aria-hidden="true">↗</span>
-  </a>`);
-  container.append(blueprint);
-
-  const tiles = el(`<div class="tile-grid">
-    <button class="tile" data-go="map"><span class="tile-icon">${icon("map", 24)}</span><span><b>School map</b><span>Boundaries & info</span></span></button>
-  </div>`);
-  tiles.querySelector('[data-go="map"]').onclick = () => window.AppNav.toGuidance("map");
-  container.append(tiles);
 
   // School
-  container.append(el(`<h2 class="section-title">School information</h2>`));
   const schoolSection = el(`<section class="card my-school"><div class="tool-heading"><h2>My school</h2><button class="btn ghost" data-change>${school ? "Change" : "Choose"}</button></div></section>`);
   schoolSection.querySelector("[data-change]").onclick = () => window.AppNav.toGuidance("map");
   if (school) {
@@ -240,17 +181,16 @@ export async function renderGuidance(container) {
   // The diploma/credits tracker (ossdCard) is hidden for now.
 
   // People & appointments
-  container.append(el(`<h2 class="section-title">People & appointments</h2>`));
   container.append(counsellorCard());
   container.append(appointmentCard());
 
-  // Resources: grouped and collapsed so nobody has to scroll a long list.
-  container.append(el(`<h2 class="section-title">Resources</h2>`));
+  // Resources: grouped and all folded up, so the page stays short.
+  container.append(el(`<h2 class="gh-title gh-title-sub">Resources</h2>`));
   const blurbs = { Planning: "Graduation rules, myBlueprint, universities & colleges", Academics: "OSSLT, TVO Learn, summer and night school", Support: "Kids Help Phone, mental health, counselling" };
   const sectionTiles = { Planning: ["cap", "accent"], Academics: ["book", "purple"], Support: ["heart", "pink"] };
   for (const section of RESOURCES) {
     const [glyph, tone] = sectionTiles[section.group] || ["doc", "accent"];
-    const box = el(`<details class="card disclosure"${section.group === "Support" ? " open" : ""}><summary>${iconTile(glyph, tone)}<span>${escapeHtml(section.group)}<small>${escapeHtml(blurbs[section.group] || "")}</small></span></summary><div class="disclosure-body"><div class="link-list"></div></div></details>`);
+    const box = el(`<details class="card disclosure"><summary>${iconTile(glyph, tone)}<span>${escapeHtml(section.group)}<small>${escapeHtml(blurbs[section.group] || "")}</small></span></summary><div class="disclosure-body"><div class="link-list"></div></div></details>`);
     section.items.forEach((item) => box.querySelector(".link-list").append(linkRow(item)));
     container.append(box);
   }
