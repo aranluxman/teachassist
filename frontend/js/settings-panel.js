@@ -2,8 +2,8 @@
 // Settings tab — the App Settings panel and the Help & Legal card at the top.
 // ----------------------------------------------------------------------------
 // Six rows (two glass cards side by side on iPad/desktop, one list on a
-// phone). Each row scrolls the Settings page down to the matching section
-// and gives it a short accent pulse. Styles: css/guidance-hub.css (.gh-*).
+// phone). Each row opens its own page, #settings/<view>, with a back
+// button (settings.js renderSettingsPage). Styles: css/guidance-hub.css.
 // ============================================================================
 
 import { el, escapeHtml } from "./courses.js";
@@ -20,42 +20,31 @@ const ICONS = {
 
 const ROWS = [
   ["appearance", "Appearance", "Theme, colour, and style", GLYPHS.palette],
-  ["accessibility", "Accessibility", "Text size, animations, and more", GLYPHS.access],
+  ["accessibility", "Accessibility", "Animations and motion", GLYPHS.access],
   ["notifications", "Notifications", "Reminders and updates", GLYPHS.bell],
   ["privacy", "Courses & Privacy", "Grade visibility and preferences", GLYPHS.shield],
   ["install", "Install the App", "Add to your home screen", ICONS.download],
   ["account", "Account & Data", "Sign in, refresh, or delete data", ICONS.database],
 ];
 
-/** Scroll a Settings section into view and pulse it. */
-export function revealSection(root, name) {
-  const node = name === "install"
-    ? root.querySelector("#settings-install")
-    : root.querySelector(`[data-section="${name}"]`);
-  if (!node) return false;
-  requestAnimationFrame(() => {
-    node.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-    node.classList.remove("section-flash");
-    void node.offsetWidth;
-    node.classList.add("section-flash");
-  });
-  return true;
-}
+// Row id → the #settings/<view> page it opens. Appearance is the theme page.
+const VIEW = { appearance: "theme" };
+const open = (id) => window.AppNav.toSettings(VIEW[id] || id);
 
-function row([id, title, sub, glyph], root) {
-  // Already installed: nothing to jump to, so say so.
+function row([id, title, sub, glyph]) {
+  // Already installed: nothing to open, so say so.
   const installed = id === "install" && isInstalled();
   const node = el(`<button type="button" class="gh-row" data-row="${id}"${installed ? " disabled" : ""}>
     <span class="gh-row-icon" data-tone="${id}">${glyph}</span>
     <span class="gh-row-text"><b>${escapeHtml(title)}</b><small>${escapeHtml(installed ? "Installed on this device" : sub)}</small></span>
     ${installed ? "" : `<span class="gh-chev">${GLYPHS.chevron}</span>`}
   </button>`);
-  node.onclick = () => revealSection(root, id);
+  node.onclick = () => open(id);
   return node;
 }
 
-/** The App Settings panel + Help & Legal card. `root` is the Settings screen. */
-export function settingsPanel(root) {
+/** The App Settings panel + Help & Legal card. */
+export function settingsPanel() {
   const wrap = el(`<div class="gh-scope gh-settings-top">
     <section class="gh-section gh-settings" aria-labelledby="gh-settings-title">
       <h2 class="gh-title" id="gh-settings-title">App Settings</h2>
@@ -68,7 +57,7 @@ export function settingsPanel(root) {
     </button>
   </div>`);
   const [left, right] = wrap.querySelectorAll(".gh-set-card");
-  ROWS.forEach((r, i) => (i < 3 ? left : right).append(row(r, root)));
-  wrap.querySelector(".gh-help").onclick = () => revealSection(root, "help");
+  ROWS.forEach((r, i) => (i < 3 ? left : right).append(row(r)));
+  wrap.querySelector(".gh-help").onclick = () => open("help");
   return wrap;
 }
