@@ -52,6 +52,10 @@ async function mediaFile(file, max) {
   }
   throw new Error('That photo is too detailed to save. Try a different one.');
 }
+/** The saved profile photo as a safe data: URL, or "". */
+export const profilePhoto = () => photoElement(profile().photo);
+/** The free-text school saved on the profile. */
+export const profileSchool = () => profile().school || "";
 export async function renderProfile(container) {
   const p = profile(), name = preferences().name;
   container.innerHTML = '<div class="screen-header"><h1>My profile</h1><button class="btn ghost" data-back>Back</button></div>';
@@ -107,7 +111,7 @@ export function octQuery(name) {
     .filter((w, i) => !(i === 0 && /^(mr|mrs|ms|miss|mx|dr|mme|mlle|m|coach|prof|sir|madame|monsieur)$/i.test(w)));
   return words.length > 2 ? `${words[0]} ${words[words.length - 1]}` : words.join(' ');
 }
-function teacherSearch() {
+export function teacherSearch() {
   const form = el('<form class="teacher-form"><p class="muted">Search Ontario\u2019s official register of certified teachers on the Ontario College of Teachers website.</p><div class="field"><label for="teacher-query">Teacher name or registration number</label><input id="teacher-query" name="q" type="search" maxlength="80" placeholder="First name Last name" autocomplete="off" required></div><p class="small muted">Use first and last name only. Titles like Mr. or Ms. and middle names are removed for you.</p><p role="status" class="small"></p><button class="btn">Search on OCT \u2197</button></form>');
   form.onsubmit = e => {
     e.preventDefault();

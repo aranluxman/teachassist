@@ -6,10 +6,12 @@
 // verified resource links with icons that say where each one goes.
 // ============================================================================
 
-import { appointmentCard } from "./profile.js";
+import { appointmentCard, teacherSearch, examCalculator, profilePhoto, profileSchool } from "./profile.js";
+import { preferences } from "./personalization.js";
+import { openSchedule } from "./schedule.js";
 import { el, escapeHtml, openSheet, closeSheet } from "./courses.js";
-import { iconTile } from "./ui-kit.js";
-import { getCourses } from "./ta-client.js";
+import { iconTile, GLYPHS } from "./ui-kit.js";
+import { getCourses, isDemo } from "./ta-client.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
 import { mySchool, schoolCard, icon } from "./schools.js";
 import { ossdProgress, saveOssd, ossdState, TOTAL_CREDITS } from "./ossd.js";
@@ -76,12 +78,134 @@ export function linkRow(item) {
   return row;
 }
 
+
+// ── The hub at the top: profile, Quick Tools, App Settings, Help & Legal ──
+// Liquid-glass cards drawn from theme tokens (css/guidance-hub.css), so they
+// pick up the chosen colour and Light/Dark. Only the tool and settings icon
+// colours are fixed, like app icons.
+const svg = (paths, w = 2) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+const HUB_ICONS = {
+  search: svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>', 2.2),
+  heart: svg('<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20Z"/>', 2.2),
+  classroom: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="19" height="16" rx="2" fill="#f6c026"/><rect x="4.5" y="6" width="15" height="12" rx="1" fill="#1e8e3e"/><circle cx="12" cy="10.3" r="1.7" fill="#fff"/><path d="M8.6 15.4a3.4 3.4 0 0 1 6.8 0z" fill="#fff"/><circle cx="7.6" cy="11.3" r="1.2" fill="#a8dab5"/><circle cx="16.4" cy="11.3" r="1.2" fill="#a8dab5"/><rect x="13.5" y="16.2" width="4" height="1" rx=".5" fill="#fff"/></svg>',
+  calendar: svg('<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+  calc: svg('<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7h7M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h3.5" stroke-width="2.4"/>'),
+  external: svg('<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>', 2.2),
+  pencil: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m14.7 5.3 4 4L8.4 19.6 3.6 20.4l.8-4.8z"/><path d="m16.1 3.9 1.5-1.5a1.4 1.4 0 0 1 2 0l2 2a1.4 1.4 0 0 1 0 2l-1.5 1.5z"/></svg>',
+  download: svg('<path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/>', 2.3),
+  database: svg('<ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8"/>', 2.1),
+  help: svg('<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.3-2.4 3.7"/><path d="M12 17.3h.01" stroke-width="2.8"/>', 2.1),
+  gear: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.7 7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H10a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V10a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>', 1.9),
+  person: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="4.2"/><path d="M4 20.5a8 8 0 0 1 16 0z"/></svg>',
+};
+
+function hubHeader() {
+  const head = el(`<header class="gh-top">
+    <div class="gh-heading"><h1>Guidance</h1><p>Your student hub for learning, support, and school tools.</p></div>
+    <div class="gh-actions">
+      <button type="button" class="gh-round" data-bell aria-label="Notification settings">${GLYPHS.bell}</button>
+      <button type="button" class="gh-round" data-gear aria-label="Settings">${HUB_ICONS.gear}</button>
+    </div>
+  </header>`);
+  head.querySelector("[data-bell]").onclick = () => window.AppNav.toSettings("notifications");
+  head.querySelector("[data-gear]").onclick = () => window.AppNav.toSettings();
+  return head;
+}
+
+function profileCard(school) {
+  // No saved name yet: a friendly placeholder, never "Student" twice.
+  const name = preferences().name || (isDemo() ? "Demo student" : "Your profile");
+  const photo = profilePhoto();
+  const sub = school?.name || profileSchool() || "Student";
+  const card = el(`<section class="gh-glass gh-profile">
+    <span class="gh-avatar">${photo ? `<img src="${photo}" alt="">` : HUB_ICONS.person}</span>
+    <span class="gh-who"><b>${escapeHtml(name)}</b><small>${escapeHtml(sub)}</small></span>
+    <button type="button" class="gh-pill" data-edit>${HUB_ICONS.pencil}<span>Edit Profile</span>${GLYPHS.chevron}</button>
+  </section>`);
+  card.querySelector("[data-edit]").onclick = () => window.AppNav.toProfile();
+  return card;
+}
+
+function quickTools(school) {
+  const site = school?.website || "";
+  const tools = [
+    ["teacher", "Find a Teacher", HUB_ICONS.search, teacherSearch],
+    ["volunteer", "Volunteer Hours", HUB_ICONS.heart, () => window.AppNav.toGuidance("volunteer")],
+    ["classroom", "Google Classroom", HUB_ICONS.classroom, "https://classroom.google.com"],
+    ["schedule", "My Schedule", HUB_ICONS.calendar, async () => openSchedule(await getCourses().catch(() => []))],
+    ["exam", "Exam Calculator", HUB_ICONS.calc, examCalculator],
+    // No school picked yet: the tile takes you to the school map to choose one.
+    ["website", "School Website", HUB_ICONS.external, site || (() => window.AppNav.toGuidance("map"))],
+  ];
+  const wrap = el(`<section class="gh-section" aria-labelledby="gh-tools-title"><h2 class="gh-title" id="gh-tools-title">Quick Tools</h2><div class="gh-tools"></div></section>`);
+  for (const [id, label, glyph, action] of tools) {
+    const isLink = typeof action === "string";
+    const tile = el(isLink
+      ? `<a class="gh-glass gh-tool" data-tool="${id}" href="${escapeHtml(action)}" target="_blank" rel="noopener"></a>`
+      : `<button type="button" class="gh-glass gh-tool" data-tool="${id}"></button>`);
+    tile.innerHTML = `<span class="gh-tool-icon">${glyph}</span><span class="gh-tool-label">${escapeHtml(label)}</span>`;
+    if (isLink) tile.setAttribute("aria-label", `${label} (opens in a new tab)`);
+    else tile.onclick = action;
+    wrap.querySelector(".gh-tools").append(tile);
+  }
+  return wrap;
+}
+
+// Same check as install.js, kept here so this module has no load-time side effects.
+const isInstalled = () =>
+  window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
+
+const SETTINGS_ROWS = [
+  ["appearance", "Appearance", "Theme, colour, and style", GLYPHS.palette],
+  ["accessibility", "Accessibility", "Text size, animations, and more", GLYPHS.access],
+  ["notifications", "Notifications", "Reminders and updates", GLYPHS.bell],
+  ["privacy", "Courses & Privacy", "Grade visibility and preferences", GLYPHS.shield],
+  ["install", "Install the App", "Add to your home screen", HUB_ICONS.download],
+  ["account", "Account & Data", "Sign in, refresh, or delete data", HUB_ICONS.database],
+];
+
+function settingsRow([id, title, sub, glyph]) {
+  // Already installed: say so instead of offering it again.
+  if (id === "install" && isInstalled()) sub = "Installed on this device";
+  const row = el(`<button type="button" class="gh-row" data-row="${id}">
+    <span class="gh-row-icon" data-tone="${id}">${glyph}</span>
+    <span class="gh-row-text"><b>${escapeHtml(title)}</b><small>${escapeHtml(sub)}</small></span>
+    <span class="gh-chev">${GLYPHS.chevron}</span>
+  </button>`);
+  row.onclick = () => window.AppNav.toSettings(id === "install" && isInstalled() ? "" : id);
+  return row;
+}
+
+function appSettings() {
+  const wrap = el(`<section class="gh-section gh-settings" aria-labelledby="gh-settings-title">
+    <h2 class="gh-title" id="gh-settings-title">App Settings</h2>
+    <div class="gh-set-cols"><div class="gh-glass gh-set-card"></div><div class="gh-glass gh-set-card"></div></div>
+  </section>`);
+  const [left, right] = wrap.querySelectorAll(".gh-set-card");
+  SETTINGS_ROWS.forEach((row, i) => (i < 3 ? left : right).append(settingsRow(row)));
+  return wrap;
+}
+
+function helpCard() {
+  const card = el(`<button type="button" class="gh-glass gh-help">
+    <span class="gh-row-icon" data-tone="help">${HUB_ICONS.help}</span>
+    <span class="gh-row-text"><b>Help &amp; Legal</b><small>Get support, report a bug, or review our policies.</small></span>
+    <span class="gh-chev">${GLYPHS.chevron}</span>
+  </button>`);
+  card.onclick = () => window.AppNav.toSettings("help");
+  return card;
+}
+
 /** Render the Guidance screen. */
 export async function renderGuidance(container) {
   container.innerHTML = "";
-  container.append(el(`<div class="screen-header v5-header"><div><h1>Guidance</h1><p>Your school, your plans, and the people who can help.</p></div></div>`));
+  const school = await mySchool().catch(() => null);
 
-  const school = await mySchool();
+  const hub = el(`<div class="gh-hub"></div>`);
+  hub.append(hubHeader(), profileCard(school), quickTools(school), appSettings(), helpCard());
+  container.append(hub);
+  container.append(el(`<h2 class="gh-title gh-title-school">School &amp; planning</h2>`));
 
   // myBlueprint is used constantly (course selection, pathway planning), so it
   // is the first thing on this page.

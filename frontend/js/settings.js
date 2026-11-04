@@ -186,6 +186,7 @@ export async function renderSettings(container) {
   );
   themeRow.onclick = () => window.AppNav.go("settings", "theme");
   appearance.querySelector(".preference-row").before(themeRow);
+  appearance.dataset.section = "appearance";
   container.append(appearance);
 
   // Accessibility & privacy on screen.
@@ -198,20 +199,23 @@ export async function renderSettings(container) {
     ["currentTermOnly", "Current semester only", "Hide courses from other semesters"],
   ]);
   [appearance, access, courseView].forEach(bindSwitches);
+  access.dataset.section = "accessibility";
+  courseView.dataset.section = "privacy";
   container.append(access, courseView);
 
   // Install as an app (hidden once installed).
   const install = installCard();
-  if (install) container.append(install);
+  if (install) container.append(Object.assign(install, { id: "settings-install" }));
 
   // Notifications (existing card, unchanged behaviour).
   const notes = notificationSettings();
   notes.classList.add("settings-group");
+  notes.dataset.section = "notifications";
   container.append(notes);
 
   // Account & data
   const account = el(`
-    <section class="card settings-group"><h2>Account & data</h2>
+    <section class="card settings-group" data-section="account"><h2>Account & data</h2>
     <div class="rows">
       <div class="row" style="cursor:default">
         ${iconTile("person")}
@@ -354,7 +358,7 @@ function legalCard() {
 function contactCard() {
   const href = CONTACT_FORM_URL || `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("TeachAssist app: question or bug")}`;
   return el(`
-    <section class="card settings-group"><h2>Help & feedback</h2>
+    <section class="card settings-group" data-section="help"><h2>Help & feedback</h2>
       <p class="group-note">Found a bug or have a question? Tell us and we'll get back to you.</p>
       <div class="legal-links">
         <a href="${escapeHtml(href)}"${CONTACT_FORM_URL ? ' target="_blank" rel="noopener"' : ""}>Contact us / report a bug ${EXTERNAL}</a>

@@ -1,0 +1,726 @@
+/* ==========================================================================
+   Guidance hub — Liquid Glass (loaded last)
+   --------------------------------------------------------------------------
+   Header · profile card · Quick Tools · App Settings · Help & Legal.
+
+   Every surface is drawn from the theme tokens (--accent, --glow, --text…),
+   so it follows the chosen colour and Light / Dark / System. Only the tool
+   and settings icons keep fixed colours, like app icons on a home screen.
+
+   Glass recipe (one place, used by .gh-glass and the phone settings card):
+     a faint accent-tinted fill · backdrop blur + saturation · a bright
+     specular rim along the top edge · a soft curved light sweep · a glow
+     in the accent colour underneath.
+
+   Phone (< 700px): tools in 2 columns, settings in one list card, no
+   subtitles. iPad / desktop (≥ 700px): tools in 3 then 6 columns, settings
+   in a glass panel with two cards side by side and subtitles.
+   ========================================================================== */
+
+html[data-mode] .gh-hub {
+  --gh-fill:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.025) 60%),
+    color-mix(in srgb, var(--accent) 9%, rgba(18, 22, 22, 0.42));
+  --gh-rim: color-mix(in srgb, var(--accent) 32%, rgba(255, 255, 255, 0.14));
+  --gh-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.22),
+    0 20px 44px -24px color-mix(in srgb, var(--accent) 50%, #000);
+  --gh-sweep: color-mix(in srgb, var(--accent) 20%, rgba(255, 255, 255, 0.05));
+  --gh-sep: rgba(255, 255, 255, 0.09);
+  --gh-blur: blur(26px) saturate(170%);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 8px;
+}
+html[data-mode="light"] .gh-hub {
+  --gh-fill:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.55) 70%),
+    color-mix(in srgb, var(--accent) 7%, transparent);
+  --gh-rim: color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.9));
+  --gh-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 color-mix(in srgb, var(--accent) 10%, transparent),
+    0 18px 40px -26px color-mix(in srgb, var(--accent) 55%, rgba(0, 0, 0, 0.4));
+  --gh-sweep: rgba(255, 255, 255, 0.7);
+  --gh-sep: color-mix(in srgb, var(--text) 9%, transparent);
+}
+
+/* ── Ambient: a richer accent wash + the diagonal light ribbon from the
+   mockup, only while Guidance is on screen. Still (no animation), so the
+   glass on top never has to redraw while scrolling. ─────────────────── */
+html[data-mode="dark"]:has(#screen-guidance:not(.hidden)) body::before {
+  background:
+    linear-gradient(118deg, transparent 50%, color-mix(in srgb, var(--accent) 18%, transparent) 58%, transparent 66%),
+    linear-gradient(128deg, transparent 72%, color-mix(in srgb, var(--accent) 14%, transparent) 80%, transparent 88%),
+    radial-gradient(60% 40% at 92% 0%, color-mix(in srgb, var(--accent) 32%, transparent), transparent 72%),
+    radial-gradient(70% 45% at 10% 8%, color-mix(in srgb, var(--glow) var(--amb-1), transparent), transparent 74%),
+    radial-gradient(65% 42% at 28% 96%, color-mix(in srgb, var(--gauge-from) var(--amb-3), transparent), transparent 72%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 14%, var(--bg)), color-mix(in srgb, var(--accent) 6%, var(--bg)));
+}
+html[data-mode="light"]:has(#screen-guidance:not(.hidden)) body::before {
+  background:
+    linear-gradient(118deg, transparent 50%, rgba(255, 255, 255, 0.75) 58%, transparent 66%),
+    radial-gradient(60% 40% at 92% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 72%),
+    radial-gradient(70% 45% at 10% 8%, color-mix(in srgb, var(--glow) var(--amb-1), transparent), transparent 74%),
+    radial-gradient(65% 42% at 28% 96%, color-mix(in srgb, var(--gauge-from) var(--amb-3), transparent), transparent 72%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, var(--bg)), var(--bg));
+}
+@media (prefers-contrast: more) {
+  html[data-mode]:has(#screen-guidance:not(.hidden)) body::before {
+    background: var(--bg);
+  }
+}
+
+/* ── Glass surface ─────────────────────────────────────────────────────── */
+html[data-mode] .gh-glass {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--gh-rim);
+  background: var(--gh-fill);
+  box-shadow: var(--gh-shadow);
+  -webkit-backdrop-filter: var(--gh-blur);
+  backdrop-filter: var(--gh-blur);
+  color: var(--text);
+}
+/* The curved light sweep across the top-right, as on the reference. */
+html[data-mode] .gh-glass::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -60% -20% 35% 40%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--gh-sweep), transparent);
+  pointer-events: none;
+}
+/* "Translucent surfaces" off, or the system asks for less transparency:
+   solid cards, same shape. */
+html[data-mode][data-glass="false"] .gh-glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--card-solid, var(--card));
+}
+@media (prefers-reduced-transparency: reduce) {
+  html[data-mode] .gh-glass {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--card-solid, var(--card));
+  }
+}
+
+/* Shared press / hover / focus for everything tappable in the hub. */
+html[data-mode] :is(.gh-tool, .gh-row, .gh-help, .gh-pill, .gh-round) {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 220ms var(--ease-spring, cubic-bezier(0.3, 1.4, 0.5, 1)), filter 160ms ease, background-color 160ms ease;
+}
+html[data-mode] :is(.gh-tool, .gh-help, .gh-pill, .gh-round):active {
+  transform: scale(0.96);
+}
+html[data-mode] .gh-row:active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  transform: none;
+}
+@media (hover: hover) {
+  html[data-mode] :is(.gh-tool, .gh-help):hover {
+    transform: translateY(-2px);
+    filter: brightness(1.06);
+  }
+  html[data-mode] :is(.gh-pill, .gh-round):hover {
+    filter: brightness(1.12);
+  }
+  html[data-mode] .gh-row:hover {
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
+  }
+}
+html[data-mode] :is(.gh-tool, .gh-row, .gh-help, .gh-pill, .gh-round):focus-visible {
+  outline: 2.5px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-mode] :is(.gh-tool, .gh-row, .gh-help, .gh-pill, .gh-round) {
+    transition: none;
+    transform: none !important;
+  }
+}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+html[data-mode] .gh-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 2px 4px;
+}
+html[data-mode] .gh-heading h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 6vw, 3.3rem);
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--text);
+}
+html[data-mode] .gh-heading p {
+  margin: 8px 0 0;
+  max-width: 34ch;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+html[data-mode] .gh-actions {
+  display: flex;
+  gap: 10px;
+  flex: none;
+}
+html[data-mode] .gh-round {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--gh-rim);
+  background: var(--gh-fill);
+  box-shadow: var(--gh-shadow);
+  -webkit-backdrop-filter: var(--gh-blur);
+  backdrop-filter: var(--gh-blur);
+}
+html[data-mode] .gh-round svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ── Profile card ──────────────────────────────────────────────────────── */
+html[data-mode] .gh-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 16px 16px 18px;
+  border-radius: 30px;
+}
+html[data-mode] .gh-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.95);
+  border: 2px solid color-mix(in srgb, var(--accent) 55%, rgba(255, 255, 255, 0.5));
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.35), transparent 55%),
+    linear-gradient(150deg, color-mix(in srgb, var(--accent) 85%, #fff), color-mix(in srgb, var(--accent) 70%, #000));
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--accent) 16%, transparent),
+    0 10px 28px -6px color-mix(in srgb, var(--accent) 65%, transparent),
+    inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+html[data-mode] .gh-avatar svg {
+  width: 44%;
+  height: 44%;
+}
+html[data-mode] .gh-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+html[data-mode] .gh-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+html[data-mode] .gh-who b {
+  font-size: 1.6rem;
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  /* Long names wrap to a second line before they are cut off. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+html[data-mode] .gh-who small {
+  margin-top: 3px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html[data-mode] .gh-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-height: 44px;
+  padding: 0 14px 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--gh-rim);
+  background: color-mix(in srgb, var(--accent) 12%, rgba(255, 255, 255, 0.06));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+html[data-mode="light"] .gh-pill {
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 1px 0 #fff, 0 4px 12px -8px rgba(0, 0, 0, 0.3);
+}
+html[data-mode] .gh-pill svg {
+  width: 18px;
+  height: 18px;
+}
+html[data-mode] .gh-pill svg:last-child {
+  width: 14px;
+  height: 14px;
+  opacity: 0.8;
+}
+
+/* ── Section titles ────────────────────────────────────────────────────── */
+html[data-mode] .gh-title {
+  margin: 6px 4px 12px;
+  font-size: 1.55rem;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+html[data-mode] .gh-section {
+  display: block;
+}
+/* The heading over the original Guidance content below the hub. */
+html[data-mode] .gh-title-school {
+  margin-top: 18px;
+}
+
+/* ── Quick Tools ───────────────────────────────────────────────────────── */
+html[data-mode] .gh-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+html[data-mode] .gh-tool {
+  --ic: #5eead4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 108px;
+  padding: 16px 10px;
+  border-radius: 26px;
+  text-align: center;
+  /* Each tile carries a breath of its own icon colour. */
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--ic) 14%, transparent), transparent 70%),
+    var(--gh-fill);
+}
+html[data-mode] .gh-tool-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--ic);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ic) 45%, transparent));
+}
+html[data-mode] .gh-tool-icon svg {
+  width: 38px;
+  height: 38px;
+}
+html[data-mode] .gh-tool[data-tool="classroom"] .gh-tool-icon {
+  filter: drop-shadow(0 4px 10px rgba(246, 192, 38, 0.35));
+}
+html[data-mode] .gh-tool-label {
+  font-size: 0.98rem;
+  line-height: 1.2;
+  font-weight: 650;
+  color: var(--text);
+}
+/* Dark: bright pastel icons, like the mockup. */
+html[data-mode] .gh-tool[data-tool="teacher"] { --ic: #5eead4; }
+html[data-mode] .gh-tool[data-tool="volunteer"] { --ic: #7dd3fc; }
+html[data-mode] .gh-tool[data-tool="classroom"] { --ic: #f6c026; }
+html[data-mode] .gh-tool[data-tool="schedule"] { --ic: #d8b4fe; }
+html[data-mode] .gh-tool[data-tool="exam"] { --ic: #a7f3d0; }
+html[data-mode] .gh-tool[data-tool="website"] { --ic: #99f6e4; }
+/* Light: the same hues, deep enough to read on frosted white. */
+html[data-mode="light"] .gh-tool[data-tool="teacher"] { --ic: #0d9488; }
+html[data-mode="light"] .gh-tool[data-tool="volunteer"] { --ic: #0284c7; }
+html[data-mode="light"] .gh-tool[data-tool="schedule"] { --ic: #9333ea; }
+html[data-mode="light"] .gh-tool[data-tool="exam"] { --ic: #059669; }
+html[data-mode="light"] .gh-tool[data-tool="website"] { --ic: #0f766e; }
+html[data-mode="light"] .gh-tool-icon {
+  filter: none;
+}
+
+/* ── App Settings & Help rows ──────────────────────────────────────────── */
+html[data-mode] .gh-set-cols {
+  border-radius: 30px;
+}
+html[data-mode] .gh-set-card {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+  border-radius: 28px;
+}
+html[data-mode] :is(.gh-row, .gh-help) {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 72px;
+  text-align: left;
+}
+html[data-mode] .gh-row {
+  position: relative;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+/* Hairline separators, inset to start after the icon (iOS lists). */
+html[data-mode] .gh-row + .gh-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(18px + 52px + 16px);
+  right: 18px;
+  height: 1px;
+  background: var(--gh-sep);
+}
+html[data-mode] .gh-row-icon {
+  --from: #9aa4ad;
+  --to: #5b6670;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 17px;
+  color: #fff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(150deg, var(--from), var(--to));
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.55),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.14),
+    0 8px 20px -8px color-mix(in srgb, var(--to) 80%, transparent);
+}
+html[data-mode] .gh-row-icon svg {
+  width: 27px;
+  height: 27px;
+}
+html[data-mode] .gh-row-icon[data-tone="appearance"] { --from: #2cc4dc; --to: #0e6a88; }
+html[data-mode] .gh-row-icon[data-tone="accessibility"] { --from: #2fbfae; --to: #0f6b63; }
+html[data-mode] .gh-row-icon[data-tone="notifications"] { --from: #b197fc; --to: #6a3fd6; }
+html[data-mode] .gh-row-icon[data-tone="privacy"] { --from: #3ddc97; --to: #05895f; }
+html[data-mode] .gh-row-icon[data-tone="install"] { --from: #fcc93a; --to: #e2700b; }
+html[data-mode] .gh-row-icon[data-tone="account"] { --from: #fb7f95; --to: #c0174f; }
+html[data-mode] .gh-row-icon[data-tone="help"] {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent);
+}
+html[data-mode] .gh-row-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+html[data-mode] .gh-row-text b {
+  font-size: 1.15rem;
+  line-height: 1.25;
+  font-weight: 650;
+}
+html[data-mode] .gh-row-text small {
+  margin-top: 2px;
+  font-size: 0.92rem;
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+html[data-mode] .gh-chev {
+  display: grid;
+  flex: none;
+  color: var(--text-secondary);
+}
+html[data-mode] .gh-chev svg {
+  width: 18px;
+  height: 18px;
+}
+html[data-mode] .gh-help {
+  padding: 14px 18px;
+  border-radius: 30px;
+}
+
+/* ── Phone: one settings list card, titles only ────────────────────────── */
+@media (max-width: 699px) {
+  /* The two half-cards become one card: the wrapper is the glass. */
+  html[data-mode] .gh-set-cols {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: 1px solid var(--gh-rim);
+    background: var(--gh-fill);
+    box-shadow: var(--gh-shadow);
+    -webkit-backdrop-filter: var(--gh-blur);
+    backdrop-filter: var(--gh-blur);
+  }
+  html[data-mode][data-glass="false"] .gh-set-cols {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--card-solid, var(--card));
+  }
+  html[data-mode] .gh-set-cols .gh-set-card {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    overflow: visible;
+  }
+  html[data-mode] .gh-set-cols .gh-set-card::before {
+    display: none;
+  }
+  html[data-mode] .gh-set-card:first-child {
+    padding-top: 6px;
+  }
+  html[data-mode] .gh-set-card:last-child {
+    padding-bottom: 6px;
+  }
+  html[data-mode] .gh-set-card + .gh-set-card .gh-row:first-child::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: calc(18px + 52px + 16px);
+    right: 18px;
+    height: 1px;
+    background: var(--gh-sep);
+  }
+  html[data-mode] :is(.gh-row, .gh-help) .gh-row-text small {
+    display: none;
+  }
+  html[data-mode] .gh-row {
+    min-height: 68px;
+  }
+  html[data-mode] .gh-row-text b {
+    font-size: 1.12rem;
+  }
+}
+
+/* Phone: title + buttons share the first row; the subtitle gets the full
+   width underneath, and the profile card is a little tighter. */
+@media (max-width: 699px) {
+  html[data-mode] .gh-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    row-gap: 0;
+  }
+  html[data-mode] .gh-heading {
+    display: contents;
+  }
+  html[data-mode] .gh-heading h1 {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  html[data-mode] .gh-actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  html[data-mode] .gh-heading p {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-width: none;
+  }
+  html[data-mode] .gh-profile {
+    gap: 14px;
+    padding: 14px 14px 14px 16px;
+  }
+  html[data-mode] .gh-avatar {
+    width: 66px;
+    height: 66px;
+  }
+  html[data-mode] .gh-who b {
+    font-size: 1.4rem;
+  }
+  html[data-mode] .gh-who small {
+    font-size: 0.95rem;
+  }
+  html[data-mode] .gh-pill {
+    gap: 6px;
+    padding: 0 12px 0 13px;
+    font-size: 0.9rem;
+  }
+  html[data-mode] .gh-pill svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* Narrow phones: the Edit Profile pill shrinks to its icon. */
+@media (max-width: 359px) {
+  html[data-mode] .gh-pill span,
+  html[data-mode] .gh-pill svg:last-child {
+    display: none;
+  }
+  html[data-mode] .gh-pill {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  html[data-mode] .gh-avatar {
+    width: 64px;
+    height: 64px;
+  }
+  html[data-mode] .gh-who b {
+    font-size: 1.35rem;
+  }
+}
+
+/* ── iPad & desktop ───────────────────────────────────────────────────── */
+@media (min-width: 700px) {
+  html[data-mode] .gh-hub {
+    gap: 22px;
+  }
+  html[data-mode] .gh-top {
+    padding-top: 14px;
+  }
+  html[data-mode] .gh-heading p {
+    max-width: none;
+    font-size: 1.2rem;
+  }
+  html[data-mode] .gh-round {
+    width: 54px;
+    height: 54px;
+  }
+  html[data-mode] .gh-profile {
+    padding: 20px 24px 20px 26px;
+    border-radius: 34px;
+    gap: 22px;
+  }
+  html[data-mode] .gh-avatar {
+    width: 92px;
+    height: 92px;
+  }
+  html[data-mode] .gh-who b {
+    font-size: 2rem;
+  }
+  html[data-mode] .gh-who small {
+    font-size: 1.1rem;
+  }
+  html[data-mode] .gh-pill {
+    min-height: 52px;
+    padding: 0 18px 0 22px;
+    font-size: 1.05rem;
+  }
+  html[data-mode] .gh-tools {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+  html[data-mode] .gh-tool {
+    min-height: 150px;
+    border-radius: 30px;
+  }
+  html[data-mode] .gh-tool-icon,
+  html[data-mode] .gh-tool-icon svg {
+    width: 46px;
+    height: 46px;
+  }
+  html[data-mode] .gh-tool-label {
+    font-size: 1.05rem;
+  }
+
+  /* App Settings becomes a glass panel holding two cards. */
+  html[data-mode] .gh-settings {
+    position: relative;
+    isolation: isolate;
+    padding: 20px 18px 18px;
+    border-radius: 36px;
+    border: 1px solid var(--gh-rim);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 40%),
+      color-mix(in srgb, var(--accent) 5%, rgba(10, 14, 14, 0.25));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 24px 50px -30px color-mix(in srgb, var(--accent) 40%, #000);
+  }
+  html[data-mode="light"] .gh-settings {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.25)),
+      color-mix(in srgb, var(--accent) 5%, transparent);
+    box-shadow: inset 0 1px 0 #fff, 0 24px 50px -32px color-mix(in srgb, var(--accent) 50%, rgba(0, 0, 0, 0.35));
+  }
+  html[data-mode] .gh-settings .gh-title {
+    margin: 2px 8px 16px;
+  }
+  html[data-mode] .gh-set-cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  /* Cards inside the panel are tinted, not blurred again
+     (glass shouldn't sample glass). */
+  html[data-mode] .gh-settings .gh-set-card {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  html[data-mode] .gh-row {
+    min-height: 82px;
+  }
+  html[data-mode] .gh-help {
+    padding: 18px 26px;
+    min-height: 96px;
+    border-radius: 34px;
+  }
+  html[data-mode] .gh-help .gh-row-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 19px;
+  }
+  html[data-mode] .gh-title {
+    font-size: 1.85rem;
+  }
+}
+/* Wide iPad landscape & desktop: all six tools in one row. */
+@media (min-width: 1000px) {
+  html[data-mode] .gh-tools {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* ── Settings: the section a Guidance row opened gets a soft pulse ─────── */
+html[data-mode] #screen-settings [data-section],
+html[data-mode] #settings-install {
+  scroll-margin-top: calc(env(safe-area-inset-top) + 16px);
+}
+html[data-mode] .section-flash {
+  animation: gh-section-flash 1.4s ease-out 0.25s both;
+}
+@keyframes gh-section-flash {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+  30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-mode] .section-flash {
+    animation: none;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+html[data-mode] .notify-host.section-flash {
+  border-radius: 28px;
+}

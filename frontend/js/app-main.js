@@ -76,7 +76,25 @@ async function render({ screen, arg }) {
     return renderGuidance(target);
   }
   if (screen === "settings" && arg === "theme") return renderThemeSettings(target);
-  return ({ courses: renderCourses, profile: renderProfile, dreams: renderDreams, settings: renderSettings })[screen](target);
+  await ({ courses: renderCourses, profile: renderProfile, dreams: renderDreams, settings: renderSettings })[screen](target);
+  if (screen === "settings" && pendingSection) revealSection(target, pendingSection);
+  pendingSection = "";
+}
+
+// Guidance's App Settings rows open Settings at one section: scroll it into
+// view and give it a soft accent pulse so the eye lands on it.
+let pendingSection = "";
+function revealSection(root, name) {
+  const node = name === "install"
+    ? root.querySelector("#settings-install")
+    : root.querySelector(`[data-section="${name}"]`);
+  if (!node) return;
+  requestAnimationFrame(() => {
+    node.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    node.classList.remove("section-flash");
+    void node.offsetWidth;
+    node.classList.add("section-flash");
+  });
 }
 const navigate = (screen, arg = "") => { if (!go(screen, arg)) return render({ screen, arg }); };
 window.addEventListener("hashchange", () => render(parseRoute(location.hash)));
@@ -87,7 +105,10 @@ window.AppNav = {
   toCourses: () => navigate("courses"),
   toGuidance: (view = "") => navigate("guidance", typeof view === "string" ? view : ""),
   toDreams: () => navigate("dreams"),
-  toSettings: () => navigate("settings"),
+  toSettings: (section = "") => {
+    pendingSection = typeof section === "string" ? section : "";
+    return navigate("settings");
+  },
   toDetail: (course) => { pendingCourse = course; return navigate("course", courseLabel(course)); },
 };
 
