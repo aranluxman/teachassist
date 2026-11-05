@@ -523,12 +523,44 @@ function keyPoint(rows, i) {
 }
 
 /**
- * Mono-labelled line chart with dashed verticals, like the TeachAssist app.
+ * Smooth curve through the points that never overshoots them (monotone cubic,
+ * Fritsch–Carlson), so a 100% → 94% drop never draws a bump above 100%.
+ */
+export function smoothPath(pts) {
+  if (pts.length < 2) return "";
+  if (pts.length === 2) return `M${pts[0][0]},${pts[0][1]}L${pts[1][0]},${pts[1][1]}`;
+  const n = pts.length, dx = [], m = [], t = new Array(n);
+  for (let i = 0; i < n - 1; i++) {
+    dx[i] = pts[i + 1][0] - pts[i][0] || 1e-6;
+    m[i] = (pts[i + 1][1] - pts[i][1]) / dx[i];
+  }
+  t[0] = m[0];
+  t[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) { t[i] = t[i + 1] = 0; continue; }
+    const a = t[i] / m[i], b = t[i + 1] / m[i], h = a * a + b * b;
+    if (h > 9) { const k = 3 / Math.sqrt(h); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
+  }
+  const f = (v) => v.toFixed(1);
+  let d = `M${f(pts[0][0])},${f(pts[0][1])}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], h = dx[i] / 3;
+    d += `C${f(x0 + h)},${f(y0 + t[i] * h)} ${f(x1 - h)},${f(y1 - t[i + 1] * h)} ${f(x1)},${f(y1)}`;
+  }
+  return d;
+}
+
+let chartSeq = 0;
+/**
+ * Liquid Glass grade chart: a smooth line in the theme colour with a glowing
+ * fill under it and glossy dots where the mark changed.
  * Rows: { date, value, label?, detail? }. `label` names the point (a test or a
  * day) and `detail` adds a second line (e.g. "11 / 13 (84.6%)").
  */
 export function trendChart(rows) {
-  const W = 300, H = 170, L = 52, R = 14, T = 10, B = 26;
+  const W = 300, H = 170, L = 44, R = 14, T = 12, B = 22;
+  const id = `gc${++chartSeq}`;
   const values = rows.map((r) => r.value);
   let hi = Math.min(100, Math.ceil(Math.max(...values) + 1));
   let lo = Math.max(0, Math.floor(Math.min(...values) - 3));
@@ -537,33 +569,42 @@ export function trendChart(rows) {
   const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
   const start = rows[0].date, end = rows.at(-1).date;
   const x = (d) => L + (end === start ? 0.5 : (d - start) / (end - start)) * (W - L - R);
+  const base = H - B;
   const grid = [0, 1, 2, 3]
     .map((i) => {
       const v = hi - i * step;
       return `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="g-grid"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" class="g-axis">${Math.round(v)}%</text>`;
     })
     .join("");
-  const xs = rows.length === 1 ? [L, x(start), W - R] : [L, (L + W - R) / 2, W - R];
-  const verticals = xs.map((vx) => `<line x1="${vx}" x2="${vx}" y1="${T}" y2="${H - B}" class="g-grid g-dash"/>`).join("");
-  const path = rows.map((r, i) => `${i ? "L" : "M"}${x(r.date).toFixed(1)},${y(r.value).toFixed(1)}`).join(" ");
+  const xs = rows.length === 1 ? [x(start)] : [L + (W - L - R) / 3, L + (2 * (W - L - R)) / 3];
+  const verticals = xs.map((vx) => `<line x1="${vx}" x2="${vx}" y1="${T}" y2="${base}" class="g-grid g-vgrid"/>`).join("");
+  const pts = rows.map((r) => [x(r.date), y(r.value)]);
+  const line = smoothPath(pts);
+  const area = line ? `${line}L${pts.at(-1)[0].toFixed(1)},${base}L${pts[0][0].toFixed(1)},${base}Z` : "";
   // One dot where the mark changes (plus the first and latest), not one per
   // refresh, so a flat stretch reads as a line instead of a row of beads.
-  const dots = rows.map((r, i) => (keyPoint(rows, i) ? `<circle cx="${x(r.date).toFixed(1)}" cy="${y(r.value).toFixed(1)}" r="4" class="g-dot" data-i="${i}"/>` : "")).join("");
+  const dots = rows
+    .map((r, i) => (keyPoint(rows, i) ? `<circle cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="5" class="g-dot" style="fill:url(#${id}-dot)" data-i="${i}"/>` : ""))
+    .join("");
   const label = `From ${fmtPercent(rows[0].value)} to ${fmtPercent(rows.at(-1).value)} over ${rows.length} point${rows.length === 1 ? "" : "s"}`;
-  const cursor = `<line class="g-cursor" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}" visibility="hidden"/>`;
-  return `<svg class="g-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">${grid}${verticals}${cursor}${rows.length > 1 ? `<path d="${path}" class="g-line"/>` : ""}${dots}</svg>`;
+  const defs = `<defs>
+    <linearGradient id="${id}-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.42"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:0"/></linearGradient>
+    <linearGradient id="${id}-line" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:color-mix(in srgb, var(--accent) 70%, white)"/></linearGradient>
+    <radialGradient id="${id}-dot" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".35" style="stop-color:color-mix(in srgb, var(--accent) 45%, white)"/><stop offset="1" style="stop-color:var(--accent)"/></radialGradient>
+  </defs>`;
+  const halo = `<circle class="g-halo" r="11" cx="${pts.at(-1)[0].toFixed(1)}" cy="${pts.at(-1)[1].toFixed(1)}" visibility="hidden"/>`;
+  const cursor = `<line class="g-cursor" x1="${L}" x2="${L}" y1="${T}" y2="${base}" visibility="hidden"/>`;
+  return `<svg class="g-chart g-liquid" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">${defs}${grid}${verticals}${
+    area ? `<path d="${area}" class="g-area" fill="url(#${id}-fill)"/><path d="${line}" class="g-line-glow"/><path d="${line}" class="g-line" stroke="url(#${id}-line)"/>` : ""
+  }${cursor}${halo}${dots}</svg>`;
 }
 
-/**
- * The same chart as an element you can slide a finger across: it snaps to the
- * nearest dot and shows the exact mark, the change since the previous dot, and
- * the point's label/detail. Arrow keys move between dots too.
- */
 export function trendChartEl(rows) {
   const wrap = el(`<div class="g-trend" tabindex="0" aria-label="Grade history. Slide or use arrow keys to see each point.">${trendChart(rows)}<div class="g-tip" role="status" hidden></div></div>`);
   const svg = wrap.querySelector("svg");
   const tip = wrap.querySelector(".g-tip");
   const cursor = wrap.querySelector(".g-cursor");
+  const halo = wrap.querySelector(".g-halo");
   const dots = [...wrap.querySelectorAll(".g-dot")];
   let current = -1, hideTimer = 0;
 
@@ -572,6 +613,7 @@ export function trendChartEl(rows) {
   const row = (k) => rows[Number(dots[k].dataset.i)];
   const show = (k) => {
     clearTimeout(hideTimer);
+    if (k === current) return; // same dot: nothing to redraw (keeps sliding smooth)
     current = k;
     const r = row(k), prev = k > 0 ? row(k - 1) : null;
     const diff = prev ? r.value - prev.value : 0;
@@ -589,17 +631,28 @@ export function trendChartEl(rows) {
     cursor.setAttribute("x1", cx);
     cursor.setAttribute("x2", cx);
     cursor.setAttribute("visibility", "visible");
+    const cy = Number(dot.getAttribute("cy"));
+    halo.setAttribute("cx", cx);
+    halo.setAttribute("cy", cy);
+    halo.setAttribute("visibility", "visible");
     dots.forEach((d) => d.classList.toggle("is-active", d === dot));
-    // Keep the popup inside the card.
+    // The glass bubble floats just above the dot, kept inside the card; its
+    // pointer still aims at the dot when the bubble is nudged sideways.
     const box = svg.getBoundingClientRect(), outer = wrap.getBoundingClientRect();
-    const px = box.left - outer.left + (cx / 300) * box.width;
+    const scale = box.width / 300;
+    const px = box.left - outer.left + cx * scale;
+    const py = box.top - outer.top + cy * scale;
     const half = Math.min(tip.offsetWidth / 2, outer.width / 2);
-    tip.style.left = `${Math.min(Math.max(px, half), outer.width - half)}px`;
+    const left = Math.min(Math.max(px, half), outer.width - half);
+    tip.style.left = `${left}px`;
+    tip.style.top = `${Math.max(0, py - tip.offsetHeight - 14)}px`;
+    tip.style.setProperty("--tip-arrow", `${px - left}px`);
   };
   const hide = () => {
     current = -1;
     tip.hidden = true;
     cursor.setAttribute("visibility", "hidden");
+    halo.setAttribute("visibility", "hidden");
     dots.forEach((d) => d.classList.remove("is-active"));
   };
   const nearest = (e) => {
@@ -619,8 +672,12 @@ export function trendChartEl(rows) {
     show(nearest(e));
     e.stopPropagation();
   });
+  // At most one update per frame, however fast the finger moves.
+  let frame = 0, lastMove = null;
   svg.addEventListener("pointermove", (e) => {
-    if (dragging || e.pointerType === "mouse") show(nearest(e));
+    if (!(dragging || e.pointerType === "mouse")) return;
+    lastMove = e;
+    if (!frame) frame = requestAnimationFrame(() => { frame = 0; show(nearest(lastMove)); });
   });
   const release = () => {
     dragging = false;
