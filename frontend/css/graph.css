@@ -117,3 +117,71 @@ html[data-mode="dark"] .g-trend .g-tip {
 html[data-mode="light"] .g-trend .g-tip::after { background: color-mix(in srgb, var(--accent) 6%, white); border-color: rgba(255, 255, 255, 0.95); }
 html[data-mode="dark"] .g-trend .g-chg.down { color: #ff8a80; }
 html[data-mode="dark"] .g-trend .g-chg.up { color: #69f0ae; }
+
+/* ── 3D surface (Option 2): glass floor, sheet thickness, drop lines ────── */
+html[data-mode] .g-liquid .g-floor-top {
+  stroke: color-mix(in srgb, white 45%, transparent);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+html[data-mode] .g-liquid .g-floor-edge {
+  fill: color-mix(in srgb, var(--accent) 55%, white);
+  opacity: 0.55;
+}
+html[data-mode="dark"] .g-liquid .g-floor-top { stroke: color-mix(in srgb, var(--accent) 40%, white 10%); }
+html[data-mode] .g-liquid .g-area-back { opacity: 0.9; }
+html[data-mode] .g-liquid .g-line-back {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-opacity: 0.35;
+  stroke-linecap: round;
+}
+html[data-mode] .g-liquid .g-drop {
+  stroke: color-mix(in srgb, white 60%, transparent);
+  stroke-width: 1;
+  stroke-opacity: 0.7;
+}
+html[data-mode="dark"] .g-liquid .g-drop { stroke: color-mix(in srgb, var(--accent) 60%, white); stroke-opacity: 0.35; }
+/* The sheet's front face reads as glass: a bright rim along the top edge. */
+html[data-mode] .g-liquid .g-area { stroke: none; }
+
+html[data-mode].m-on .g-liquid .g-line-back {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: glass-draw 650ms ease-out 80ms forwards;
+}
+html[data-mode].m-on .g-liquid .g-depth,
+html[data-mode].m-on .g-liquid .g-drop,
+html[data-mode].m-on .g-liquid .g-floor {
+  opacity: 0;
+  animation: g-fill-in 450ms ease-out 420ms forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-mode] .g-liquid .g-line-back,
+  html[data-mode] .g-liquid .g-depth,
+  html[data-mode] .g-liquid .g-drop,
+  html[data-mode] .g-liquid .g-floor { animation: none !important; opacity: 1 !important; stroke-dashoffset: 0 !important; }
+}
+html[data-hide-marks="true"] .g-liquid .g-depth,
+html[data-hide-marks="true"] .g-liquid .g-drop { display: none; }
+
+/* ── Evaluations / Breakdown: icons, glowing glass on the selected tab ──── */
+.g-segmented button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.g-segmented .seg-ico { width: 18px; height: 18px; flex: none; }
+/* With the sliding glass thumb the label sits on the accent pill; without it
+   (motion off) the button itself becomes the pill. */
+html[data-mode] .g-segmented.m-has-thumb button.active { color: #fff; }
+html[data-mode] .g-segmented:not(.m-has-thumb) button.active {
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, white 32%, transparent), transparent 60%), var(--accent);
+}
+.g-segmented .m-thumb,
+.g-segmented .seg-thumb {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 32%, transparent), transparent 60%),
+    var(--accent) !important;
+  box-shadow:
+    0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 55%, transparent) !important;
+}

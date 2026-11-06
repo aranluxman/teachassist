@@ -114,7 +114,6 @@ export async function openCourseDetail(container, course) {
         </div>
       </div>
       <p class="g-caption">${kind === "midterm" ? "Midterm Mark" : kind === "estimate" ? "Estimated Mark" : "Current Mark"}</p>
-      ${kind === "estimate" ? `<p class="g-empty-note">TeachAssist is hiding this mark ("please see teacher"), so this is worked out from your marked work below.</p>` : ""}
       ${mark != null && !marksHidden() ? `<p class="g-level private-mark">${achievementLevel(mark)}</p>` : ""}
     </section>`);
   track.appendChild(gaugePage);
@@ -177,8 +176,8 @@ export async function openCourseDetail(container, course) {
   // ── Segmented: Evaluations / Breakdown ──
   const seg = el(`
     <div class="segmented g-segmented" role="tablist" aria-label="Course details">
-      <button type="button" role="tab" data-seg="evals">Evaluations</button>
-      <button type="button" role="tab" data-seg="breakdown">Breakdown</button>
+      <button type="button" role="tab" data-seg="evals"><svg class="seg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-6M10 20V9M15 20v-9M20 20V5"/></svg>Evaluations</button>
+      <button type="button" role="tab" data-seg="breakdown"><svg class="seg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-9Z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15Z"/></svg>Breakdown</button>
     </div>
   `);
   const content = el(`<div id="seg-content" class="g-list"></div>`);

@@ -559,7 +559,9 @@ let chartSeq = 0;
  * day) and `detail` adds a second line (e.g. "11 / 13 (84.6%)").
  */
 export function trendChart(rows) {
-  const W = 300, H = 170, L = 44, R = 14, T = 12, B = 22;
+  // B leaves room under the plot for the glass floor shelf.
+  const W = 300, H = 178, L = 44, R = 18, T = 14, B = 30;
+  const DX = 7, DY = -6; // depth: how far the back layer sits up-and-right
   const id = `gc${++chartSeq}`;
   const values = rows.map((r) => r.value);
   let hi = Math.min(100, Math.ceil(Math.max(...values) + 1));
@@ -583,6 +585,13 @@ export function trendChart(rows) {
   const area = line ? `${line}L${pts.at(-1)[0].toFixed(1)},${base}L${pts[0][0].toFixed(1)},${base}Z` : "";
   // One dot where the mark changes (plus the first and latest), not one per
   // refresh, so a flat stretch reads as a line instead of a row of beads.
+  // Thin glass "drop lines" from each dot down to the floor.
+  const drops = rows
+    .map((r, i) => (keyPoint(rows, i) ? `<line x1="${pts[i][0].toFixed(1)}" x2="${pts[i][0].toFixed(1)}" y1="${pts[i][1].toFixed(1)}" y2="${base}" class="g-drop"/>` : ""))
+    .join("");
+  // The glass floor: a shelf in perspective with a bright front edge.
+  const fl = L - 8, fr = W - R + DX + 6, fb = base + 9;
+  const floor = `<g class="g-floor"><path d="M${fl + DX},${base + DY}L${fr},${base + DY}L${fr - DX - 4},${fb}L${fl - 2},${fb}Z" class="g-floor-top" fill="url(#${id}-floor)"/><path d="M${fl - 2},${fb}L${fr - DX - 4},${fb}L${fr - DX - 4},${fb + 3}L${fl - 2},${fb + 3}Z" class="g-floor-edge"/></g>`;
   const dots = rows
     .map((r, i) => (keyPoint(rows, i) ? `<circle cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="5" class="g-dot" style="fill:url(#${id}-dot)" data-i="${i}"/>` : ""))
     .join("");
@@ -590,12 +599,17 @@ export function trendChart(rows) {
   const defs = `<defs>
     <linearGradient id="${id}-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.42"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:0"/></linearGradient>
     <linearGradient id="${id}-line" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:color-mix(in srgb, var(--accent) 70%, white)"/></linearGradient>
+    <linearGradient id="${id}-floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.10"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:.32"/></linearGradient>
+    <linearGradient id="${id}-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.22"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:.04"/></linearGradient>
     <radialGradient id="${id}-dot" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".35" style="stop-color:color-mix(in srgb, var(--accent) 45%, white)"/><stop offset="1" style="stop-color:var(--accent)"/></radialGradient>
   </defs>`;
   const halo = `<circle class="g-halo" r="11" cx="${pts.at(-1)[0].toFixed(1)}" cy="${pts.at(-1)[1].toFixed(1)}" visibility="hidden"/>`;
   const cursor = `<line class="g-cursor" x1="${L}" x2="${L}" y1="${T}" y2="${base}" visibility="hidden"/>`;
   return `<svg class="g-chart g-liquid" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">${defs}${grid}${verticals}${
-    area ? `<path d="${area}" class="g-area" fill="url(#${id}-fill)"/><path d="${line}" class="g-line-glow"/><path d="${line}" class="g-line" stroke="url(#${id}-line)"/>` : ""
+    area
+      ? // Back layer (offset up-right) gives the glass sheet its thickness.
+        `${floor}<g class="g-depth" transform="translate(${DX} ${DY})"><path d="${area}" class="g-area-back" fill="url(#${id}-wall)"/><path d="${line}" class="g-line-back"/></g><path d="${area}" class="g-area" fill="url(#${id}-fill)"/>${drops}<path d="${line}" class="g-line-glow"/><path d="${line}" class="g-line" stroke="url(#${id}-line)"/>`
+      : ""
   }${cursor}${halo}${dots}</svg>`;
 }
 
