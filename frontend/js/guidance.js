@@ -9,9 +9,11 @@
 import { appointmentCard, teacherSearch, examCalculator, profilePhoto, profileSchool } from "./profile.js";
 import { preferences } from "./personalization.js";
 import { openSchedule } from "./schedule.js";
-import { el, escapeHtml, openSheet, closeSheet } from "./courses.js";
+import { el, escapeHtml, openSheet, closeSheet, courseLabel } from "./courses.js";
 import { iconTile, GLYPHS } from "./ui-kit.js";
-import { getCourses, isDemo } from "./ta-client.js";
+import { getCourses, isDemo, displayMark } from "./ta-client.js";
+import { computeGpa, gpaFor, GPA_SCALE } from "./gpa.js";
+import { marksHidden } from "./motion.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
 import { mySchool, schoolCard, icon } from "./schools.js";
 import { ossdProgress, saveOssd, ossdState, TOTAL_CREDITS } from "./ossd.js";
@@ -161,7 +163,8 @@ export async function renderGuidance(container) {
   const school = await mySchool().catch(() => null);
 
   const hub = el(`<div class="gh-hub"></div>`);
-  hub.append(hubHeader(), profileCard(school), quickTools(school));
+  // GPA sits in the middle of the hub, filled in once the marks arrive.
+  hub.append(hubHeader(), profileCard(school), quickTools(school), gpaCard());
   container.append(hub);
 
   // School
@@ -195,6 +198,54 @@ export async function renderGuidance(container) {
     container.append(box);
   }
   container.append(el(`<p class="muted small" style="text-align:center;margin-top:18px">Talk to your school's guidance department for personalized advice.</p>`));
+}
+
+/** GPA on the 4.0 scale from every course mark, with a per-course breakdown. */
+function gpaCard() {
+  const card = el(`<section class="gh-glass gh-gpa" aria-labelledby="gh-gpa-title" aria-busy="true">
+    <h2 class="gh-gpa-title" id="gh-gpa-title">Your GPA</h2>
+    <p class="gh-gpa-value"><b class="private-mark">…</b><span>/ 4.0</span></p>
+    <p class="gh-gpa-sub muted small">Loading your marks…</p>
+  </section>`);
+  getCourses()
+    .then((courses) => fillGpa(card, courses))
+    .catch(() => fillGpa(card, []));
+  return card;
+}
+
+function fillGpa(card, courses) {
+  card.removeAttribute("aria-busy");
+  const rows = (courses || [])
+    .map((c) => ({ code: courseLabel(c), mark: displayMark(c) }))
+    .filter((r) => r.mark != null);
+  const g = computeGpa(rows.map((r) => r.mark));
+  const value = card.querySelector(".gh-gpa-value b");
+  const sub = card.querySelector(".gh-gpa-sub");
+  if (!g) {
+    value.textContent = "—";
+    sub.textContent = "Your GPA shows up here once TeachAssist has a mark for a course.";
+    return;
+  }
+  const hidden = marksHidden();
+  value.textContent = hidden ? "•.••" : g.gpa.toFixed(2);
+  sub.innerHTML = hidden
+    ? `${g.count} course${g.count === 1 ? "" : "s"}`
+    : `<b>${escapeHtml(g.letter)}</b> · ${g.average.toFixed(1)}% average · ${g.count} course${g.count === 1 ? "" : "s"}`;
+  const list = rows
+    .map((r) => {
+      const { letter, points } = gpaFor(r.mark);
+      return `<li><span>${escapeHtml(r.code)}</span><span class="private-mark">${hidden ? "••%" : `${(Math.round(r.mark * 10) / 10).toFixed(1)}%`}</span><span class="private-mark">${hidden ? "•" : escapeHtml(letter)}</span><b class="private-mark">${hidden ? "•.•" : points.toFixed(1)}</b></li>`;
+    })
+    .join("");
+  const scale = GPA_SCALE.map(([min, letter, points], i) => {
+    const top = i ? GPA_SCALE[i - 1][0] - 1 : 100;
+    return `<li><span>${escapeHtml(letter)}</span><span>${min ? `${min}–${top}` : `Below ${GPA_SCALE[i - 1][0]}`}</span><b>${points.toFixed(1)}</b></li>`;
+  }).join("");
+  card.append(el(`<details class="gh-gpa-more"><summary>How it's worked out</summary>
+    <ul class="gh-gpa-list">${list}</ul>
+    <p class="muted small">Each course mark is rounded to a whole percent, turned into points on the 4.0 scale below, and averaged. Every course counts the same. Universities convert marks their own way, so treat this as an estimate.</p>
+    <ul class="gh-gpa-list gh-gpa-scale">${scale}</ul>
+  </details>`));
 }
 
 function counsellorCard() {
