@@ -947,6 +947,26 @@ function parseAssignments(html) {
   });
   return out;
 }
+var LEVEL_PERCENT = {
+  "4++": 100,
+  "4+": 97.5,
+  "4": 90.5,
+  "4-": 83,
+  "3+": 78,
+  "3": 74.5,
+  "3-": 71,
+  "2+": 68,
+  "2": 64.5,
+  "2-": 61,
+  "1+": 58,
+  "1": 54.5,
+  "1-": 51,
+  "R": 40
+};
+function levelOf(text2) {
+  const m = String(text2).replace(/[−–—]/g, "-").replace(/\s+/g, "").toUpperCase().match(/^(R|[1-4](?:\+\+|\+|-)?)$/);
+  return m && m[1] in LEVEL_PERCENT ? m[1] : "";
+}
 function parseOEEvaluations(html) {
   const start = html.search(/<h2>\s*Assessment Tasks\s*<\/h2>/i);
   if (start < 0) return [];
@@ -955,31 +975,50 @@ function parseOEEvaluations(html) {
   const tasks = /* @__PURE__ */ new Map();
   for (const tr of section.match(/<tr[\s\S]*?<\/tr>/gi) || []) {
     const cells = [...tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => cellText(m[1]));
-    if (cells.length < 5) continue;
-    const [name, expectation, markText, outOfText, weightText, feedback = ""] = cells;
-    const got = parseFloat(markText);
-    const max = parseFloat(outOfText.replace(/^\//, ""));
-    if (!name || !Number.isFinite(got) || !(max > 0)) continue;
-    const weight = parseFloat(weightText) || 0;
+    if (cells.length < 4) continue;
+    const [name, expectation, markText] = cells;
+    if (!name) continue;
     const category = expectation.replace(/\.$/, "");
+    let strand;
+    let rest;
+    if (cells[3].startsWith("/")) {
+      const got = parseFloat(markText);
+      const max = parseFloat(cells[3].replace(/^\//, ""));
+      if (!Number.isFinite(got) || !(max > 0)) continue;
+      rest = cells.slice(4);
+      strand = { category, percent: round1(got / max * 100), mark: got, outOf: max };
+    } else {
+      const level = levelOf(markText);
+      if (!level) continue;
+      rest = cells[3] === "" ? cells.slice(4) : cells.slice(3);
+      strand = { category, percent: LEVEL_PERCENT[level], level };
+    }
+    const weight = parseFloat(rest[0]) || 0;
+    const feedback = rest[1] || "";
     let t = tasks.get(name);
-    if (!t) tasks.set(name, t = { name, got: 0, max: 0, weight: 0, feedback: "", strands: [] });
-    t.got += got;
-    t.max += max;
+    if (!t) tasks.set(name, t = { name, weight: 0, feedback: "", strands: [] });
     t.weight += weight;
     if (feedback && !t.feedback) t.feedback = feedback;
-    t.strands.push({ category, percent: round1(got / max * 100), weight, mark: got, outOf: max });
+    t.strands.push({ ...strand, weight });
   }
-  return [...tasks.values()].map((t) => ({
-    name: t.name,
-    category: t.strands.map((s) => s.category).join(", "),
-    percent: round1(t.got / t.max * 100),
-    weight: t.weight,
-    mark: t.got,
-    outOf: t.max,
-    strands: t.strands,
-    ...t.feedback ? { feedback: t.feedback } : {}
-  }));
+  return [...tasks.values()].map((t) => {
+    const s = t.strands;
+    const scored = s.every((x) => x.outOf > 0);
+    const got = scored ? s.reduce((a, x) => a + x.mark, 0) : 0;
+    const max = scored ? s.reduce((a, x) => a + x.outOf, 0) : 0;
+    const percent = scored ? got / max * 100 : t.weight > 0 ? s.reduce((a, x) => a + x.percent * x.weight, 0) / t.weight : s.reduce((a, x) => a + x.percent, 0) / s.length;
+    const level = s.every((x) => x.level && x.level === s[0].level) ? s[0].level : "";
+    return {
+      name: t.name,
+      category: s.map((x) => x.category).join(", "),
+      percent: round1(percent),
+      weight: t.weight,
+      ...scored ? { mark: got, outOf: max } : {},
+      ...level ? { level } : {},
+      strands: s,
+      ...t.feedback ? { feedback: t.feedback } : {}
+    };
+  });
 }
 function cellText(html) {
   return collapseWhitespace(decodeEntities(html.replace(/<[^>]*>/g, " "))).trim();

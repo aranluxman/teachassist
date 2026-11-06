@@ -845,7 +845,31 @@ function parseAssignments(html) {
 //
 // Rows for the same task are merged into one Evaluation (one strand per
 // expectation). Rows with a blank mark are not graded yet and are skipped.
+//
+// Some tasks are marked with an achievement LEVEL instead of a score. Those
+// rows have no "/ out of" cell, so the weight sits one cell earlier:
+//
+//   <tr><td>Active Living Month #1</td><td>A1.</td>
+//       <td colspan="2">4 +</td> <td>10</td> <td>feedback</td></tr>
+//
+// The level becomes the middle of its Ontario percentage range (4+ = 97.5).
 // ============================================================================
+
+/** Middle of each Ontario achievement-level range (4+ is 95–100 → 97.5). */
+const LEVEL_PERCENT = {
+  "4++": 100, "4+": 97.5, "4": 90.5, "4-": 83,
+  "3+": 78, "3": 74.5, "3-": 71,
+  "2+": 68, "2": 64.5, "2-": 61,
+  "1+": 58, "1": 54.5, "1-": 51,
+  "R": 40,
+};
+
+/** "4 +" / "3−" / "R" → "4+" / "3-" / "R"; anything else → "". */
+function levelOf(text) {
+  const m = String(text).replace(/[−–—]/g, "-").replace(/\s+/g, "").toUpperCase()
+    .match(/^(R|[1-4](?:\+\+|\+|-)?)$/);
+  return m && m[1] in LEVEL_PERCENT ? m[1] : "";
+}
 
 /**
  * @param {string} html  a viewReportOE.php page
@@ -857,37 +881,64 @@ function parseOEEvaluations(html) {
   const end = html.indexOf("</table>", start);
   const section = html.slice(start, end < 0 ? undefined : end);
 
-  /** @type {Map<string, {name: string, got: number, max: number, weight: number, feedback: string, strands: any[]}>} */
+  /** @type {Map<string, {name: string, weight: number, feedback: string, strands: any[]}>} */
   const tasks = new Map();
   for (const tr of section.match(/<tr[\s\S]*?<\/tr>/gi) || []) {
     const cells = [...tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => cellText(m[1]));
-    if (cells.length < 5) continue; // header row (<th>) or malformed
-    const [name, expectation, markText, outOfText, weightText, feedback = ""] = cells;
-    const got = parseFloat(markText);
-    const max = parseFloat(outOfText.replace(/^\//, ""));
-    if (!name || !Number.isFinite(got) || !(max > 0)) continue; // not marked yet
-    const weight = parseFloat(weightText) || 0;
+    if (cells.length < 4) continue; // header row (<th>) or malformed
+    const [name, expectation, markText] = cells;
+    if (!name) continue;
     const category = expectation.replace(/\.$/, "");
 
+    let strand;
+    let rest; // [weight, feedback] cells after the mark
+    if (cells[3].startsWith("/")) {
+      // Score row: mark · "/ out of" · weight · feedback
+      const got = parseFloat(markText);
+      const max = parseFloat(cells[3].replace(/^\//, ""));
+      if (!Number.isFinite(got) || !(max > 0)) continue; // not marked yet
+      rest = cells.slice(4);
+      strand = { category, percent: round1((got / max) * 100), mark: got, outOf: max };
+    } else {
+      // Level row: mark · weight · feedback (a blank "out of" cell is skipped).
+      const level = levelOf(markText);
+      if (!level) continue; // not marked yet
+      rest = cells[3] === "" ? cells.slice(4) : cells.slice(3);
+      strand = { category, percent: LEVEL_PERCENT[level], level };
+    }
+    const weight = parseFloat(rest[0]) || 0;
+    const feedback = rest[1] || "";
+
     let t = tasks.get(name);
-    if (!t) tasks.set(name, (t = { name, got: 0, max: 0, weight: 0, feedback: "", strands: [] }));
-    t.got += got;
-    t.max += max;
+    if (!t) tasks.set(name, (t = { name, weight: 0, feedback: "", strands: [] }));
     t.weight += weight;
     if (feedback && !t.feedback) t.feedback = feedback;
-    t.strands.push({ category, percent: round1((got / max) * 100), weight, mark: got, outOf: max });
+    t.strands.push({ ...strand, weight });
   }
 
-  return [...tasks.values()].map((t) => ({
-    name: t.name,
-    category: t.strands.map((s) => s.category).join(", "),
-    percent: round1((t.got / t.max) * 100),
-    weight: t.weight,
-    mark: t.got,
-    outOf: t.max,
-    strands: t.strands,
-    ...(t.feedback ? { feedback: t.feedback } : {}),
-  }));
+  return [...tasks.values()].map((t) => {
+    const s = t.strands;
+    const scored = s.every((x) => x.outOf > 0);
+    const got = scored ? s.reduce((a, x) => a + x.mark, 0) : 0;
+    const max = scored ? s.reduce((a, x) => a + x.outOf, 0) : 0;
+    // Scores: total marks / total out of. Levels: weighted average of strands.
+    const percent = scored
+      ? (got / max) * 100
+      : t.weight > 0
+        ? s.reduce((a, x) => a + x.percent * x.weight, 0) / t.weight
+        : s.reduce((a, x) => a + x.percent, 0) / s.length;
+    const level = s.every((x) => x.level && x.level === s[0].level) ? s[0].level : "";
+    return {
+      name: t.name,
+      category: s.map((x) => x.category).join(", "),
+      percent: round1(percent),
+      weight: t.weight,
+      ...(scored ? { mark: got, outOf: max } : {}),
+      ...(level ? { level } : {}),
+      strands: s,
+      ...(t.feedback ? { feedback: t.feedback } : {}),
+    };
+  });
 }
 
 /** Strip tags, decode entities and collapse whitespace in one table cell. */

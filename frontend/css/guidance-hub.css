@@ -788,3 +788,81 @@ html[data-mode] #screen-guidance > .disclosure > summary small {
 html[data-mode] #screen-guidance .appointment-body > p {
   font-size: 0.86rem;
 }
+
+/* ── GPA (centre of the page) ──────────────────────────────────────────── */
+html[data-mode] .gh-gpa {
+  /* clip, not hidden: opening the breakdown must not scroll the card sideways */
+  overflow: clip;
+  padding: 18px 18px 14px;
+  border-radius: 26px;
+  text-align: center;
+}
+html[data-mode] .gh-gpa-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+html[data-mode] .gh-gpa-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 2px;
+}
+html[data-mode] .gh-gpa-value b {
+  font-size: 3.2rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+html[data-mode] .gh-gpa-value span {
+  font-size: 1.1rem;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+html[data-mode] .gh-gpa-sub {
+  margin: 0;
+}
+html[data-mode] .gh-gpa-more {
+  margin-top: 12px;
+  text-align: left;
+}
+html[data-mode] .gh-gpa-more > summary {
+  display: block;
+  cursor: pointer;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+html[data-mode] .gh-gpa-list {
+  display: grid;
+  gap: 2px;
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+html[data-mode] .gh-gpa-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 2.5em 2.5em;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--separator);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+html[data-mode] .gh-gpa-list li > :first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html[data-mode] .gh-gpa-list li > :last-child {
+  text-align: right;
+}
+html[data-mode] .gh-gpa-scale li {
+  grid-template-columns: 2.5em minmax(0, 1fr) 2.5em;
+}

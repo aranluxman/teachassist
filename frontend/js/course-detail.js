@@ -65,7 +65,12 @@ const strandTint = (category) => shadeColors(strandShade(category)).tint;
 
 /** "24 / 24" when TeachAssist gave raw marks, else "". */
 // "18 / 20" — left out entirely while Hide grades is on.
-const rawMark = (x) => (!marksHidden() && typeof x?.mark === "number" && typeof x?.outOf === "number" ? `${x.mark} / ${x.outOf}` : "");
+// "9 / 10" for a score, "Level 4+" for a task marked with a level.
+const rawMark = (x) =>
+  marksHidden() ? ""
+    : typeof x?.mark === "number" && typeof x?.outOf === "number" ? `${x.mark} / ${x.outOf}`
+      : typeof x?.level === "string" && x.level ? `Level ${x.level}`
+        : "";
 
 /** Weighted mean of evaluations (weight 1 when missing; weight 0 = formative, not counted). */
 function weightedMean(list) {
@@ -317,7 +322,7 @@ function strandTile(category, weight, right, percent, i = 0, rightIsMark = true)
 function openEvaluation(e, evals, course) {
   const others = evals.filter((x) => x !== e);
   const impact = others.length ? weightedMean(evals) - weightedMean(others) : null;
-  const strands = Array.isArray(e.strands) && e.strands.length ? e.strands : [{ category: e.category || e.name, percent: e.percent, weight: e.weight, mark: e.mark, outOf: e.outOf }];
+  const strands = Array.isArray(e.strands) && e.strands.length ? e.strands : [{ category: e.category || e.name, percent: e.percent, weight: e.weight, mark: e.mark, outOf: e.outOf, level: e.level }];
   const s = subjectStyle(course?.code);
   const caption = ["Overall", rawMark(e), fmtDate(e.date)].filter(Boolean).map(escapeHtml).join(" · ");
   const body = el(`
