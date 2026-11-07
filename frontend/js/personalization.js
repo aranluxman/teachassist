@@ -20,7 +20,8 @@ const defaults = {
   // Settings → Experience
   haptics: true,
   refreshButton: true,
-  compactHome: true,
+  // Off: the big home layout (large average, full-size course cards).
+  compactHome: false,
   // Show only the courses running this semester (dates come from TeachAssist).
   currentTermOnly: true,
   goals: {},

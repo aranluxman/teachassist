@@ -78,3 +78,11 @@ test("credits list the right people", () => {
     assert.doesNotMatch(js, new RegExp(gone), gone);
   }
 });
+
+test("home starts in the big layout; compact is opt-in", () => {
+  assert.match(read("frontend/js/personalization.js"), /compactHome: false,/);
+});
+
+test("selected Evaluations/Breakdown tab stays readable with animations off", () => {
+  assert.match(read("frontend/css/custom.css"), /html\[data-mode\]:not\(\.m-on\) \.g-segmented button\.active \{\s*color: color-mix\(in srgb, var\(--accent\) 45%, var\(--text\)\);/);
+});

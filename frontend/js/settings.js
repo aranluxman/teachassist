@@ -226,7 +226,7 @@ const PAGES = {
   experience: ["Experience", () => [switchGroup("", "Make the app feel the way you like.", [
     ["haptics", "Haptic feedback", "A light vibration when you tap buttons and switches (Android, and iPhone with iOS 18 or later)"],
     ["refreshButton", "Refresh button", "Show a ↻ button at the top of your courses to check for new marks"],
-    ["compactHome", "Compact home", "Fit every course on the first screen, with a smaller average circle"],
+    ["compactHome", "Compact home", "Smaller average circle and slimmer course cards, so more courses fit on one screen"],
   ])]],
   notifications: ["Notifications", () => [notificationSettings()]],
   privacy: ["Courses & Privacy", () => [switchGroup("", "", [

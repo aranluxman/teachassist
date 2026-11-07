@@ -311,3 +311,11 @@ html[data-mode][data-compact-home="true"] #screen-courses .g-hero .g-gauge-wrap:
   left: -6%;
   width: 112%;
 }
+
+/* ── Evaluations / Breakdown with animations off ──────────────────────────
+   The selected tab keeps its light glass bubble, so its label can't stay
+   white: it takes a dark shade of the theme colour instead. (With animations
+   on, the sliding thumb is solid accent and white text reads fine.) */
+html[data-mode]:not(.m-on) .g-segmented button.active {
+  color: color-mix(in srgb, var(--accent) 45%, var(--text));
+}
