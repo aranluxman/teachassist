@@ -1,0 +1,313 @@
+/* ==========================================================================
+   Customize — Settings → Accessibility & Experience (js/customize.js)
+   Loaded last so each choice wins over the theme files.
+   ========================================================================== */
+
+/* ── Font presets ──────────────────────────────────────────────────────── */
+html[data-mode][data-font="rounded"] {
+  --font: "Nunito", ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-num: "Nunito", ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+html[data-mode][data-font="readable"] {
+  --font: "Atkinson Hyperlegible", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-num: "Atkinson Hyperlegible", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+html[data-mode][data-font="serif"] {
+  --font: "Lora", Georgia, "Times New Roman", serif;
+  --font-num: "Lora", Georgia, serif;
+}
+html[data-mode]:not([data-font="default"]) body {
+  font-family: var(--font);
+}
+
+/* ── Bold text: body copy one step heavier (headings are already bold) ── */
+html[data-bold-text="true"] :is(p, small, li, label, input, textarea, select, td, .muted, .small, .group-note) {
+  font-weight: 600 !important;
+}
+
+/* ── Header with a refresh button: wider sides hold two buttons ────────── */
+html[data-mode] .g-header.g-header-wide {
+  grid-template-columns: 96px minmax(0, 1fr) 96px;
+  gap: 4px;
+}
+html[data-mode] .g-header.g-header-wide .g-header-side {
+  gap: 6px;
+}
+html[data-mode] .g-header.g-header-wide .g-header-side:first-child {
+  justify-content: flex-start;
+}
+html[data-mode] .g-header.g-header-wide .g-header-side:last-child {
+  justify-content: flex-end;
+}
+html[data-mode] .g-header.g-header-wide .g-btn {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  flex: 0 0 44px;
+}
+html[data-mode] .g-header [data-refresh].is-spinning svg {
+  animation: c-spin 0.9s linear infinite;
+}
+@keyframes c-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+/* A refresh spinner is information, not decoration: it spins with
+   animations off too. */
+html[data-motion="false"] .g-header [data-refresh].is-spinning svg,
+.no-motion .g-header [data-refresh].is-spinning svg {
+  animation: c-spin 0.9s linear infinite !important;
+}
+
+/* ── Compact home: every course on the first screen ────────────────────── */
+/* Budget on a 390×844 phone: header 82 · greeting 25 · average 175 · dots 34
+   · 8 courses × 48 (+6 gaps) = 742, just above the tab bar at 760. */
+html[data-mode][data-compact-home="true"] #screen-courses .g-header {
+  margin-bottom: 6px;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-greeting {
+  margin: 0 2px;
+  font-size: calc(17px * var(--ts, 1));
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-pager {
+  max-height: 178px;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-page {
+  min-height: 0;
+  max-height: 178px;
+  justify-content: flex-start;
+  padding: 10px 24px 0;
+  overflow: hidden;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-hero .g-gauge-wrap {
+  width: min(156px, 48%);
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-hero-icon {
+  display: none;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-hero .g-gauge-center {
+  bottom: -4px;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-hero-num .g-pct {
+  font-size: calc(36px * var(--ts, 1));
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-hero .g-caption {
+  margin-top: 10px;
+  font-size: calc(13px * var(--ts, 1));
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-hero .g-level {
+  margin-top: 4px;
+  padding: 2px 12px;
+  font-size: calc(12px * var(--ts, 1));
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-pager > .g-page + .g-page .g-chart {
+  max-height: 130px;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .g-dots {
+  margin: 2px 0 2px;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .course-grid {
+  gap: 6px;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .course-card {
+  min-height: 0;
+  gap: 10px;
+  padding: 5px 10px 5px 7px !important; /* v5.css pads course cards with !important */
+  border-radius: 22px;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .course-card .g-badge {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  font-size: calc(11px * var(--ts, 1));
+}
+html[data-mode][data-compact-home="true"] #screen-courses .course-card .g-badge svg {
+  width: 18px;
+  height: 18px;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .course-card .g-row-main b,
+html[data-mode][data-compact-home="true"] #screen-courses .course-card .g-row-main small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .course-card .g-row-main b {
+  font-size: calc(15px * var(--ts, 1));
+}
+html[data-mode][data-compact-home="true"] #screen-courses .course-card .g-row-main small {
+  font-size: calc(12px * var(--ts, 1));
+}
+html[data-mode][data-compact-home="true"] #screen-courses .course-card .g-row-value {
+  padding: 5px 10px;
+  line-height: 1;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .course-card .g-row-value .g-pct {
+  font-size: calc(17px * var(--ts, 1));
+  line-height: 1.1;
+}
+html[data-mode][data-compact-home="true"] #screen-courses .course-card .g-chev svg {
+  width: 14px;
+}
+
+/* ── Settings → Experience row tone ───────────────────────────────────── */
+html[data-mode] .gh-row-icon[data-tone="experience"] { --from: #ff9f6b; --to: #d4492a; }
+
+/* ── Settings: one-of choices (text size, font) and the live preview ──── */
+html[data-mode] .choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+html[data-mode] .choice-sizes .choice-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+html[data-mode] .choice {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1.5px solid var(--separator);
+  background: color-mix(in srgb, var(--card-solid, var(--card)) 70%, transparent);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+html[data-mode] .choice-sizes .choice {
+  text-align: center;
+  padding: 10px 4px;
+}
+html[data-mode] .choice b {
+  font-family: inherit;
+  font-size: 1em;
+  line-height: 1.15;
+}
+html[data-mode] .choice small {
+  font-family: inherit;
+  font-size: calc(12px * var(--ts, 1));
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+html[data-mode] .choice[aria-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+html[data-mode] .choice:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+html[data-mode] .look-preview {
+  display: grid;
+  gap: 8px;
+}
+html[data-mode] .look-preview-label {
+  margin: 0;
+  font-size: calc(12px * var(--ts, 1));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+html[data-mode] .look-preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+html[data-mode] .look-preview-row span:first-child {
+  display: grid;
+}
+html[data-mode] .look-preview-row b {
+  font-size: calc(16px * var(--ts, 1));
+}
+html[data-mode] .look-preview-row small {
+  font-size: calc(13px * var(--ts, 1));
+  color: var(--text-secondary);
+}
+html[data-mode] .look-preview .g-pct {
+  font-family: var(--font-num);
+  font-size: calc(24px * var(--ts, 1));
+  font-weight: 800;
+  color: var(--accent);
+}
+html[data-mode] .look-preview .g-pct small {
+  font-size: 0.55em;
+}
+html[data-mode] .look-preview-body {
+  margin: 0;
+  font-size: calc(15px * var(--ts, 1));
+  color: var(--text);
+}
+
+/* ── Notifications: drop-downs and quiet-hour times ───────────────────── */
+html[data-mode] .notify-sheet select {
+  max-width: 46%;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--separator);
+  background: var(--card-solid, var(--card));
+  color: var(--text);
+  font: inherit;
+  font-size: calc(14px * var(--ts, 1));
+}
+html[data-mode] .notify-sheet select:disabled,
+html[data-mode] .quiet-times.is-off {
+  opacity: 0.5;
+}
+html[data-mode] .quiet-times {
+  display: flex;
+  gap: 12px;
+  padding: 0 4px 12px;
+}
+html[data-mode] .quiet-times label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  font-size: calc(14px * var(--ts, 1));
+  color: var(--text-secondary);
+}
+html[data-mode] .quiet-times input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--separator);
+  background: var(--card-solid, var(--card));
+  color: var(--text);
+  font: inherit;
+}
+
+/* Two buttons per side leave the title column narrower: keep the status on
+   one line ("Updated 5m ago" fits; longer ones end in …). */
+html[data-mode] .g-header.g-header-wide .g-header-title .g-status {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: calc(13px * var(--ts, 1));
+}
+html[data-mode] .g-header.g-header-wide .g-header-title {
+  display: grid;
+  justify-items: center;
+}
+/* Big text sizes: the title shrinks a little before it can touch the buttons. */
+html[data-mode] .g-header.g-header-wide .g-header-title :is(h1, h2) {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: calc(20px * min(var(--ts, 1), 1.05));
+}
+/* The glass disc behind the compact average stays clear of the greeting. */
+html[data-mode][data-compact-home="true"] #screen-courses .g-hero .g-gauge-wrap::before {
+  top: -9%;
+  left: -6%;
+  width: 112%;
+}

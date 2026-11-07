@@ -17,6 +17,7 @@ import { courseOverride } from "./class-times.js";
 import { openSchedule } from "./schedule.js";
 import { teacherFor } from "./teachers.js";
 import { splitByTerm } from "./term.js";
+import { haptic } from "./customize.js";
 import {
   animateGauge,
   countUp,
@@ -261,13 +262,18 @@ let loads = 0;
  * of those saved copies: { courses, status }.
  */
 export async function renderCourses(container, { refresh = false, saved = null } = {}) {
-  const header = (subtitle, dot = false) =>
-    pageHeader({
+  // Settings → Experience → Refresh button: a glass ↻ beside the inbox.
+  const header = (subtitle, dot = false) => {
+    const withRefresh = preferences().refreshButton;
+    const html = pageHeader({
       title: "TA Dashboard",
       subtitle,
       left: glassButton("schedule", "Class schedule", "data-schedule"),
-      right: glassButton("inbox", "Recent updates", `data-inbox${dot ? ' data-dot="true"' : ""}`),
+      right: (withRefresh ? glassButton("refresh", "Refresh marks", "data-refresh") : "") +
+        glassButton("inbox", "Recent updates", `data-inbox${dot ? ' data-dot="true"' : ""}`),
     });
+    return withRefresh ? html.replace('class="g-header"', 'class="g-header g-header-wide"') : html;
+  };
   if (!refresh || !container.querySelector(".g-header")) {
     container.innerHTML = `${header("Loading your marks…")}<div class="g-list">${skeletonCards(5)}</div>`;
   } else {
@@ -330,6 +336,18 @@ export async function renderCourses(container, { refresh = false, saved = null }
   });
   top.querySelector("[data-schedule]").addEventListener("click", () => openSchedule(courses, { onEdit: () => renderCourses(container) }));
   top.querySelector("[data-inbox]").addEventListener("click", () => openUpdates(changes, updates.find((u) => u.overall)));
+  top.querySelector("[data-refresh]")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    if (isDemo()) {
+      haptic("warning");
+      return savedFeedback(sub.querySelector(".g-status"), "Demo data is bundled");
+    }
+    if (btn.classList.contains("is-spinning")) return;
+    btn.classList.add("is-spinning");
+    btn.setAttribute("aria-busy", "true");
+    await renderCourses(container, { refresh: true });
+    haptic("success");
+  });
   container.appendChild(top);
   const hello = greeting();
   if (hello) container.appendChild(hello);
@@ -443,7 +461,8 @@ export async function renderCourses(container, { refresh = false, saved = null }
     return card;
   };
   let dream = dreamCard();
-  const place = (card) => (preferences().dreamDone ? footer.before(card) : list.before(card));
+  // Compact home keeps every course on the first screen: the dream goes below.
+  const place = (card) => (preferences().dreamDone || preferences().compactHome ? footer.before(card) : list.before(card));
   place(dream);
   // A new phone or cleared browser: pull the saved dream, then refresh the card.
   syncFromCloud().then((changed) => {

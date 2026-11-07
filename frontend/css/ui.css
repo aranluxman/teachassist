@@ -176,7 +176,7 @@ html[data-mode] .btn:not(.secondary):not(.ghost):not(.danger) {
     linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 52%),
     linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 86%, black));
   color: var(--accent-contrast);
-  font: 700 17px/1.1 var(--font);
+  font: 700 calc(17px * var(--ts, 1))/1.1 var(--font);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     inset 0 -2px 6px rgba(0, 0, 0, 0.12),
@@ -192,7 +192,7 @@ html[data-mode] .btn.secondary {
   border: 1px solid var(--ui-rim);
   background: var(--ui-sheen), color-mix(in srgb, var(--accent) 6%, var(--card-solid));
   color: var(--text);
-  font: 650 16px/1.15 var(--font);
+  font: 650 calc(16px * var(--ts, 1))/1.15 var(--font);
   box-shadow: inset 0 0 0 0.5px var(--ui-hair), 0 4px 14px rgba(10, 50, 35, 0.06);
 }
 /* Tinted: small pill actions ("Change", "Choose", "Add", "Edit"). */
@@ -202,7 +202,7 @@ html[data-mode] .btn.ghost {
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 13%, transparent);
   color: var(--accent);
-  font: 650 15px/1 var(--font);
+  font: 650 calc(15px * var(--ts, 1))/1 var(--font);
 }
 /* Destructive: a soft pink capsule. */
 html[data-mode] .btn.danger {
@@ -215,7 +215,7 @@ html[data-mode] .btn.danger {
   border: 1px solid color-mix(in srgb, var(--danger) 18%, transparent);
   background: color-mix(in srgb, var(--danger) 13%, var(--card-solid));
   color: var(--danger);
-  font: 650 16px/1 var(--font);
+  font: 650 calc(16px * var(--ts, 1))/1 var(--font);
 }
 html[data-mode] .btn.danger svg {
   width: 20px;
@@ -282,7 +282,7 @@ html[data-mode] .chip {
   border: 1px solid var(--ui-rim);
   background: var(--ui-sheen), var(--card-solid);
   box-shadow: inset 0 0 0 0.5px var(--ui-hair), 0 3px 10px rgba(10, 50, 35, 0.05);
-  font: 650 15px/1 var(--font);
+  font: 650 calc(15px * var(--ts, 1))/1 var(--font);
 }
 html[data-mode] .chip[aria-pressed="true"] {
   border-color: color-mix(in srgb, var(--accent) 70%, white);
@@ -302,7 +302,7 @@ html[data-mode] .seg {
 html[data-mode] .seg span {
   padding: 10px 22px;
   border-radius: 999px;
-  font: 650 15px/1 var(--font);
+  font: 650 calc(15px * var(--ts, 1))/1 var(--font);
 }
 html[data-mode] .seg input:checked + span {
   background:
@@ -411,7 +411,7 @@ html[data-mode] .g-hero-num .g-pct {
 }
 html[data-mode] .g-hero .g-caption {
   margin-top: 22px;
-  font-size: 19px;
+  font-size: calc(19px * var(--ts, 1));
   font-weight: 600;
 }
 /* "Level 4 · A+" */
@@ -424,7 +424,7 @@ html[data-mode] .g-level {
     linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%),
     color-mix(in srgb, var(--accent) 15%, var(--card-solid));
   color: color-mix(in srgb, var(--accent) 80%, var(--text));
-  font: 700 18px/1.2 var(--font);
+  font: 700 calc(18px * var(--ts, 1))/1.2 var(--font);
   box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 html[data-mode="dark"] .g-level {
@@ -463,16 +463,16 @@ html[data-mode="dark"] .g-row[style*="--tint"] .g-row-value {
   background: color-mix(in srgb, var(--tint) 22%, var(--card-solid));
 }
 html[data-mode] .g-row-value .g-pct {
-  font-size: 24px;
+  font-size: calc(24px * var(--ts, 1));
   color: var(--text);
 }
 html[data-mode] .g-row-value .g-pct.g-none {
-  font-size: 16px;
+  font-size: calc(16px * var(--ts, 1));
   font-weight: 650;
   color: var(--text-secondary);
 }
 html[data-mode] .g-row-main b {
-  font-size: 18px;
+  font-size: calc(18px * var(--ts, 1));
 }
 /* Evaluation rows carry long names: a slimmer pill leaves them room. */
 html[data-mode] .eval-row {
@@ -483,10 +483,10 @@ html[data-mode] .eval-row[style*="--tint"] .g-row-value {
   padding: 6px 10px;
 }
 html[data-mode] .eval-row .g-row-value .g-pct {
-  font-size: 20px;
+  font-size: calc(20px * var(--ts, 1));
 }
 html[data-mode] .eval-row .g-row-main b {
-  font-size: 17px;
+  font-size: calc(17px * var(--ts, 1));
 }
 
 /* ── Screen titles: Guidance and Dreams open with a large, left title ───── */
@@ -498,13 +498,13 @@ html[data-mode] #screen-dreams > .v5-header {
 }
 html[data-mode] #screen-guidance > .v5-header h1,
 html[data-mode] #screen-dreams > .v5-header h1 {
-  font-size: 34px;
+  font-size: calc(34px * var(--ts, 1));
   font-weight: 800;
   letter-spacing: -0.025em;
   line-height: 1.1;
 }
 html[data-mode] .v5-header p {
-  font-size: 16px;
+  font-size: calc(16px * var(--ts, 1));
   font-weight: 500;
 }
 
@@ -534,10 +534,10 @@ html[data-mode] .blueprint-cta .bp-icon {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 html[data-mode] .blueprint-cta b {
-  font-size: 20px;
+  font-size: calc(20px * var(--ts, 1));
 }
 html[data-mode] .blueprint-cta small {
-  font-size: 14px;
+  font-size: calc(14px * var(--ts, 1));
   opacity: 0.92;
 }
 /* School map: a row, icon tile first, chevron last. */
@@ -565,15 +565,15 @@ html[data-mode] .tile-grid > .tile:only-child .tile-icon {
   color: var(--accent);
 }
 html[data-mode] .tile b {
-  font-size: 18px;
+  font-size: calc(18px * var(--ts, 1));
 }
 html[data-mode] .tile > span:last-child > span {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
 }
 /* My school, counsellor: bigger card headings. */
 html[data-mode] .tool-heading h2,
 html[data-mode] .my-school h2 {
-  font-size: 26px;
+  font-size: calc(26px * var(--ts, 1));
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -594,11 +594,11 @@ html[data-mode] .disclosure > summary .ui-tile svg {
 }
 html[data-mode] .disclosure > summary > span:not(.ui-tile) {
   flex: 1;
-  font-size: 19px;
+  font-size: calc(19px * var(--ts, 1));
   font-weight: 750;
 }
 html[data-mode] .disclosure > summary small {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-weight: 500;
 }
 html[data-mode] .link-row {
@@ -617,7 +617,7 @@ html[data-mode] .dream-steps li {
   align-items: center;
   gap: 8px;
   text-align: center;
-  font-size: 14px;
+  font-size: calc(14px * var(--ts, 1));
 }
 html[data-mode] .dream-steps li:not(:last-child)::after {
   content: "";
@@ -635,7 +635,7 @@ html[data-mode] .dream-steps li.is-done:not(:last-child)::after {
 html[data-mode] .dream-steps .dot {
   width: 34px;
   height: 34px;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-weight: 700;
   border: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
   background: var(--card-solid);
@@ -707,7 +707,7 @@ html[data-mode] .goal-form > .btn[type="submit"]::before {
   place-items: center;
   border-radius: 50%;
   background: color-mix(in srgb, currentColor 18%, transparent);
-  font: 600 24px/1 var(--font);
+  font: 600 calc(24px * var(--ts, 1))/1 var(--font);
 }
 /* No goals yet: a seedling in a glass circle. */
 html[data-mode] .goal-empty {
@@ -740,7 +740,7 @@ html[data-mode] .goal-empty-icon svg {
   height: 40px;
 }
 html[data-mode] .goal-empty b {
-  font-size: 18px;
+  font-size: calc(18px * var(--ts, 1));
 }
 /* The target stepper. */
 html[data-mode] .stepper {
@@ -751,7 +751,7 @@ html[data-mode] .stepper {
 
 /* ── Settings ───────────────────────────────────────────────────────────── */
 html[data-mode] .settings-group > h2 {
-  font-size: 18px;
+  font-size: calc(18px * var(--ts, 1));
   font-weight: 750;
 }
 html[data-mode] .theme-row {
@@ -798,13 +798,13 @@ html[data-mode] .feature-item {
   border: 1px solid var(--ui-rim);
   background: var(--ui-sheen), var(--card-solid);
   box-shadow: inset 0 0 0 0.5px var(--ui-hair), var(--ui-shadow);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ts, 1));
   line-height: 1.35;
 }
 html[data-mode] .feature-item b {
   display: block;
   margin-bottom: 4px;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   line-height: 1.2;
 }
 html[data-mode] .feature-item .feature-dot {

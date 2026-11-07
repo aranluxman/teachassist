@@ -23,6 +23,7 @@ import {
   isDemo,
 } from "./ta-client.js";
 import { mountThumb, stagger } from "./motion.js";
+import { TEXT_SIZES, FONTS, preloadFonts } from "./customize.js";
 import { APPEARANCES, COLORS, applyTheme, orbFill, setTheme, themeChoice, themeLabel } from "./theme.js";
 import { glassButton, pageHeader, GLYPHS, iconTile } from "./ui-kit.js";
 import { CONTACT_FORM_URL, CONTACT_EMAIL } from "./config.js";
@@ -172,10 +173,60 @@ function switchGroup(title, note, rows) {
   return node;
 }
 
+/**
+ * A card of choices, one picked at a time (text size, font). `options` are
+ * [id, label, description, inline style for the option's own preview].
+ */
+function choiceGroup(title, note, key, options, className = "") {
+  const current = preferences()[key];
+  const node = el(`<section class="card settings-group choice-group ${className}"><h2>${escapeHtml(title)}</h2>${note ? `<p class="group-note">${escapeHtml(note)}</p>` : ""}<div class="choice-grid" role="radiogroup" aria-label="${escapeHtml(title)}"></div></section>`);
+  const grid = node.querySelector(".choice-grid");
+  for (const [id, label, desc, style] of options) {
+    const b = el(`<button type="button" class="choice" role="radio" aria-checked="${id === current}" data-choice="${id}"${style ? ` style="${style}"` : ""}><b>${escapeHtml(label)}</b>${desc ? `<small>${escapeHtml(desc)}</small>` : ""}</button>`);
+    b.onclick = () => {
+      savePreferences({ [key]: id });
+      grid.querySelectorAll(".choice").forEach((c) => c.setAttribute("aria-checked", String(c === b)));
+    };
+    grid.append(b);
+  }
+  return node;
+}
+
+// Each font option is drawn in its own lettering (single quotes: these go
+// inside a style="" attribute).
+const FONT_PREVIEW = {
+  default: "-apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif",
+  rounded: "'Nunito', ui-rounded, sans-serif",
+  readable: "'Atkinson Hyperlegible', sans-serif",
+  serif: "'Lora', Georgia, serif",
+};
+
+/** Live sample of what the chosen text size and font look like. */
+function lookPreview() {
+  return el(`<section class="card settings-group look-preview" aria-label="Preview">
+    <p class="look-preview-label">Preview</p>
+    <div class="look-preview-row"><span><b>Math, Grade 9</b><small>MTH1W · Ms. Patel</small></span><span class="g-pct">92.5<small>%</small></span></div>
+    <p class="look-preview-body">Your marks, schedule and guidance will look like this.</p>
+  </section>`);
+}
+
 // Each Settings row's own page: its title and what goes on it.
 const PAGES = {
-  accessibility: ["Accessibility", () => [switchGroup("", "Your device's reduce-motion setting is always respected too.", [
-    ["motion", "Interface animations", "Gentle transitions and press feedback"],
+  accessibility: ["Accessibility", () => [
+    (preloadFonts(), lookPreview()),
+    choiceGroup("Text size", "Makes the words and marks bigger or smaller everywhere in the app.", "textSize",
+      TEXT_SIZES.map(([id, label, scale]) => [id, label, "", `font-size:${Math.round(15 * scale)}px`]), "choice-sizes"),
+    choiceGroup("Font", "Pick the lettering you find easiest to read.", "font",
+      FONTS.map(([id, label, desc]) => [id, label, desc, `font-family:${FONT_PREVIEW[id]}`])),
+    switchGroup("Reading & motion", "Your device's reduce-motion setting is always respected too. With animations off, swipes still settle quickly so they feel right.", [
+      ["boldText", "Bold text", "Makes regular text heavier and easier to read"],
+      ["motion", "Interface animations", "Gentle transitions, count-ups and sparkles"],
+    ]),
+  ]],
+  experience: ["Experience", () => [switchGroup("", "Make the app feel the way you like.", [
+    ["haptics", "Haptic feedback", "A light vibration when you tap buttons and switches (Android, and iPhone with iOS 18 or later)"],
+    ["refreshButton", "Refresh button", "Show a ↻ button at the top of your courses to check for new marks"],
+    ["compactHome", "Compact home", "Fit every course on the first screen, with a smaller average circle"],
   ])]],
   notifications: ["Notifications", () => [notificationSettings()]],
   privacy: ["Courses & Privacy", () => [switchGroup("", "", [
@@ -311,9 +362,9 @@ function legalCard() {
   card.querySelector("[data-credits]").onclick = () =>
     openSheet("Credits", el(`<div class="credits">
       <p><b>Developer</b><br><a href="https://intelligentautomations.ca" target="_blank" rel="noopener">Intelligent Automations</a>, Markham, Ontario</p>
-      <p><b>Design</b><br>Ethan, Grant&nbsp;C., Esaam and Vaishnavan</p>
-      <p><b>Beta testers</b><br>Keshavan&nbsp;V., Aadavan&nbsp;M., Kavin&nbsp;S., Allen&nbsp;W., Rayaan&nbsp;S., Kiefer&nbsp;J., Zyam&nbsp;U., Vaishnavan, Yash&nbsp;P., Aijai&nbsp;K., Athieban&nbsp;B. and Nathaniel&nbsp;V.</p>
-      <p><b>Special thanks</b><br>Athiban, Mythil, Bhavik, Allen&nbsp;W., Erdem&nbsp;I., Derek&nbsp;M., Hari&nbsp;K. and Cameron&nbsp;W.</p>
+      <p><b>Design</b><br>Ethan and Esaam</p>
+      <p><b>Beta testers</b><br>Keshavan&nbsp;V., Aadavan&nbsp;M., Kavin&nbsp;S., Allen&nbsp;W., Rayaan&nbsp;S., Kiefer&nbsp;J., Zyam&nbsp;U., Aijay&nbsp;K. and Athieban&nbsp;B.</p>
+      <p><b>Special thanks</b><br>Athiban, Mythil, Bhavik, Allen&nbsp;W., Derek&nbsp;M. and Cameron&nbsp;W.</p>
       <p class="muted small">An independent student project. Not affiliated with or endorsed by the York Region District School Board or the TeachAssist Foundation. Your official marks are always on TeachAssist.</p>
       <p class="muted small">Made with the Inter and JetBrains Mono fonts, and hosted on Cloudflare.</p>
       <p class="muted small">Questions: ${CONTACT_EMAIL}</p>

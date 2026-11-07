@@ -1,7 +1,7 @@
 // ============================================================================
 // Settings tab — the App Settings panel and the Help & Legal card at the top.
 // ----------------------------------------------------------------------------
-// Six rows (two glass cards side by side on iPad/desktop, one list on a
+// Seven rows (two glass cards side by side on iPad/desktop, one list on a
 // phone). Each row opens its own page, #settings/<view>, with a back
 // button (settings.js renderSettingsPage). Styles: css/guidance-hub.css.
 // ============================================================================
@@ -15,12 +15,14 @@ const svg = (paths, w = 2) =>
 const ICONS = {
   download: svg('<path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/>', 2.3),
   database: svg('<ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8"/>', 2.1),
+  hand: svg('<path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V11m0-1a1.5 1.5 0 0 1 3 0v4.5a6.5 6.5 0 0 1-6.5 6.5h-.6a6 6 0 0 1-4.6-2.2L4.4 15a1.6 1.6 0 0 1 2.4-2.1L9 15"/>', 2),
   help: svg('<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.3-2.4 3.7"/><path d="M12 17.3h.01" stroke-width="2.8"/>', 2.1),
 };
 
 const ROWS = [
   ["appearance", "Appearance", "Theme, colour, and style", GLYPHS.palette],
-  ["accessibility", "Accessibility", "Animations and motion", GLYPHS.access],
+  ["accessibility", "Accessibility", "Text size, font, and motion", GLYPHS.access],
+  ["experience", "Experience", "Haptics, refresh button, and home layout", ICONS.hand],
   ["notifications", "Notifications", "Reminders and updates", GLYPHS.bell],
   ["privacy", "Courses & Privacy", "Grade visibility and preferences", GLYPHS.shield],
   ["install", "Install the App", "Add to your home screen", ICONS.download],
@@ -57,7 +59,7 @@ export function settingsPanel() {
     </button>
   </div>`);
   const [left, right] = wrap.querySelectorAll(".gh-set-card");
-  ROWS.forEach((r, i) => (i < 3 ? left : right).append(row(r)));
+  ROWS.forEach((r, i) => (i < 4 ? left : right).append(row(r)));
   wrap.querySelector(".gh-help").onclick = () => open("help");
   return wrap;
 }

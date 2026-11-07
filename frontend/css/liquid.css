@@ -111,7 +111,7 @@ html[data-mode] .sched-main {
   min-width: 0;
 }
 html[data-mode] .sched-main > b {
-  font-size: 18px;
+  font-size: calc(18px * var(--ts, 1));
   font-weight: 800;
   letter-spacing: 0.01em;
 }
@@ -125,11 +125,11 @@ html[data-mode] .sched-period {
   border: 1px solid color-mix(in srgb, var(--tint) 35%, transparent);
   background: color-mix(in srgb, var(--tint) 18%, transparent);
   color: color-mix(in srgb, var(--tint) 55%, var(--text));
-  font: 800 12.5px/1.1 var(--font);
+  font: 800 calc(12.5px * var(--ts, 1))/1.1 var(--font);
 }
 html[data-mode] .sched-main > small {
   overflow: hidden;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-weight: 600;
   color: var(--text-secondary);
   text-overflow: ellipsis;
@@ -145,7 +145,7 @@ html[data-mode] .sched-meta em {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 14.5px;
+  font-size: calc(14.5px * var(--ts, 1));
   font-style: normal;
   font-weight: 650;
   color: var(--text-secondary);
@@ -177,7 +177,7 @@ html[data-mode] .sched-mark {
     0 0 20px -2px color-mix(in srgb, var(--tint) 55%, transparent);
 }
 html[data-mode] .sched-mark .g-pct {
-  font-size: 19px;
+  font-size: calc(19px * var(--ts, 1));
   font-weight: 800;
   color: inherit;
   white-space: nowrap;
@@ -199,7 +199,7 @@ html[data-mode] .sched-note {
   align-items: flex-start;
   gap: 8px;
   margin: 16px 6px 0;
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--ts, 1));
   font-weight: 550;
   line-height: 1.4;
   color: var(--text-secondary);
@@ -244,7 +244,7 @@ html[data-mode] .sched-action {
   backdrop-filter: var(--glass-blur);
   box-shadow: var(--glass-highlight), 0 10px 26px -12px rgba(0, 0, 0, 0.35);
   color: var(--text);
-  font: 700 15px/1.1 var(--font);
+  font: 700 calc(15px * var(--ts, 1))/1.1 var(--font);
   cursor: pointer;
   transition: transform 160ms var(--ease-spring);
 }
@@ -282,16 +282,16 @@ html[data-mode] .sched {
     height: 24px;
   }
   html[data-mode] .sched-main > b {
-    font-size: 16.5px;
+    font-size: calc(16.5px * var(--ts, 1));
   }
   html[data-mode] .sched-meta em {
-    font-size: 13.5px;
+    font-size: calc(13.5px * var(--ts, 1));
   }
   html[data-mode] .sched-mark {
     padding: 7px 10px;
   }
   html[data-mode] .sched-mark .g-pct {
-    font-size: 16px;
+    font-size: calc(16px * var(--ts, 1));
   }
   html[data-mode] .sched-actions {
     gap: 8px;
@@ -299,7 +299,7 @@ html[data-mode] .sched {
   html[data-mode] .sched-action {
     gap: 6px;
     padding: 0 6px;
-    font-size: 13.5px;
+    font-size: calc(13.5px * var(--ts, 1));
     white-space: normal;
     text-align: center;
   }
@@ -331,7 +331,7 @@ html[data-mode] .sched-add {
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     0 8px 18px -8px color-mix(in srgb, var(--b-to) 75%, transparent);
   color: var(--on-shade);
-  font: 750 15px/1 var(--font);
+  font: 750 calc(15px * var(--ts, 1))/1 var(--font);
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
@@ -376,14 +376,14 @@ html[data-mode] .manage-card .sched-icon svg {
   height: 23px;
 }
 html[data-mode] .manage-card header b {
-  font-size: 17px;
+  font-size: calc(17px * var(--ts, 1));
   font-weight: 800;
 }
 html[data-mode] .manage-period {
   padding: 4px 10px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--tint) 18%, transparent);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts, 1));
   font-weight: 750;
   color: var(--text-secondary);
 }
@@ -395,7 +395,7 @@ html[data-mode] .manage-reset {
   border-radius: 999px;
   background: color-mix(in srgb, var(--card-solid) 60%, transparent);
   color: var(--text);
-  font: 650 13.5px/1 var(--font);
+  font: 650 calc(13.5px * var(--ts, 1))/1 var(--font);
   cursor: pointer;
 }
 html[data-mode] .manage-reset[hidden] {
@@ -411,7 +411,7 @@ html[data-mode] .manage-wide {
 }
 html[data-mode] .manage-field > span {
   padding-left: 4px;
-  font-size: 13px;
+  font-size: calc(13px * var(--ts, 1));
   font-weight: 650;
   color: var(--text-secondary);
 }
@@ -425,7 +425,7 @@ html[data-mode] .manage-field input {
   background: color-mix(in srgb, var(--card-solid) 72%, transparent);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
   color: var(--text);
-  font: 600 16px/1 var(--font); /* 16px: no zoom-on-focus in iOS Safari */
+  font: 600 calc(16px * var(--ts, 1))/1 var(--font); /* 16px: no zoom-on-focus in iOS Safari */
 }
 html[data-mode] .manage-field input::placeholder {
   color: var(--text-faint);
@@ -468,7 +468,7 @@ html[data-mode] .ev-icon svg {
 html[data-mode] .ev-head h3 {
   margin: 18px 0 0;
   padding: 0 44px;
-  font-size: 22px;
+  font-size: calc(22px * var(--ts, 1));
   font-weight: 800;
   line-height: 1.25;
   text-wrap: balance;
@@ -477,7 +477,7 @@ html[data-mode] .ev-mark {
   margin-top: 8px;
 }
 html[data-mode] .ev-mark .g-pct {
-  font-size: 74px;
+  font-size: calc(74px * var(--ts, 1));
   font-weight: 850;
   letter-spacing: -0.045em;
   line-height: 1;
@@ -492,7 +492,7 @@ html[data-mode] .ev-mark .g-pct small {
 }
 html[data-mode] .ev-caption {
   margin: 10px 0 0;
-  font-size: 17px;
+  font-size: calc(17px * var(--ts, 1));
   font-weight: 600;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
@@ -540,7 +540,7 @@ html[data-mode] .ev-letter {
     color-mix(in srgb, var(--tint) 22%, #fff);
   box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--tint) 70%, transparent);
   color: color-mix(in srgb, var(--tint) 50%, #10121a);
-  font: 800 20px/1 var(--font);
+  font: 800 calc(20px * var(--ts, 1))/1 var(--font);
 }
 html[data-mode="dark"] .ev-letter {
   border-color: color-mix(in srgb, var(--tint) 40%, rgba(255, 255, 255, 0.14));
@@ -550,7 +550,7 @@ html[data-mode="dark"] .ev-letter {
   color: #fff;
 }
 html[data-mode] .ev-letter-sm {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
 }
 html[data-mode] .ev-strand-label {
   display: flex;
@@ -558,7 +558,7 @@ html[data-mode] .ev-strand-label {
   align-items: baseline;
   gap: 2px 8px;
   min-width: 0;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -569,7 +569,7 @@ html[data-mode] .ev-strand-label b {
 }
 html[data-mode] .ev-raw {
   justify-self: end;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   color: var(--text-secondary);
 }
 /* A thick glowing bar with faint fifths, like a segmented gauge. */
@@ -604,12 +604,12 @@ html[data-mode] .ev-value {
   justify-self: end;
 }
 html[data-mode] .ev-value .g-pct {
-  font-size: 22px;
+  font-size: calc(22px * var(--ts, 1));
   font-weight: 800;
 }
 html[data-mode] .ev-feedback {
   margin: 16px 4px 0;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-style: italic;
   line-height: 1.45;
   color: var(--text-secondary);
@@ -644,13 +644,13 @@ html[data-mode] .ev-impact.down {
 }
 html[data-mode] .ev-impact p {
   margin: 0;
-  font-size: 16px;
+  font-size: calc(16px * var(--ts, 1));
   font-weight: 600;
   line-height: 1.4;
   color: var(--text-secondary);
 }
 html[data-mode] .ev-impact b {
-  font-size: 21px;
+  font-size: calc(21px * var(--ts, 1));
   font-weight: 800;
   color: var(--impact);
 }
