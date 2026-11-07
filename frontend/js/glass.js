@@ -395,7 +395,7 @@ function initSegmentLens() {
       if (!drag || e.pointerId !== drag.id) return;
       const dx = e.clientX - drag.cx;
       if (!drag.moved) {
-        if (Math.abs(dx) < 6 || !motionEnabled()) return;
+        if (Math.abs(dx) < 6) return; // dragging works with animations off too
         drag.moved = true;
         drag.seg.classList.add("g-lens", "g-dragging");
         try {

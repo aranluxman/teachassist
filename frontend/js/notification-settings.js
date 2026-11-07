@@ -3,19 +3,23 @@ import { notificationPreferences, saveNotificationPreferences } from './notifica
 import { GLYPHS } from './ui-kit.js';
 
 const ROWS = [
-  ['reminders', 'Guidance appointment reminders', 'Remind me 15 minutes before appointments I save in Guidance.'],
+  ['reminders', 'Guidance appointment reminders', 'Remind me before appointments I save in Guidance.'],
   ['marks', 'Mark change alerts', 'Notify me when a refresh finds a changed or newly available mark.'],
+  ['belowGoal', 'Below my goal alerts', 'Notify me when a course drops under the goal I set in Dreams.'],
   ['private', 'Hide marks in notifications', 'Keep course names and grade values out of notifications.'],
   ['unavailable', 'Alert when marks become unavailable', 'Notify me if a previously visible mark is no longer returned. This does not confirm a teacher hid it.'],
 ];
-const LABELS = { reminders: 'Reminders', marks: 'Mark changes', unavailable: 'Unavailable marks', unchanged: 'No-change' };
+const LABELS = { reminders: 'Reminders', marks: 'Mark changes', belowGoal: 'Below goal', unavailable: 'Unavailable marks', unchanged: 'No-change', quiet: 'Quiet hours' };
+// [value, label] choices for the drop-downs.
+const MIN_CHANGE = [[0, 'Any change'], [1, '1+ points'], [2, '2+ points'], [5, '5+ points']];
+const REMINDER_LEAD = [[5, '5 min before'], [15, '15 min before'], [30, '30 min before'], [60, '1 hour before']];
 
 const permissionState = () =>
   'Notification' in window && window.isSecureContext ? Notification.permission : 'unsupported';
 
 /** True once the student has turned notifications on: device permission, or any alert. */
 function isOn(prefs) {
-  return permissionState() === 'granted' || ['reminders', 'marks', 'unavailable', 'unchanged'].some((k) => prefs[k]);
+  return permissionState() === 'granted' || ['reminders', 'marks', 'belowGoal', 'unavailable', 'unchanged'].some((k) => prefs[k]);
 }
 
 /**
@@ -67,14 +71,42 @@ function fullCard(rerender) {
 
 function toggles() {
   const prefs = notificationPreferences();
-  const body = el(`<div class="notify-sheet preference-list">${ROWS.map(([id, t, d]) => row(id, t, d, prefs[id])).join('')}<details><summary>Advanced notifications</summary>${row('unchanged', 'Notify when no marks change', 'Requires mark change alerts. Applies to successful refreshes, including automatic checks.', prefs.unchanged)}</details><p class="small muted" data-permission></p><button class="btn secondary" data-enable hidden>Allow device notifications</button><p role="status" class="small muted"></p></div>`);
+  const body = el(`<div class="notify-sheet preference-list">${ROWS.map(([id, t, d]) => row(id, t, d, prefs[id])).join('')}
+    ${choice('minChange', 'Only big changes', 'Skip mark alerts for tiny moves.', MIN_CHANGE, prefs.minChange)}
+    ${choice('reminderMinutes', 'Reminder timing', 'When appointment reminders arrive.', REMINDER_LEAD, prefs.reminderMinutes)}
+    ${row('quiet', 'Quiet hours', 'No phone notifications at night. You still see them in the app.', prefs.quiet)}
+    <div class="quiet-times" data-quiet-times>
+      <label>From <input type="time" data-notification-time="quietFrom" value="${prefs.quietFrom}"></label>
+      <label>To <input type="time" data-notification-time="quietTo" value="${prefs.quietTo}"></label>
+    </div>
+    <details><summary>Advanced notifications</summary>${row('unchanged', 'Notify when no marks change', 'Requires mark change alerts. Applies to successful refreshes, including automatic checks.', prefs.unchanged)}</details><p class="small muted" data-permission></p><button class="btn secondary" data-enable hidden>Allow device notifications</button><p role="status" class="small muted"></p></div>`);
+  const saved = () => (body.querySelector('[role=status]').textContent = 'Saved on this device.');
   const dependent = body.querySelector('[data-notification=unchanged]');
-  dependent.disabled = !prefs.marks;
+  const minChange = body.querySelector('[data-notification-choice=minChange]');
+  const lead = body.querySelector('[data-notification-choice=reminderMinutes]');
+  const times = body.querySelectorAll('[data-notification-time]');
+  const sync = () => {
+    const p = notificationPreferences();
+    dependent.disabled = !p.marks;
+    minChange.disabled = !p.marks;
+    lead.disabled = !p.reminders;
+    times.forEach((t) => (t.disabled = !p.quiet));
+    body.querySelector('[data-quiet-times]').classList.toggle('is-off', !p.quiet);
+  };
   body.querySelectorAll('[data-notification]').forEach((input) => (input.onchange = () => {
     saveNotificationPreferences({ [input.dataset.notification]: input.checked });
-    if (input.dataset.notification === 'marks') dependent.disabled = !input.checked;
-    body.querySelector('[role=status]').textContent = 'Saved on this device.';
+    sync();
+    saved();
   }));
+  body.querySelectorAll('[data-notification-choice]').forEach((select) => (select.onchange = () => {
+    saveNotificationPreferences({ [select.dataset.notificationChoice]: Number(select.value) });
+    saved();
+  }));
+  times.forEach((input) => (input.onchange = () => {
+    if (/^\d{2}:\d{2}$/.test(input.value)) saveNotificationPreferences({ [input.dataset.notificationTime]: input.value });
+    saved();
+  }));
+  sync();
   const permission = body.querySelector('[data-permission]');
   const button = body.querySelector('[data-enable]');
   const update = () => {
@@ -89,4 +121,8 @@ function toggles() {
 
 function row(id, title, desc, checked) {
   return `<label class="preference-row"><span><b>${title}</b><small>${desc}</small></span><input type="checkbox" role="switch" data-notification="${id}" ${checked ? 'checked' : ''}></label>`;
+}
+
+function choice(id, title, desc, options, value) {
+  return `<label class="preference-row"><span><b>${title}</b><small>${desc}</small></span><select data-notification-choice="${id}">${options.map(([v, l]) => `<option value="${v}"${v === value ? ' selected' : ''}>${l}</option>`).join('')}</select></label>`;
 }

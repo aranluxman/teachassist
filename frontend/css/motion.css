@@ -423,7 +423,7 @@ html[data-tab-hidden="true"] .m-loop::after {
   display: block;
   width: 100%;
   height: 100%;
-  font-size: 11px;
+  font-size: calc(11px * var(--ts, 1));
   font-style: normal;
   line-height: 12px;
   text-align: center;
@@ -654,7 +654,7 @@ html[data-tab-hidden="true"] .m-loop::after {
   position: absolute;
   top: 50%;
   left: 50%;
-  font-size: 11px;
+  font-size: calc(11px * var(--ts, 1));
   font-style: normal;
   line-height: 1;
   color: var(--accent);
@@ -958,7 +958,10 @@ html[data-tab-hidden="true"] .m-loop::after {
 [data-motion="false"] *::before,
 [data-motion="false"] *::after {
   animation: none !important;
-  transition: none !important;
+  /* Not "none": things you drag (sheets, the tab pill, switches, segmented
+     thumbs) still need a quick settle, or swipes snap and feel broken. */
+  transition-duration: 150ms !important;
+  transition-delay: 0s !important;
   scroll-behavior: auto !important;
 }
 .no-motion .m-ticker > span:not(.m-tick-current),
@@ -996,7 +999,8 @@ html[data-tab-hidden="true"] .m-loop::after {
   *::before,
   *::after {
     animation: none !important;
-    transition: none !important;
+    transition-duration: 150ms !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
   .m-ticker > span:not(.m-tick-current) {
@@ -1005,4 +1009,13 @@ html[data-tab-hidden="true"] .m-loop::after {
   .m-burst {
     display: none;
   }
+}
+
+/* Animations off: whatever is being dragged follows the finger exactly; the
+   short settle above only plays once it is let go. */
+.no-motion .tabbar.g-dragging .m-tab-indicator,
+.no-motion .segmented.g-dragging .m-thumb,
+.no-motion #seg-content.g-seg-following,
+.no-motion :is(.preference-row, .share-toggle) input.g-dragging::after {
+  transition: none !important;
 }

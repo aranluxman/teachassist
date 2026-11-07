@@ -433,7 +433,7 @@ html[data-mode] .g-header-title {
 html[data-mode] .g-header-title h1,
 html[data-mode] .g-header-title h2 {
   margin: 0;
-  font-size: 21px;
+  font-size: calc(21px * var(--ts, 1));
   line-height: 1.2;
   font-weight: 760;
   letter-spacing: -0.01em;
@@ -443,7 +443,7 @@ html[data-mode] .g-header-title h2 {
 }
 html[data-mode] .g-header-title p {
   margin: 3px 0 0;
-  font-size: 16px;
+  font-size: calc(16px * var(--ts, 1));
   font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -460,7 +460,7 @@ html[data-mode] .g-status {
   border: 0;
   background: none;
   color: var(--text-secondary);
-  font: 600 16px/1.2 var(--font);
+  font: 600 calc(16px * var(--ts, 1))/1.2 var(--font);
   cursor: pointer;
 }
 html[data-mode] .g-status svg {
@@ -527,12 +527,12 @@ html[data-mode] .detail-nav .detail-titlewrap {
   min-width: 0;
 }
 html[data-mode] .detail-nav .detail-title {
-  font-size: 21px;
+  font-size: calc(21px * var(--ts, 1));
   font-weight: 760;
   color: var(--text);
 }
 html[data-mode] .detail-nav .detail-subtitle {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -550,7 +550,7 @@ html[data-mode] .screen-header.v5-header {
 }
 html[data-mode] .screen-header h1,
 html[data-mode] .v5-header h1 {
-  font-size: 21px;
+  font-size: calc(21px * var(--ts, 1));
   line-height: 1.2;
   font-weight: 760;
   letter-spacing: -0.01em;
@@ -558,7 +558,7 @@ html[data-mode] .v5-header h1 {
 }
 html[data-mode] .v5-header p {
   margin: 4px 0 0;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -566,7 +566,7 @@ html[data-mode] .section-title,
 html[data-mode] .section-label,
 html[data-mode] .g-section {
   margin: 24px 2px 10px;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-weight: 650;
   letter-spacing: 0;
   text-transform: none;
@@ -607,6 +607,9 @@ html[data-mode] .g-pager {
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   margin: 0 -16px;
+  /* Fingers only scroll the page up and down here: the average never slides
+     sideways mid-scroll. The dots underneath switch pages. */
+  touch-action: pan-y;
 }
 html[data-mode] .g-pager::-webkit-scrollbar {
   display: none;
@@ -656,7 +659,7 @@ html[data-mode] .g-hero-num .g-pct small {
   color: var(--text-secondary);
 }
 html[data-mode] .g-hero-num .g-pct.g-none {
-  font-size: 30px;
+  font-size: calc(30px * var(--ts, 1));
 }
 html[data-mode] .g-delta {
   display: inline-flex;
@@ -668,17 +671,17 @@ html[data-mode] .g-delta {
   border: 1px solid var(--card-border);
   background: var(--glass);
   color: var(--text);
-  font: 700 15px/1.2 var(--font);
+  font: 700 calc(15px * var(--ts, 1))/1.2 var(--font);
 }
 html[data-mode] .g-delta .g-pct {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
 }
 html[data-mode] .g-delta.down {
   color: var(--danger);
 }
 html[data-mode] .g-caption {
   margin: 26px 0 0;
-  font-size: 16px;
+  font-size: calc(16px * var(--ts, 1));
   font-weight: 650;
   color: var(--text-secondary);
   text-align: center;
@@ -698,7 +701,7 @@ html[data-mode] .g-chart .g-dash {
 }
 html[data-mode] .g-chart .g-axis {
   fill: var(--text-faint);
-  font: 600 12px var(--font-num);
+  font: 600 calc(12px * var(--ts, 1)) var(--font-num);
 }
 html[data-mode] .g-chart .g-line {
   fill: none;
@@ -713,7 +716,7 @@ html[data-mode] .g-chart .g-dot {
 html[data-mode] .g-empty-note {
   margin: 10px 4px;
   color: var(--text-secondary);
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   text-align: center;
   line-height: 1.45;
 }
@@ -724,9 +727,9 @@ html[data-mode] .g-dots {
   margin: 10px 0 18px;
 }
 html[data-mode] .g-dots button {
-  width: 26px;
-  height: 26px;
-  min-height: 26px;
+  width: 34px;
+  height: 30px;
+  min-height: 30px;
   padding: 0;
   border: 0;
   background: none;
@@ -788,7 +791,7 @@ html[data-mode] .g-row-main {
   min-width: 0;
 }
 html[data-mode] .g-row-main b {
-  font-size: 17px;
+  font-size: calc(17px * var(--ts, 1));
   font-weight: 720;
   line-height: 1.25;
   white-space: nowrap;
@@ -796,7 +799,7 @@ html[data-mode] .g-row-main b {
   text-overflow: ellipsis;
 }
 html[data-mode] .g-row-main small {
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -809,7 +812,7 @@ html[data-mode] .g-row-main em {
   gap: 8px;
   margin-top: 2px;
   font-style: normal;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-weight: 600;
   color: var(--text-faint);
 }
@@ -818,10 +821,10 @@ html[data-mode] .g-row-main em svg {
   height: 13px;
 }
 html[data-mode] .g-row-value .g-pct {
-  font-size: 23px;
+  font-size: calc(23px * var(--ts, 1));
 }
 html[data-mode] .g-row-value .g-pct.g-none {
-  font-size: 16px;
+  font-size: calc(16px * var(--ts, 1));
 }
 html[data-mode] .g-chev {
   display: grid;
@@ -851,7 +854,7 @@ html[data-mode] .g-badge svg {
   height: 24px;
 }
 html[data-mode] .g-letter {
-  font: 800 15px/1 var(--font);
+  font: 800 calc(15px * var(--ts, 1))/1 var(--font);
   letter-spacing: -0.01em;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
@@ -905,7 +908,7 @@ html[data-mode] .segmented button {
   border-radius: 999px;
   background: transparent;
   color: var(--text-secondary);
-  font: 700 18px/1 var(--font);
+  font: 700 calc(18px * var(--ts, 1))/1 var(--font);
   box-shadow: none;
   cursor: pointer;
 }
@@ -941,7 +944,7 @@ html[data-mode] .g-chip {
   padding: 7px 12px;
   border-radius: 999px;
   background: var(--pill);
-  font-size: 14px;
+  font-size: calc(14px * var(--ts, 1));
   font-weight: 720;
   white-space: nowrap;
   color: var(--text);
@@ -977,17 +980,17 @@ html[data-mode] .g-stat b {
   display: block;
 }
 html[data-mode] .g-stat b .g-pct {
-  font-size: 26px;
+  font-size: calc(26px * var(--ts, 1));
 }
 html[data-mode] .g-stat b .g-pct.g-none {
-  font-size: 25px;
+  font-size: calc(25px * var(--ts, 1));
   font-weight: 800;
   color: var(--text-secondary);
 }
 html[data-mode] .g-stat > div > small {
   display: block;
   margin-top: 2px;
-  font-size: 15px;
+  font-size: calc(15px * var(--ts, 1));
   font-weight: 650;
   color: var(--text-faint);
 }
@@ -1048,7 +1051,7 @@ html[data-mode] .tabbar button {
   padding: 0;
   gap: 4px;
   color: var(--text);
-  font: 700 12px/1 var(--font);
+  font: 700 calc(12px * var(--ts, 1))/1 var(--font);
 }
 html[data-mode] .tabbar button svg {
   width: 26px;
@@ -1152,12 +1155,12 @@ html[data-mode] .theme-hero > div {
 }
 html[data-mode] .theme-hero b {
   display: block;
-  font: 800 18px/1.2 var(--font);
+  font: 800 calc(18px * var(--ts, 1))/1.2 var(--font);
 }
 html[data-mode] .theme-hero p {
   margin: 3px 0 0;
   color: var(--text-secondary);
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--ts, 1));
   line-height: 1.35;
 }
 html[data-mode] .theme-preview-btn {
@@ -1170,7 +1173,7 @@ html[data-mode] .theme-preview-btn {
   border: 1.5px solid color-mix(in srgb, var(--accent) 35%, transparent);
   background: var(--card-solid);
   color: var(--accent);
-  font: 700 14px/1 var(--font);
+  font: 700 calc(14px * var(--ts, 1))/1 var(--font);
   cursor: pointer;
   transition: transform 140ms var(--ease-spring), background 160ms ease, color 160ms ease;
 }
@@ -1204,19 +1207,19 @@ html[data-mode] .tp-top {
 }
 html[data-mode] .tp-top b {
   display: block;
-  font: 800 18px/1.2 var(--font);
+  font: 800 calc(18px * var(--ts, 1))/1.2 var(--font);
 }
 html[data-mode] .tp-top small {
   display: block;
   margin-top: 2px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts, 1));
 }
 html[data-mode] .tp-mark {
   display: block;
   margin-top: 2px;
   color: var(--accent);
-  font: 800 30px/1.1 var(--font-num);
+  font: 800 calc(30px * var(--ts, 1))/1.1 var(--font-num);
 }
 html[data-mode] .tp-mark small {
   display: inline;
@@ -1248,7 +1251,7 @@ html[data-mode] .tp-btn,
 html[data-mode] .tp-chip {
   padding: 8px 16px;
   border-radius: 999px;
-  font: 700 14px/1 var(--font);
+  font: 700 calc(14px * var(--ts, 1))/1 var(--font);
 }
 html[data-mode] .tp-btn {
   background: var(--accent);
@@ -1262,7 +1265,7 @@ html[data-mode] .tp-chip {
 html[data-mode] .theme-hint {
   margin: -4px 4px 10px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: calc(13px * var(--ts, 1));
 }
 html[data-mode] .theme-grid {
   display: grid;
@@ -1344,7 +1347,7 @@ html[data-mode] .theme-orb::after {
 }
 html[data-mode] .theme-name {
   overflow: hidden;
-  font: 700 15px/1.15 var(--font);
+  font: 700 calc(15px * var(--ts, 1))/1.15 var(--font);
   text-overflow: ellipsis;
   white-space: nowrap;
   pointer-events: none;
@@ -1526,7 +1529,7 @@ html[data-mode] .g-tip {
   border-radius: 12px;
   background: var(--text, #fff);
   color: var(--bg, #000);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ts, 1));
   line-height: 1.35;
   text-align: center;
   white-space: nowrap;
@@ -1552,7 +1555,7 @@ html[data-mode] .g-chg.down { color: #c62828; }
   align-items: flex-start;
   border-radius: 22px;
 }
-.app-notice b { display: block; font-size: 15px; line-height: 1.3; }
+.app-notice b { display: block; font-size: calc(15px * var(--ts, 1)); line-height: 1.3; }
 .app-notice p { color: var(--text-secondary); margin-top: 3px; }
 .app-notice button { margin: -10px -8px -10px 0; }
 
@@ -1605,7 +1608,7 @@ html[data-mode] .disclosure > .disclosure-body { padding: 0 12px 14px; }
 .made-by {
   margin: 22px auto 4px;
   text-align: center;
-  font-size: 13px;
+  font-size: calc(13px * var(--ts, 1));
   color: var(--text-secondary);
 }
 .made-by a { color: var(--accent); font-weight: 650; text-decoration: none; }
@@ -1623,7 +1626,7 @@ html[data-mode] .disclosure > .disclosure-body { padding: 0 12px 14px; }
   border-bottom: 1px solid var(--separator, rgba(127, 127, 127, 0.2));
   background: none;
   color: var(--text);
-  font: 600 16px var(--font, inherit);
+  font: 600 calc(16px * var(--ts, 1)) var(--font, inherit);
   text-align: left;
   text-decoration: none;
   cursor: pointer;

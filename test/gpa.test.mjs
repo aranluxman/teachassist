@@ -1,37 +1,43 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { gpaFor, computeGpa, GPA_SCALE } from "../frontend/js/gpa.js";
+import { gpaFor, computeGpa, GPA_SCALE, GPA_MAX } from "../frontend/js/gpa.js";
 
-test("every band of the 4.0 scale maps to its letter and points", () => {
+test("every band of the scale maps to its letter and points", () => {
   const cases = [
-    [100, "A+", 4.0], [97, "A+", 4.0], [96, "A", 4.0], [93, "A", 4.0],
-    [92, "A-", 3.7], [90, "A-", 3.7], [89, "B+", 3.3], [87, "B+", 3.3],
-    [86, "B", 3.0], [83, "B", 3.0], [82, "B-", 2.7], [80, "B-", 2.7],
-    [79, "C+", 2.3], [77, "C+", 2.3], [76, "C", 2.0], [73, "C", 2.0],
-    [72, "C-", 1.7], [70, "C-", 1.7], [69, "D+", 1.3], [67, "D+", 1.3],
-    [66, "D", 1.0], [65, "D", 1.0], [64, "F", 0.0], [0, "F", 0.0],
+    [100, "A+", 4.33], [90, "A+", 4.33], [89, "A", 4.0], [85, "A", 4.0],
+    [84, "A-", 3.67], [80, "A-", 3.67], [79, "B+", 3.33], [77, "B+", 3.33],
+    [76, "B", 3.0], [73, "B", 3.0], [72, "B-", 2.67], [70, "B-", 2.67],
+    [69, "C+", 2.33], [67, "C+", 2.33], [66, "C", 2.0], [63, "C", 2.0],
+    [62, "C-", 1.67], [60, "C-", 1.67], [59, "D+", 1.33], [57, "D+", 1.33],
+    [56, "D", 1.0], [53, "D", 1.0], [52, "D-", 0.67], [50, "D-", 0.67],
+    [49, "F", 0.0], [0, "F", 0.0],
   ];
   for (const [pct, letter, points] of cases) assert.deepEqual(gpaFor(pct), { letter, points }, String(pct));
-  assert.equal(GPA_SCALE.length, 12);
+  assert.equal(GPA_SCALE.length, 13);
+  assert.equal(GPA_MAX, 4.33);
 });
 
 test("marks are rounded to a whole percent first, like a report card", () => {
-  assert.equal(gpaFor(96.5).letter, "A+");
-  assert.equal(gpaFor(96.4).letter, "A");
-  assert.equal(gpaFor(64.5).letter, "D");
+  assert.equal(gpaFor(89.5).letter, "A+");
+  assert.equal(gpaFor(89.4).letter, "A");
+  assert.equal(gpaFor(49.5).letter, "D-");
+});
+
+test("a Level 3 mark (B, 73-76%) is a 3.0, not a 2.7", () => {
+  assert.equal(gpaFor(75).points, 3.0);
 });
 
 test("GPA averages the points, every course counting equally", () => {
-  const g = computeGpa([97.5, 90, 84, 71]); // 4.0 + 3.7 + 3.0 + 1.7
-  assert.equal(g.gpa, 3.1);
+  const g = computeGpa([97.5, 88, 81, 71]); // 4.33 + 4.0 + 3.67 + 2.67
+  assert.equal(g.gpa, 3.67);
   assert.equal(g.count, 4);
-  assert.equal(g.average, 85.6);
-  assert.equal(g.letter, "B");
+  assert.equal(g.average, 84.4);
+  assert.equal(g.letter, "A-");
 });
 
 test("no marks means no GPA; missing marks are ignored", () => {
   assert.equal(computeGpa([]), null);
   assert.equal(computeGpa([null, undefined, NaN]), null);
   assert.equal(gpaFor(null), null);
-  assert.equal(computeGpa([null, 98]).gpa, 4);
+  assert.equal(computeGpa([null, 98]).gpa, 4.33);
 });

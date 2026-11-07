@@ -26,10 +26,10 @@
     min-width: 38px;
   }
   .app-name {
-    font-size: 17px;
+    font-size: calc(17px * var(--ts, 1));
   }
   .app-status {
-    font-size: 12px;
+    font-size: calc(12px * var(--ts, 1));
   }
   .screen {
     min-height: calc(100svh - 64px);
@@ -49,12 +49,12 @@
     line-height: 1.15;
   }
   .eyebrow {
-    font-size: 11px;
+    font-size: calc(11px * var(--ts, 1));
     letter-spacing: 0.08em;
     margin-bottom: 8px;
   }
   .dashboard-subtitle {
-    font-size: 14px;
+    font-size: calc(14px * var(--ts, 1));
     line-height: 1.5;
     margin-top: 8px;
   }
@@ -81,7 +81,7 @@
   }
   #screen-courses .gauge-cap {
     flex: 1;
-    font-size: 14px;
+    font-size: calc(14px * var(--ts, 1));
     text-align: left;
     max-width: 165px;
   }
@@ -106,12 +106,12 @@
     min-width: 0;
   }
   .dream-preview h2 {
-    font-size: 17px;
+    font-size: calc(17px * var(--ts, 1));
     flex: 1 1 140px;
     overflow-wrap: anywhere;
   }
   .dream-preview .btn {
-    font-size: 14px;
+    font-size: calc(14px * var(--ts, 1));
     padding: 10px 12px;
   }
   .dashboard-actions {
@@ -120,10 +120,10 @@
     gap: 4px 8px;
   }
   .dashboard-actions h2 {
-    font-size: 21px;
+    font-size: calc(21px * var(--ts, 1));
   }
   .dashboard-actions .btn {
-    font-size: 14px;
+    font-size: calc(14px * var(--ts, 1));
     padding: 10px 0;
   }
   .course-grid {
@@ -154,7 +154,7 @@
     display: none;
   }
   .course-card .cc-code {
-    font-size: 17px;
+    font-size: calc(17px * var(--ts, 1));
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1.35;
@@ -162,13 +162,13 @@
     overflow-wrap: anywhere;
   }
   .course-card .cc-mark {
-    font-size: 23px;
+    font-size: calc(23px * var(--ts, 1));
   }
   .course-card .cc-markwrap {
     min-width: 64px;
   }
   .course-card .cc-tag {
-    font-size: 11px;
+    font-size: calc(11px * var(--ts, 1));
     margin-top: 2px;
   }
   .cc-bar {
@@ -191,7 +191,7 @@
     min-width: 0;
     min-height: 60px;
     padding: 8px 2px;
-    font-size: 11px;
+    font-size: calc(11px * var(--ts, 1));
     gap: 5px;
   }
   .tabbar button svg {
@@ -213,7 +213,7 @@
   .screen-header #refresh {
     min-width: 44px;
     min-height: 44px;
-    font-size: 24px;
+    font-size: calc(24px * var(--ts, 1));
   }
   .form-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -225,13 +225,13 @@
   }
   .field label,
   .chat-form label {
-    font-size: 14px;
+    font-size: calc(14px * var(--ts, 1));
   }
   .field input,
   .field select,
   .goal-row input,
   .chat-form textarea {
-    font-size: 16px;
+    font-size: calc(16px * var(--ts, 1));
     min-width: 0;
     max-width: 100%;
   }
@@ -269,7 +269,7 @@
     display: none;
   }
   .assistant-intro h2 {
-    font-size: 23px;
+    font-size: calc(23px * var(--ts, 1));
   }
   .prompt-chips {
     display: grid;
@@ -278,7 +278,7 @@
     margin-top: 16px;
   }
   .prompt-chips button {
-    font-size: 14px;
+    font-size: calc(14px * var(--ts, 1));
     text-align: left;
     line-height: 1.4;
   }
@@ -292,7 +292,7 @@
   }
   .chat-footer .small,
   .small {
-    font-size: 13px;
+    font-size: calc(13px * var(--ts, 1));
   }
   .chat-message {
     padding: 16px;
@@ -309,10 +309,10 @@
     min-width: 0;
   }
   .preference-row b {
-    font-size: 16px;
+    font-size: calc(16px * var(--ts, 1));
   }
   .preference-row small {
-    font-size: 13px;
+    font-size: calc(13px * var(--ts, 1));
     line-height: 1.5;
   }
   .theme-swatches {
@@ -332,11 +332,11 @@
     text-align: left;
   }
   .detail-title {
-    font-size: 15px;
+    font-size: calc(15px * var(--ts, 1));
   }
   .detail-subtitle {
     white-space: normal;
-    font-size: 13px;
+    font-size: calc(13px * var(--ts, 1));
     line-height: 1.4;
   }
   .detail-actions:empty {
@@ -360,15 +360,15 @@
     display: none;
   }
   .eval-row .eval-name {
-    font-size: 16px;
+    font-size: calc(16px * var(--ts, 1));
     overflow-wrap: anywhere;
   }
   .eval-row .eval-feedback {
-    font-size: 14px;
+    font-size: calc(14px * var(--ts, 1));
     line-height: 1.5;
   }
   .eval-row .eval-sub {
-    font-size: 13px;
+    font-size: calc(13px * var(--ts, 1));
   }
   .cat-pill {
     white-space: normal;
@@ -407,7 +407,7 @@
   }
   [data-large-text="true"] .course-card .cc-code,
   [data-large-text="true"] .eval-name {
-    font-size: 18px;
+    font-size: calc(18px * var(--ts, 1));
   }
 }
 /* Explicit controls also work with keyboards and without swipe gestures. */
@@ -426,7 +426,7 @@
   background: var(--card);
   color: var(--text-secondary);
   font: inherit;
-  font-size: 14px;
+  font-size: calc(14px * var(--ts, 1));
   cursor: pointer;
 }
 .carousel-controls button[aria-pressed="true"] {

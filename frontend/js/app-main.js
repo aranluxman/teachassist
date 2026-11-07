@@ -21,6 +21,7 @@ import {
   playIntro,
 } from "./motion.js";
 import { initGlass } from "./glass.js";
+import { initHaptics } from "./customize.js";
 
 const screens = {
   profile: document.getElementById("screen-profile"),
@@ -123,6 +124,7 @@ window.addEventListener("resize", () =>
   applyStoredTheme();
   initMotion();
   initGlass();
+  initHaptics();
   startNotificationChecks();
   registerServiceWorker();
   if (!location.hash) history.replaceState(null, "", "#courses");

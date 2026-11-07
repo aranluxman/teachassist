@@ -1,24 +1,28 @@
 // ============================================================================
-// GPA on the common 4.0 scale
+// GPA on the 4.33 scale, with Ontario's percentage bands
 // ----------------------------------------------------------------------------
 // Each course mark is rounded to a whole percent (the way report cards show
 // it), turned into a letter and points, and the points are averaged with every
 // course counting equally. An estimate: universities each convert differently.
 // ============================================================================
 
+/** The top of the scale (an A+). */
+export const GPA_MAX = 4.33;
+
 /** [lowest whole percent, letter, points], highest band first. */
 export const GPA_SCALE = [
-  [97, "A+", 4.0],
-  [93, "A", 4.0],
-  [90, "A-", 3.7],
-  [87, "B+", 3.3],
-  [83, "B", 3.0],
-  [80, "B-", 2.7],
-  [77, "C+", 2.3],
-  [73, "C", 2.0],
-  [70, "C-", 1.7],
-  [67, "D+", 1.3],
-  [65, "D", 1.0],
+  [90, "A+", 4.33],
+  [85, "A", 4.0],
+  [80, "A-", 3.67],
+  [77, "B+", 3.33],
+  [73, "B", 3.0],
+  [70, "B-", 2.67],
+  [67, "C+", 2.33],
+  [63, "C", 2.0],
+  [60, "C-", 1.67],
+  [57, "D+", 1.33],
+  [53, "D", 1.0],
+  [50, "D-", 0.67],
   [0, "F", 0.0],
 ];
 

@@ -7,7 +7,7 @@
 
 const SCREENS = ["courses", "course", "guidance", "dreams", "settings", "profile"];
 const GUIDANCE_VIEWS = ["map", "volunteer"];
-const SETTINGS_VIEWS = ["theme", "accessibility", "notifications", "privacy", "install", "account", "help"];
+const SETTINGS_VIEWS = ["theme", "accessibility", "experience", "notifications", "privacy", "install", "account", "help"];
 
 /** "#course/MTH1W1" → { screen: "course", arg: "MTH1W1" }. Unknown → courses. */
 export function parseRoute(hash) {
