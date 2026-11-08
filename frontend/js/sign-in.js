@@ -35,6 +35,13 @@ installBtn.addEventListener("click", promptInstall);
 onInstallChange(drawInstall);
 drawInstall();
 
+/** Let the page lift away (animations on), then go. */
+function leaveTo(url) {
+  if (!motionEnabled()) return window.location.replace(url);
+  document.body.classList.add("is-leaving");
+  setTimeout(() => window.location.replace(url), 320);
+}
+
 // ── Demo: every "Explore the Demo" / "Try it in the demo" button ────────────
 // data-demo="dreams" opens the demo on that screen; empty opens Courses.
 const DEMO_SCREENS = ["courses", "dreams", "guidance"];
@@ -42,9 +49,30 @@ document.querySelectorAll("[data-demo]").forEach((btn) =>
   btn.addEventListener("click", () => {
     enterDemo();
     const screen = DEMO_SCREENS.includes(btn.dataset.demo) ? btn.dataset.demo : "courses";
-    window.location.replace(`app.html#${screen}`);
+    leaveTo(`app.html#${screen}`);
   }),
 );
+
+// ── Liquid glass: a highlight that follows the finger or cursor ────────────
+document.querySelectorAll(".glass-card, .feature-pill, .btn-ghost").forEach((glass) => {
+  let frame = 0;
+  const light = (e) => {
+    if (!motionEnabled() || frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      const r = glass.getBoundingClientRect();
+      glass.style.setProperty("--mx", `${e.clientX - r.left}px`);
+      glass.style.setProperty("--my", `${e.clientY - r.top}px`);
+      glass.style.setProperty("--lit", "1");
+    });
+  };
+  glass.addEventListener("pointermove", light, { passive: true });
+  glass.addEventListener("pointerdown", light, { passive: true });
+  const dim = () => glass.style.setProperty("--lit", "0");
+  glass.addEventListener("pointerleave", dim);
+  glass.addEventListener("pointercancel", dim);
+  glass.addEventListener("pointerup", (e) => e.pointerType !== "mouse" && dim());
+});
 
 // ── Pop-up sheets: About, Help, Assignments, Planning, Resources ────────────
 document.getElementById("help-contact").href =
@@ -56,14 +84,19 @@ function closeSheet(sheet) {
   if (!sheet.open || sheet.classList.contains("is-closing")) return;
   if (!motionEnabled()) return sheet.close();
   sheet.classList.add("is-closing");
-  sheet.addEventListener(
-    "animationend",
-    () => {
-      sheet.classList.remove("is-closing");
-      sheet.close();
-    },
-    { once: true },
-  );
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    sheet.removeEventListener("animationend", onEnd);
+    sheet.classList.remove("is-closing");
+    sheet.close();
+  };
+  // Only the sheet's own exit counts (a button's sheen inside it doesn't);
+  // the timer is a safety net if the animation never reports back.
+  const onEnd = (e) => e.target === sheet && e.animationName === "sheet-out" && finish();
+  sheet.addEventListener("animationend", onEnd);
+  setTimeout(finish, 320);
 }
 document.querySelectorAll("dialog.sheet").forEach((sheet) => {
   sheet.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => closeSheet(sheet)));
@@ -168,7 +201,10 @@ form.addEventListener("submit", async (e) => {
   label.textContent = "Signing in…";
   try {
     await login(num, pass);
-    window.location.replace("app.html");
+    submit.classList.remove("is-busy");
+    submit.classList.add("is-done");
+    label.textContent = "Signed in ✓";
+    return leaveTo("app.html");
   } catch (err) {
     fail(err?.message || "Sign in failed.");
     document.getElementById("auth-error-code").textContent = /^TA_[A-Z_]+$/.test(err?.code || "") ? `Support code: ${err.code}` : "";
@@ -178,8 +214,11 @@ form.addEventListener("submit", async (e) => {
     }
     resetService.classList.remove("hidden");
   } finally {
-    submit.disabled = false;
-    submit.classList.remove("is-busy");
-    label.textContent = "Sign in";
+    // Signed in: keep "Signed in ✓" while the page leaves.
+    if (!submit.classList.contains("is-done")) {
+      submit.disabled = false;
+      submit.classList.remove("is-busy");
+      label.textContent = "Sign in";
+    }
   }
 });

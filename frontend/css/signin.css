@@ -12,8 +12,8 @@
   --text: #f2fbf7;
   --text-2: rgba(226, 246, 238, 0.74);
   --text-3: rgba(226, 246, 238, 0.52);
-  --glass: rgba(18, 52, 42, 0.42);
-  --glass-strong: rgba(14, 44, 35, 0.72);
+  --glass: rgba(6, 30, 23, 0.66);
+  --glass-strong: rgba(6, 28, 21, 0.86);
   --rim: rgba(140, 255, 210, 0.32);
   --rim-soft: rgba(140, 255, 210, 0.16);
   --danger: #ff8a8a;
@@ -451,6 +451,7 @@ form[data-step="password"] .btn-arrow,
 }
 
 .btn-ghost {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -459,8 +460,8 @@ form[data-step="password"] .btn-arrow,
   min-height: 52px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   color: var(--text);
   font-size: 16px;
   font-weight: 600;
@@ -489,6 +490,7 @@ form[data-step="password"] .btn-arrow,
   padding: 0 4px;
 }
 .feature-pill {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -498,8 +500,9 @@ form[data-step="password"] .btn-arrow,
   border-radius: 999px;
   border: 1px solid var(--rim-soft);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.01)),
-    rgba(18, 52, 42, 0.35);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.01)),
+    rgba(6, 30, 23, 0.7);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
@@ -521,7 +524,8 @@ form[data-step="password"] .btn-arrow,
   transform: scale(0.97);
 }
 .m-on .feature-pill {
-  animation: card-in 560ms var(--spring) both;
+  /* backwards, not both: once in, hover/press transitions own transform. */
+  animation: card-in 560ms var(--spring) backwards;
 }
 .m-on .feature-pill:nth-child(1) { animation-delay: 160ms; }
 .m-on .feature-pill:nth-child(2) { animation-delay: 220ms; }
@@ -531,6 +535,7 @@ form[data-step="password"] .btn-arrow,
 .foot {
   margin-top: 22px;
   text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 .foot-links {
   display: flex;
@@ -552,7 +557,7 @@ form[data-step="password"] .btn-arrow,
 }
 .foot-note {
   margin: 8px 0 0;
-  color: var(--text-3);
+  color: var(--text-2);
   font-size: 12.5px;
 }
 .install-slot {
@@ -704,6 +709,187 @@ dialog.sheet::backdrop {
   margin-top: 18px;
 }
 
+/* ── Readability: the light waves dim where text sits ───────────────────── */
+/* Bottom of the screen (demo button, pills, footer): the ribbons fade out. */
+.aurora::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 50%, rgba(2, 12, 9, 0.3) 72%, rgba(2, 10, 7, 0.78) 100%);
+}
+/* A soft dark pool behind the card and pills, so glass never sits on the
+   brightest part of a ribbon. It lives in the fixed aurora layer, which
+   clips it: no sideways scrolling on phones. */
+.aurora::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 150px;
+  width: min(640px, 170vw);
+  height: 720px;
+  translate: -50% 0;
+  background: radial-gradient(closest-side, rgba(2, 12, 9, 0.8), rgba(2, 12, 9, 0.5) 60%, transparent);
+}
+.aurora::after {
+  z-index: 1;
+}
+
+/* ── Liquid glass: a light-catching rim and a highlight under the pointer ── */
+.glass-card::before,
+.feature-pill::before,
+.btn-ghost::before,
+dialog.sheet::before {
+  /* Gradient rim: bright where light hits the top-left, fading round. */
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.6), rgba(140, 255, 210, 0.22) 30%, rgba(255, 255, 255, 0.04) 55%, rgba(140, 255, 210, 0.38));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+.glass-card::after,
+.feature-pill::after,
+.btn-ghost::after {
+  /* Specular highlight: follows the finger or cursor (js sets --mx/--my). */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, -40%), rgba(255, 255, 255, 0.13), transparent 60%);
+  opacity: var(--lit, 0);
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+.glass-card > *,
+.feature-pill > *,
+.btn-ghost > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+/* Hero: icon, title and subtitle rise in one after another. */
+.m-on .hero h1 {
+  animation: rise 640ms var(--spring) 120ms both;
+}
+.m-on .hero p {
+  animation: rise 640ms var(--spring) 200ms both;
+}
+.m-on .top {
+  animation: fade-in 500ms ease both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+}
+/* The icon floats very gently once it has arrived. */
+.m-on .hero-icon {
+  animation:
+    icon-in 700ms var(--spring) both,
+    float 7s ease-in-out 900ms infinite alternate;
+}
+@keyframes float {
+  to {
+    transform: translateY(-5px);
+  }
+}
+/* Light runs along the thin glowing edge of each ribbon. */
+.m-on .ribbon path:nth-child(2) {
+  stroke-dasharray: 260 1400;
+  animation: run 9s linear infinite;
+}
+.m-on .ribbon-2 path:nth-child(2) {
+  animation-duration: 12s;
+  animation-delay: -4s;
+}
+@keyframes run {
+  from {
+    stroke-dashoffset: 1660;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* A sheen sweeps across the main button when the page opens and on hover. */
+.btn-primary {
+  overflow: hidden;
+}
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.35) 50%, transparent 65%);
+  translate: -120% 0;
+  pointer-events: none;
+}
+.m-on .btn-primary::before {
+  animation: sheen 1.1s ease 900ms both;
+}
+.m-on .btn-primary:hover::before {
+  animation: sheen 0.9s ease both;
+}
+@keyframes sheen {
+  to {
+    translate: 120% 0;
+  }
+}
+/* Pills and the demo button lift toward the pointer. */
+.m-on .feature-pill:hover,
+.m-on .btn-ghost:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 10px 26px rgba(34, 197, 139, 0.22);
+}
+.m-on .feature-pill,
+.m-on .btn-ghost {
+  transition:
+    transform 260ms var(--spring),
+    box-shadow 260ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+.m-on .feature-pill:active,
+.m-on .btn-ghost:active {
+  transform: scale(0.97);
+  transition-duration: 100ms;
+}
+/* Step 2: the number field settles as the password opens below it. */
+.m-on form[data-step="password"] #student-field {
+  animation: settle 420ms var(--spring);
+}
+@keyframes settle {
+  40% {
+    transform: scale(0.985);
+  }
+}
+/* Signed in (or off to the demo): the page lifts away before it changes. */
+.m-on body.is-leaving .stage,
+.m-on body.is-leaving .top {
+  animation: leave 340ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes leave {
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+    filter: blur(6px);
+  }
+}
+.btn-primary.is-done {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(180deg, #34d399, #059669);
+}
+
 /* ── Small phones ────────────────────────────────────────────────────────── */
 @media (max-width: 420px) {
   .top {
@@ -761,9 +947,14 @@ dialog.sheet::backdrop {
 /* ── Accessibility ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .ribbon,
+  .ribbon path,
   .hero-icon,
+  .hero h1,
+  .hero p,
+  .top,
   .glass-card,
   .feature-pill,
+  .btn-primary::before,
   dialog.sheet,
   dialog.sheet::backdrop {
     animation: none !important;
