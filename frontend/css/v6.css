@@ -607,9 +607,18 @@ html[data-mode] .g-pager {
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   margin: 0 -16px;
-  /* Fingers only scroll the page up and down here: the average never slides
-     sideways mid-scroll. The dots underneath switch pages. */
+  /* The browser only scrolls the page up and down here, so the average never
+     slides sideways mid-scroll. Sideways swipes are handled in js/swipe.js:
+     a small nudge or a quick flick switches pages. The dots work too. */
   touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* While a finger drags, the pager follows it exactly; snap comes back when
+   it settles on a page. */
+html[data-mode] .g-pager.is-swiping {
+  scroll-snap-type: none;
+  scroll-behavior: auto;
 }
 html[data-mode] .g-pager::-webkit-scrollbar {
   display: none;
@@ -1502,8 +1511,8 @@ html[data-mode] .auth-logo .mark {
 .install-slot { display: grid; justify-items: center; gap: 8px; margin-top: 18px; text-align: center; }
 .install-card .btn { margin-top: 4px; }
 
-/* Slide-to-inspect grade charts (courses + overall average). Horizontal drags
-   belong to the chart; vertical ones still scroll the page. */
+/* Grade charts (courses + overall average): press and hold, then slide, to
+   see each point. A quick swipe switches page; vertical drags scroll. */
 html[data-mode] .g-trend {
   position: relative;
   width: 100%;
@@ -1513,6 +1522,7 @@ html[data-mode] .g-trend {
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none; /* press-and-hold inspects, no iOS menu */
   outline: none;
 }
 html[data-mode] .g-trend:focus-visible { box-shadow: 0 0 0 2px var(--accent); border-radius: 12px; }

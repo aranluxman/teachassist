@@ -18,6 +18,7 @@ import { openSchedule } from "./schedule.js";
 import { teacherFor } from "./teachers.js";
 import { splitByTerm } from "./term.js";
 import { haptic } from "./customize.js";
+import { HOLD_MS, LOCK_PX } from "./swipe.js";
 import {
   animateGauge,
   countUp,
@@ -633,7 +634,7 @@ export function trendChart(rows) {
 }
 
 export function trendChartEl(rows) {
-  const wrap = el(`<div class="g-trend" tabindex="0" aria-label="Grade history. Slide or use arrow keys to see each point.">${trendChart(rows)}<div class="g-tip" role="status" hidden></div></div>`);
+  const wrap = el(`<div class="g-trend" tabindex="0" aria-label="Grade history. Press and hold, then slide, or use arrow keys to see each point.">${trendChart(rows)}<div class="g-tip" role="status" hidden></div></div>`);
   const svg = wrap.querySelector("svg");
   const tip = wrap.querySelector(".g-tip");
   const cursor = wrap.querySelector(".g-cursor");
@@ -698,22 +699,48 @@ export function trendChartEl(rows) {
     return best;
   };
 
-  let dragging = false;
-  svg.addEventListener("pointerdown", (e) => {
+  // Mouse: press and drag to inspect. Finger: a quick swipe belongs to the
+  // pager (switches page); press and hold first, then slide, to inspect. A
+  // plain tap shows the nearest point.
+  let dragging = false, hold = null, holdTimer = 0;
+  const startInspect = (p) => {
     dragging = true;
-    svg.setPointerCapture?.(e.pointerId);
-    show(nearest(e));
-    e.stopPropagation();
+    wrap.classList.add("is-inspecting");
+    try { svg.setPointerCapture(p.pointerId); } catch { /* finger already lifted */ }
+    show(nearest(p));
+  };
+  svg.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse") {
+      startInspect(e);
+      e.stopPropagation();
+      return;
+    }
+    hold = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, clientX: e.clientX, moved: false };
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => hold && !hold.moved && startInspect(hold), HOLD_MS);
   });
   // At most one update per frame, however fast the finger moves.
   let frame = 0, lastMove = null;
   svg.addEventListener("pointermove", (e) => {
+    if (hold && !dragging) {
+      hold.clientX = e.clientX;
+      if (Math.abs(e.clientX - hold.x) >= LOCK_PX || Math.abs(e.clientY - hold.y) >= LOCK_PX) {
+        hold.moved = true; // it's a swipe or a scroll, not a hold
+        clearTimeout(holdTimer);
+      }
+    }
     if (!(dragging || e.pointerType === "mouse")) return;
     lastMove = e;
     if (!frame) frame = requestAnimationFrame(() => { frame = 0; show(nearest(lastMove)); });
   });
-  const release = () => {
+  const release = (e) => {
+    clearTimeout(holdTimer);
+    const tapped = hold && !hold.moved && !dragging && e.type === "pointerup";
+    hold = null;
+    if (tapped) show(nearest(e));
+    else if (!dragging) return;
     dragging = false;
+    wrap.classList.remove("is-inspecting");
     hideTimer = setTimeout(hide, 2500);
   };
   svg.addEventListener("pointerup", release);
