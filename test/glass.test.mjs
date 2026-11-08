@@ -132,13 +132,14 @@ test("text on glass passes WCAG AA over the lightest and darkest content", () =>
   assert.deepEqual(failures, [], failures.join("\n"));
 });
 
-test("glass.css and glass.js are linked on both pages; v8.css is gone", () => {
-  for (const html of [appHtml, indexHtml]) {
-    assert.match(html, /href="css\/glass\.css"/);
-    assert.match(html, /import \{ initGlass \} from "\.\/glass\.js"/);
-    assert.match(html, /initGlass\(\);/);
-    assert.doesNotMatch(html, /css\/v8\.css/);
-  }
+test("the app links glass.css and glass.js; the sign-in page has its own glass; v8.css is gone", () => {
+  assert.match(appHtml, /href="css\/glass\.css"/);
+  assert.match(appHtml, /import \{ initGlass \} from "\.\/glass\.js"/);
+  assert.match(appHtml, /initGlass\(\);/);
+  // The always-dark sign-in page stands alone on css/signin.css.
+  assert.match(indexHtml, /href="css\/signin\.css"/);
+  assert.match(readFileSync(new URL("../frontend/css/signin.css", import.meta.url), "utf8"), /backdrop-filter: blur\(/);
+  for (const html of [appHtml, indexHtml]) assert.doesNotMatch(html, /css\/v8\.css/);
 });
 
 /** Innermost CSS rules as [selector, body], comments removed. Keyframe steps
