@@ -12,6 +12,7 @@ import {
 import { initMotion, motionEnabled, shake, replay } from "./motion.js";
 import { applyPreferences } from "./personalization.js";
 import { CONTACT_FORM_URL, CONTACT_EMAIL } from "./config.js";
+import { setSharedDevice } from "./device-store.js";
 registerServiceWorker();
 
 // Motion follows the same Settings toggle the app uses.
@@ -199,6 +200,8 @@ form.addEventListener("submit", async (e) => {
   submit.disabled = true;
   submit.classList.add("is-busy");
   label.textContent = "Signing in…";
+  // Shared computer: this tab keeps everything, and closing it clears it all.
+  setSharedDevice(document.getElementById("shared-device").checked);
   try {
     await login(num, pass);
     submit.classList.remove("is-busy");

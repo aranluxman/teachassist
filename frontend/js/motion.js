@@ -106,9 +106,13 @@ export function shake(node) {
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 
 /**
- * Count a number up (or down) to its final value.
- * Skipped entirely — final value written at once — when motion is off, or
- * when the value is a mark and "Hide grades" is on.
+ * Show a number at its final value.
+ *
+ * It used to count up from `from`, but that briefly showed marks that weren't
+ * real (and disagreed with the accessible label). Now the true value is written
+ * at once; when motion is on and the value changed, the number just settles in
+ * (a short fade/lift, never a different number). Gauges still sweep their arc.
+ * A mark is never written while "Hide grades" is on.
  */
 export function countUp(node, to, options = {}) {
   const {
@@ -116,36 +120,19 @@ export function countUp(node, to, options = {}) {
     decimals = 1,
     suffix = "%",
     prefix = "",
-    duration = 1200,
     isMark = true,
     format,
     html = false, // `format` returns trusted markup built from the number
   } = options;
   if (!node) return;
-  const render = (v) => {
-    const out = format ? format(v) : `${prefix}${v.toFixed(decimals)}${suffix}`;
-    if (html) node.innerHTML = out;
-    else node.textContent = out;
-  };
-
   if (to == null || !isFinite(to)) return;
   // A hidden mark is never written, not even its final value: the node keeps
   // the masked text it was rendered with.
   if (isMark && marksHidden()) return;
-  if (!motionEnabled()) {
-    render(to);
-    return;
-  }
-  const start = performance.now();
-  const delta = to - from;
-  const step = (now) => {
-    const t = Math.min(1, (now - start) / duration);
-    render(from + delta * easeOut(t));
-    if (t < 1 && node.isConnected) requestAnimationFrame(step);
-    else render(to);
-  };
-  render(from);
-  requestAnimationFrame(step);
+  const out = format ? format(to) : `${prefix}${to.toFixed(decimals)}${suffix}`;
+  if (html) node.innerHTML = out;
+  else node.textContent = out;
+  if (motionEnabled() && Math.abs(to - from) >= 0.05) replay(node, "m-num-in");
 }
 
 // Previous on-screen values, so a refresh animates from the old number to the

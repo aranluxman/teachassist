@@ -11,6 +11,7 @@
 //   { code, name, currentMark, midterm, evaluations: [{ name, category, percent, weight }] }
 // ============================================================================
 
+import { deviceStore, isSharedDevice } from "./device-store.js";
 import { readHistory, recordSnapshot, realMark } from "./history.js";
 import { WORKER_URL } from "./config.js";
 import { DEMO_COURSES, DEMO_SCRAPED_AT } from "./demo-data.js";
@@ -51,14 +52,14 @@ export function workerUrl() {
   return WORKER_URL;
 }
 export function studentNumber() {
-  return localStorage.getItem(LS.num) || "";
+  return deviceStore().getItem(LS.num) || "";
 }
 /** A password still held for this tab only (or left by an old version in localStorage). */
 function password() {
   return sessionStorage.getItem(LS.pass) || localStorage.getItem(LS.pass) || "";
 }
 function sealedCred() {
-  return localStorage.getItem(LS.cred) || "";
+  return deviceStore().getItem(LS.cred) || "";
 }
 export function isLoggedIn() {
   return isDemo() || !!(studentNumber() && (sealedCred() || password()));
@@ -67,7 +68,7 @@ export function isLoggedIn() {
 function keepCredential(pass) {
   localStorage.removeItem(LS.pass);
   if (issuedCred) {
-    localStorage.setItem(LS.cred, issuedCred);
+    deviceStore().setItem(LS.cred, issuedCred);
     sessionStorage.removeItem(LS.pass);
   } else if (pass) {
     // A backend that can't seal (no API_KEY) gets the password for this tab
@@ -200,7 +201,7 @@ export function resetSignInService() {
 /** Sign in: validates the credentials by fetching marks, then stores them. */
 export async function login(num, pass) {
   const courses = await postMarks(num.trim(), { password: pass });
-  localStorage.setItem(LS.num, num.trim());
+  deviceStore().setItem(LS.num, num.trim());
   keepCredential(pass);
   localStorage.removeItem(LS.demo);
   cache = courses;
@@ -334,9 +335,13 @@ export function signOut() {
   localStorage.removeItem(LS.pass);
   sessionStorage.removeItem(LS.pass);
   localStorage.removeItem(LS.cred);
+  sessionStorage.removeItem(LS.num);
+  sessionStorage.removeItem(LS.cred);
   localStorage.removeItem(LS.demo);
   localStorage.removeItem(LS.url);
   localStorage.removeItem("ta_api_key");
+  // A shared computer: drop everything this tab kept (marks, settings, the flag).
+  if (isSharedDevice()) sessionStorage.clear();
   cache = null;
   window.location.replace("index.html");
 }

@@ -457,7 +457,7 @@ form[data-step="password"] .btn-arrow,
   justify-content: center;
   gap: 12px;
   width: 100%;
-  min-height: 52px;
+  min-height: 48px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.07);
@@ -707,6 +707,113 @@ dialog.sheet::backdrop {
 }
 .sheet-actions .btn-primary {
   margin-top: 18px;
+}
+
+/* ── Shared-computer choice, help link, "How your sign-in works" ─────── */
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 12px 2px 0;
+  cursor: pointer;
+}
+.check-row input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: var(--mint-2);
+  cursor: pointer;
+}
+.check-row span {
+  display: grid;
+  gap: 1px;
+}
+.check-row b {
+  font-size: 15px;
+  font-weight: 600;
+}
+.check-row small {
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+.form-help {
+  margin: 12px 0 0;
+  text-align: center;
+}
+.link-btn {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--mint);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.link-btn:hover {
+  background: rgba(140, 255, 210, 0.08);
+}
+.how-signin {
+  margin: 6px 0 0;
+  padding: 0 4px;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.how-signin summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  color: var(--text);
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.how-signin summary::-webkit-details-marker {
+  display: none;
+}
+.how-signin summary::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='5' y='10.5' width='14' height='10' rx='2.6'/%3E%3Cpath d='M8.2 10.5V7.8a3.8 3.8 0 0 1 7.6 0v2.7'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='5' y='10.5' width='14' height='10' rx='2.6'/%3E%3Cpath d='M8.2 10.5V7.8a3.8 3.8 0 0 1 7.6 0v2.7'/%3E%3C/svg%3E") center / contain no-repeat;
+  color: var(--mint);
+}
+.how-signin summary::after {
+  content: "›";
+  color: var(--text-3);
+  transition: rotate 200ms ease;
+}
+.how-signin[open] summary::after {
+  rotate: 90deg;
+}
+.how-signin ul {
+  display: grid;
+  gap: 8px;
+  margin: 6px 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.how-signin li {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.how-signin b {
+  color: var(--text);
+}
+.how-signin > a {
+  display: block;
+  margin-bottom: 4px;
+  text-align: center;
+  font-weight: 600;
 }
 
 /* ── Readability: the light waves dim where text sits ───────────────────── */
