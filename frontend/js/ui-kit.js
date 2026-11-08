@@ -13,6 +13,7 @@
 import { el, escapeHtml } from "./courses.js";
 import { marksHidden, motionEnabled } from "./motion.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
+import { attachSwipe } from "./swipe.js";
 
 export const GLYPHS = {
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>',
@@ -111,6 +112,24 @@ export function arcGauge(percent, { id = "g" } = {}) {
  * Dots are real buttons, so keyboard and screen-reader users can switch too.
  */
 export function pager(track, labels, onChange) {
+  // Scroll to page i; `done` runs once it has arrived (or right away).
+  const go = (i, done) => {
+    const left = Math.min(Math.max(i, 0), labels.length - 1) * track.clientWidth;
+    const smooth = motionEnabled() && Math.abs(track.scrollLeft - left) > 1;
+    track.scrollTo({ left, behavior: smooth ? "smooth" : "instant" });
+    if (!done) return;
+    if (!smooth) return done();
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      track.removeEventListener("scrollend", finish);
+      done();
+    };
+    track.addEventListener("scrollend", finish);
+    setTimeout(finish, 450); // browsers without scrollend
+  };
+  attachSwipe(track, go);
   const dots = document.createElement("div");
   dots.className = "g-dots";
   dots.setAttribute("role", "group");
@@ -120,9 +139,7 @@ export function pager(track, labels, onChange) {
     b.type = "button";
     b.setAttribute("aria-label", label);
     b.setAttribute("aria-pressed", String(i === 0));
-    b.addEventListener("click", () =>
-      track.scrollTo({ left: i * track.clientWidth, behavior: motionEnabled() ? "smooth" : "instant" }),
-    );
+    b.addEventListener("click", () => go(i));
     dots.appendChild(b);
   });
   let current = 0;
