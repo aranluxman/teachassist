@@ -130,24 +130,51 @@ export function pager(track, labels, onChange) {
     setTimeout(finish, 450); // browsers without scrollend
   };
   attachSwipe(track, go);
+  // One view at a time: a tab list (not toggle buttons). Each dot is a tab
+  // that controls its page; pages you can't see are inert so focus skips them.
   const dots = document.createElement("div");
   dots.className = "g-dots";
-  dots.setAttribute("role", "group");
+  dots.setAttribute("role", "tablist");
   dots.setAttribute("aria-label", "Choose a view");
+  const pages = [...track.children];
+  const uid = `pg${Math.random().toString(36).slice(2, 8)}`;
   labels.forEach((label, i) => {
     const b = document.createElement("button");
     b.type = "button";
+    b.id = `${uid}-tab${i}`;
+    b.setAttribute("role", "tab");
     b.setAttribute("aria-label", label);
-    b.setAttribute("aria-pressed", String(i === 0));
+    if (pages[i]) {
+      pages[i].id ||= `${uid}-page${i}`;
+      pages[i].setAttribute("role", "tabpanel");
+      pages[i].setAttribute("aria-labelledby", b.id);
+      b.setAttribute("aria-controls", pages[i].id);
+    }
     b.addEventListener("click", () => go(i));
+    // Arrow keys move between views, like any tab list.
+    b.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      const next = Math.max(0, Math.min(labels.length - 1, i + (e.key === "ArrowRight" ? 1 : -1)));
+      go(next);
+      dots.children[next]?.focus();
+    });
     dots.appendChild(b);
   });
+  const mark = (i) => {
+    [...dots.children].forEach((d, j) => {
+      d.setAttribute("aria-selected", String(j === i));
+      d.tabIndex = j === i ? 0 : -1;
+    });
+    pages.forEach((pg, j) => (pg.inert = j !== i));
+  };
   let current = 0;
+  mark(0);
   const sync = () => {
     const i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
     if (i === current) return;
     current = i;
-    [...dots.children].forEach((d, j) => d.setAttribute("aria-pressed", String(j === i)));
+    mark(i);
     onChange?.(i);
   };
   track.addEventListener("scroll", sync, { passive: true });

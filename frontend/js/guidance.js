@@ -130,25 +130,15 @@ function profileCard(school) {
   return card;
 }
 
-function quickTools(school) {
-  const site = school?.website || "";
-  const tools = [
-    ["teacher", "Find a Teacher", HUB_ICONS.search, teacherSearch],
-    ["volunteer", "Volunteer Hours", HUB_ICONS.heart, () => window.AppNav.toGuidance("volunteer")],
-    ["classroom", "Google Classroom", HUB_ICONS.classroom, "https://classroom.google.com"],
-    ["schedule", "My Schedule", HUB_ICONS.calendar, async () => openSchedule(await getCourses().catch(() => []))],
-    ["exam", "Exam Calculator", HUB_ICONS.calc, examCalculator],
-    // No school picked yet: the tile takes you to the school map to choose one.
-    ["website", "School Website", HUB_ICONS.external, site || (() => window.AppNav.toGuidance("map"))],
-    ["blueprint", "myBlueprint", HUB_ICONS.compass, "https://myblueprint.ca"],
-    ["map", "School Map", HUB_ICONS.map, () => window.AppNav.toGuidance("map")],
-  ];
-  const wrap = el(`<section class="gh-section" aria-labelledby="gh-tools-title"><h2 class="gh-title" id="gh-tools-title">Quick Tools</h2><div class="gh-tools"></div></section>`);
-  for (const [id, label, glyph, action] of tools) {
+/** One group of tool tiles under its own heading. */
+function toolGroup(id, title, tools, lead) {
+  const wrap = el(`<section class="gh-section" aria-labelledby="gh-${id}-title"><h2 class="gh-title" id="gh-${id}-title">${escapeHtml(title)}</h2><div class="gh-tools"></div></section>`);
+  if (lead) wrap.querySelector(".gh-tools").before(lead);
+  for (const [tid, label, glyph, action] of tools) {
     const isLink = typeof action === "string";
     const tile = el(isLink
-      ? `<a class="gh-glass gh-tool" data-tool="${id}" href="${escapeHtml(action)}" target="_blank" rel="noopener"></a>`
-      : `<button type="button" class="gh-glass gh-tool" data-tool="${id}"></button>`);
+      ? `<a class="gh-glass gh-tool" data-tool="${tid}" href="${escapeHtml(action)}" target="_blank" rel="noopener"></a>`
+      : `<button type="button" class="gh-glass gh-tool" data-tool="${tid}"></button>`);
     tile.innerHTML = `<span class="gh-tool-icon">${glyph}</span><span class="gh-tool-label">${escapeHtml(label)}</span>`;
     if (isLink) tile.setAttribute("aria-label", `${label} (opens in a new tab)`);
     else tile.onclick = action;
@@ -157,33 +147,54 @@ function quickTools(school) {
   return wrap;
 }
 
+/** School: things that depend on which school you go to. Choose it first. */
+function schoolTools(school) {
+  const toMap = () => window.AppNav.toGuidance("map");
+  const lead = school
+    ? null
+    : el(`<button type="button" class="gh-glass gh-choose-school">${HUB_ICONS.map}<span><b>Choose your school</b><small>Unlocks its website, bell times and boundary map.</small></span>${GLYPHS.chevron}</button>`);
+  if (lead) lead.onclick = toMap;
+  return toolGroup("school", "School", [
+    ["website", "School Website", HUB_ICONS.external, school?.website || toMap],
+    ["map", "School Map", HUB_ICONS.map, toMap],
+    ["teacher", "Find a Teacher", HUB_ICONS.search, teacherSearch],
+    ["classroom", "Google Classroom", HUB_ICONS.classroom, "https://classroom.google.com"],
+  ], lead);
+}
+
+/** Planning: your timetable, exams and graduation steps. */
+function planningTools() {
+  return toolGroup("planning", "Planning", [
+    ["schedule", "My Schedule", HUB_ICONS.calendar, async () => openSchedule(await getCourses().catch(() => []))],
+    ["exam", "Exam Calculator", HUB_ICONS.calc, examCalculator],
+    ["volunteer", "Volunteer Hours", HUB_ICONS.heart, () => window.AppNav.toGuidance("volunteer")],
+    ["blueprint", "myBlueprint", HUB_ICONS.compass, "https://myblueprint.ca"],
+  ]);
+}
+
 /** Render the Guidance screen. */
 export async function renderGuidance(container) {
   container.innerHTML = "";
   const school = await mySchool().catch(() => null);
 
   const hub = el(`<div class="gh-hub"></div>`);
-  // GPA sits in the middle of the hub, filled in once the marks arrive.
-  hub.append(hubHeader(), profileCard(school), quickTools(school), gpaCard());
+  // Tools grouped by purpose (School · Planning); GPA sits in the middle.
+  hub.append(hubHeader(), profileCard(school), schoolTools(school), planningTools(), gpaCard());
   container.append(hub);
 
-  // School
+  // School details, once one is chosen (the School group asks for it first).
   const schoolSection = el(`<section class="card my-school"><div class="tool-heading"><h2>My school</h2><button class="btn ghost" data-change>${school ? "Change" : "Choose"}</button></div></section>`);
   schoolSection.querySelector("[data-change]").onclick = () => window.AppNav.toGuidance("map");
   if (school) {
     schoolSection.append(schoolCard(school));
     schoolSection.append(el(`<p class="small muted">Guidance office: call the main line and ask for Guidance, or book through your school website.</p>`));
-  } else {
-    schoolSection.append(el(`<div class="empty-cta">${icon("pin", 28)}<p>Pick your school to see its bell times, principal, phone and official boundary map.</p></div>`));
-    const pick = el(`<button class="btn">Find my school</button>`);
-    pick.onclick = () => window.AppNav.toGuidance("map");
-    schoolSection.append(pick);
   }
-  container.append(schoolSection);
+  if (school) container.append(schoolSection);
 
   // The diploma/credits tracker (ossdCard) is hidden for now.
 
-  // People & appointments
+  // Support: the people to talk to, and reminders for when you've booked them.
+  container.append(el(`<h2 class="gh-title gh-title-sub">Support</h2>`));
   container.append(counsellorCard());
   container.append(appointmentCard());
 
@@ -206,6 +217,7 @@ function gpaCard() {
     <h2 class="gh-gpa-title" id="gh-gpa-title">Your GPA</h2>
     <p class="gh-gpa-value"><b class="private-mark">…</b><span>/ ${GPA_MAX.toFixed(2)}</span></p>
     <p class="gh-gpa-sub muted small">Loading your marks…</p>
+    <p class="gh-gpa-scale-note">Ontario 4.33 scale · a personal estimate, not an admissions GPA</p>
   </section>`);
   getCourses()
     .then((courses) => fillGpa(card, courses))

@@ -36,9 +36,9 @@ const tick = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke
 function steps(p) {
   const goalCount = p.goalsList.length;
   const list = [
-    ["Next chapter", p.dreamDone],
-    ["Dream grades", p.gradesDone],
-    ["Goals", goalCount > 0],
+    ["Direction", p.dreamDone],
+    ["Grade targets", p.gradesDone],
+    ["First action", goalCount > 0],
   ];
   const active = list.findIndex(([, done]) => !done);
   return `<ol class="dream-steps" aria-label="Your progress">${list
@@ -64,7 +64,10 @@ export async function renderDreams(container) {
   container.append(el(steps(p)));
   const chapter = chapterBlock(p, container);
   const gradesHost = el(`<div class="dream-grades-host"></div>`);
-  const goalsHost = goalsBlock(p);
+  // A later step waits as a one-line "up next" card until the one before it
+  // is saved or skipped, so only one set of fields is open at a time.
+  const goalsHost = p.gradesDone ? goalsBlock(p) : upNext(3, "First action", "Write one goal you can finish this term.");
+  if (!p.dreamDone) gradesHost.append(upNext(2, "Grade targets", "Set a target mark for each course."));
   container.append(chapter, gradesHost, goalsHost, status);
   stagger([container.querySelector(".screen-header"), chapter, gradesHost, goalsHost]);
 
@@ -73,22 +76,28 @@ export async function renderDreams(container) {
     if (changed && container.isConnected && !container.classList.contains("hidden")) renderDreams(container);
   });
 
-  await gradesBlock(p, gradesHost, container);
+  if (p.dreamDone) await gradesBlock(p, gradesHost, container);
+}
+
+/** A step that isn't open yet. */
+function upNext(n, title, text) {
+  return el(`<section class="card dream-upnext" aria-label="Step ${n}, ${title}: opens after the step before it"><span class="dot" aria-hidden="true">${n}</span><span><b>${title}</b><small>${text}</small></span><span class="upnext-pill">Up next</span></section>`);
 }
 
 // ── Step 1: your next chapter ───────────────────────────────────────────────
 function chapterForm(p) {
   const field = ([id, label, ph, max]) =>
-    `<div class="field"><label for="dream-${id}">${label}</label><input id="dream-${id}" name="${id}" maxlength="${max}" required placeholder="${ph}" value="${escapeHtml(p[id])}" autocomplete="off"></div>`;
+    `<div class="field"><label for="dream-${id}">${label} <span class="optional">(optional)</span></label><input id="dream-${id}" name="${id}" maxlength="${max}" placeholder="${ph}" value="${escapeHtml(p[id])}" autocomplete="off"></div>`;
   return el(`<form class="dream-form-body" novalidate>
     <div class="ui-iconfield">${iconTile("sparkle")}${field(["career", "Dream career", "e.g. Software engineer", 120])}</div>
     <div class="ui-iconfield">${iconTile("cap")}${field(["school", "School or destination", "e.g. University of Waterloo", 120])}</div>
     <div class="ui-iconfield">${iconTile("chart")}<div class="field"><label for="dream-target">Dream average (%)</label>
       <div class="chip-row" role="group" aria-label="Quick picks">${[85, 90, 95].map((n) => `<button type="button" class="chip" data-pick="${n}" aria-pressed="${Number(p.target) === n}">${n}%</button>`).join("")}</div>
       <input id="dream-target" name="target" type="number" inputmode="decimal" min="0" max="100" step="0.1" required value="${escapeHtml(p.target)}"></div></div>
-    <div class="ui-iconfield">${iconTile("heart", "pink")}<div class="field"><label for="dream-motivation">Your reason to keep going</label><input id="dream-motivation" name="motivation" maxlength="240" placeholder="What makes this matter to you?" value="${escapeHtml(p.motivation)}" autocomplete="off"></div></div>
-    <button class="btn" type="submit">${p.dreamDone ? "Update my dream" : "Save my dream"}</button>
-    <p class="small muted form-msg" role="alert"></p>
+    <div class="ui-iconfield">${iconTile("heart", "pink")}<div class="field"><label for="dream-motivation">Your reason to keep going <span class="optional">(optional)</span></label><input id="dream-motivation" name="motivation" maxlength="240" placeholder="What makes this matter to you?" value="${escapeHtml(p.motivation)}" autocomplete="off"></div></div>
+    <button class="btn" type="submit">${p.dreamDone ? "Update my direction" : "Save and continue"}</button>
+    ${p.dreamDone ? "" : `<button class="btn ghost" type="button" data-skip>Skip for now</button>`}
+    <p class="small muted form-msg" role="status"></p>
   </form>`);
 }
 
@@ -100,12 +109,19 @@ function chapterBlock(p, container) {
       form.querySelectorAll("[data-pick]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
     };
   });
+  // Say plainly when there are changes that aren't saved yet.
+  form.addEventListener("input", () => {
+    form.querySelector(".form-msg").textContent = `Not saved yet: tap “${p.dreamDone ? "Update my direction" : "Save and continue"}”.`;
+  });
+  form.querySelector("[data-skip]")?.addEventListener("click", () => {
+    saveDreams({ dreamDone: true });
+    container.isConnected && renderDreams(container);
+  });
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const d = new FormData(form);
     const career = d.get("career").trim(), school = d.get("school").trim(), target = Number(d.get("target"));
     const msg = form.querySelector(".form-msg");
-    if (!career || !school) { msg.textContent = "Add a dream career and where you want to go."; return; }
     if (!(target >= 0 && target <= 100) || d.get("target") === "") { msg.textContent = "Enter a dream average from 0 to 100."; return; }
     try {
       saveDreams({ career, school, motivation: d.get("motivation").trim(), target, dreamDone: true });
@@ -117,12 +133,12 @@ function chapterBlock(p, container) {
   });
 
   if (!p.dreamDone) {
-    const card = el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.sparkle}</span><div><h2>Create your dream</h2><p class="muted small">Two minutes. You can change your mind anytime.</p></div></div></section>`);
+    const card = el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.sparkle}</span><div><h2>Step 1 · Your direction</h2><p class="muted small">Only your dream average is needed. Everything else is optional, and you can change it anytime.</p></div></div></section>`);
     card.append(form);
     return card;
   }
   const line = [p.career, p.school, `aiming for ${p.target}%`].filter(Boolean).join(" · ");
-  const box = el(`<details class="card disclosure dream-block is-done"><summary><span class="dream-icon" aria-hidden="true">${GLYPHS.sparkle}</span><span class="dream-sum"><b>Your next chapter</b><small></small></span><span class="done-pill">${tick} Saved</span></summary><div class="disclosure-body"></div></details>`);
+  const box = el(`<details class="card disclosure dream-block is-done"><summary><span class="dream-icon" aria-hidden="true">${GLYPHS.sparkle}</span><span class="dream-sum"><b>Your direction</b><small></small></span><span class="done-pill">${tick} Saved</span></summary><div class="disclosure-body"></div></details>`);
   box.querySelector("small").textContent = line;
   const body = box.querySelector(".disclosure-body");
   if (p.motivation) body.append(el(`<blockquote class="dream-why"></blockquote>`));
@@ -135,7 +151,7 @@ function chapterBlock(p, container) {
 // ── Step 2: dream grades by course ──────────────────────────────────────────
 async function gradesBlock(p, host, container) {
   host.replaceChildren(
-    el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Dream grades by course</h2><p class="muted small">Loading your courses…</p></div></div></section>`),
+    el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Step 2 · Grade targets</h2><p class="muted small">Loading your courses…</p></div></div></section>`),
   );
   let courses = [];
   try {
@@ -143,37 +159,43 @@ async function gradesBlock(p, host, container) {
     if (p.currentTermOnly) courses = splitByTerm(courses).current;
   } catch {
     host.replaceChildren(
-      el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Dream grades by course</h2><p class="muted small">Courses could not load. Your dream and goals still save.</p></div></div></section>`),
+      el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Step 2 · Grade targets</h2><p class="muted small">Courses could not load. Your dream and goals still save.</p></div></div></section>`),
     );
     return;
   }
   if (!host.isConnected) return;
   if (!courses.length) {
     host.replaceChildren(
-      el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Dream grades by course</h2><p class="muted small">Your courses will appear here once they're available.</p></div></div></section>`),
+      el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Step 2 · Grade targets</h2><p class="muted small">Your courses will appear here once they're available.</p></div></div></section>`),
     );
     return;
   }
 
   const list = el(`<div class="goal-list"></div>`);
   courses.forEach((c, i) => list.append(courseRow(c, i)));
-  const save = el(`<button class="btn" type="button">${p.gradesDone ? "Update grade targets" : "Save my grade targets"}</button>`);
+  // Targets save as they change; this button only moves you on.
+  const save = el(`<button class="btn" type="button">${p.gradesDone ? "Done" : "Done, next step"}</button>`);
   save.onclick = () => {
     saveDreams({ gradesDone: true });
     savedFeedback(save, "Saved ✓");
     setTimeout(() => container.isConnected && renderDreams(container), motionEnabled() ? 450 : 0);
   };
-  const note = `<p class="muted small">Personal targets, not admission requirements or official grade predictions.</p>`;
+  const note = `<p class="muted small">Each target saves as soon as you change it. These are personal targets, not admission requirements or official grade predictions.</p>`;
 
   if (!p.gradesDone) {
-    const card = el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Dream grades by course</h2>${note}</div></div></section>`);
-    card.append(list, save);
+    const card = el(`<section class="card dream-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><div><h2>Step 2 · Grade targets</h2>${note}</div></div></section>`);
+    const skip = el(`<button class="btn ghost" type="button">Skip for now</button>`);
+    skip.onclick = () => {
+      saveDreams({ gradesDone: true });
+      container.isConnected && renderDreams(container);
+    };
+    card.append(list, save, skip);
     host.replaceChildren(card);
     return;
   }
   const targets = courses.map((c) => preferences().goals[c.code] ?? preferences().target);
   const avg = targets.reduce((a, b) => a + b, 0) / targets.length;
-  const box = el(`<details class="card disclosure dream-block is-done"><summary><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><span class="dream-sum"><b>Dream grades</b><small>${courses.length} course${courses.length === 1 ? "" : "s"} · average target ${Math.round(avg * 10) / 10}%</small></span><span class="done-pill">${tick} Saved</span></summary><div class="disclosure-body">${note}</div></details>`);
+  const box = el(`<details class="card disclosure dream-block is-done"><summary><span class="dream-icon" aria-hidden="true">${GLYPHS.target}</span><span class="dream-sum"><b>Grade targets</b><small>${courses.length} course${courses.length === 1 ? "" : "s"} · average target ${Math.round(avg * 10) / 10}%</small></span><span class="done-pill">${tick} Saved</span></summary><div class="disclosure-body">${note}</div></details>`);
   box.querySelector(".disclosure-body").append(list, save);
   host.replaceChildren(box);
   initDisclosure(box);
@@ -208,9 +230,9 @@ function courseRow(c, i) {
       gapEl.textContent = "Target reached ✧";
       if (reachedBefore.get(c.code) !== true && !marksHidden() && motionEnabled()) sparkleBurst(gapEl, 9);
     } else if (first && !marksHidden()) {
-      countUp(gapEl, t - mark, { from: t, duration: 900, format: (v) => `${v.toFixed(1)} points to your target` });
+      countUp(gapEl, t - mark, { from: t, isMark: false, format: (v) => `${v.toFixed(1)} percentage points to your target` });
     } else {
-      gapEl.textContent = `${(t - mark).toFixed(1)} points to your target`;
+      gapEl.textContent = `${(t - mark).toFixed(1)} percentage points to your target`;
     }
     reachedBefore.set(c.code, reached);
   };
@@ -252,7 +274,7 @@ function when(date) {
 }
 
 function goalsBlock(p) {
-  const card = el(`<section class="card dream-block goals-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.flag}</span><div><h2>Personal &amp; school goals</h2><p class="muted small">A date, a goal, and why it matters: being happy with a mark, switching schools, anything.</p></div></div>
+  const card = el(`<section class="card dream-block goals-block"><div class="dream-head"><span class="dream-icon" aria-hidden="true">${GLYPHS.flag}</span><div><h2>Step 3 · First action</h2><p class="muted small">A date, a goal, and why it matters: being happy with a mark, switching schools, anything.</p></div></div>
     <form class="goal-form" novalidate>
       <div class="seg" role="radiogroup" aria-label="Goal type"><label><input type="radio" name="type" value="personal" checked><span>Personal</span></label><label><input type="radio" name="type" value="school"><span>School</span></label></div>
       <div class="ui-iconfield">${iconTile("flag")}<div class="field"><label for="goal-title">What's the goal?</label><input id="goal-title" name="title" maxlength="120" required placeholder="e.g. Be proud of my French mark" autocomplete="off"></div></div>

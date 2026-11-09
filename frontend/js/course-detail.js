@@ -11,7 +11,7 @@
 import { achievementLevel, courseLabel, courseTitle, el, escapeHtml, fmtPercent, openSheet, trendChartEl } from "./courses.js";
 import { GLYPHS, arcGauge, glassButton, pageHeader, pager, pct } from "./ui-kit.js";
 import { fmtDay, fullCode, letterBadge, scheduleOf, shadeColors, subjectBadge, subjectStyle } from "./subjects.js";
-import { courseMeta } from "./course-names.js";
+import { courseMeta, roomLabel } from "./course-names.js";
 import { teacherFor, editTeacher } from "./teachers.js";
 import { preferences } from "./personalization.js";
 import { displayMark, markKind } from "./ta-client.js";
@@ -142,8 +142,8 @@ export async function openCourseDetail(container, course) {
 
   const chip = (glyph, text) => `<span class="g-chip">${GLYPHS[glyph]}${text}</span>`;
   const chips = [
-    period && chip("clock", `Period ${escapeHtml(period)}`),
-    room && chip("pin", `Room ${escapeHtml(room)}`),
+    period && chip("clock", `Period ${escapeHtml(String(period).replace(/^(period|p)\s*/i, ""))}`),
+    room && chip("pin", escapeHtml(roomLabel(room))),
     term && chip("calendar", `${escapeHtml(fmtDay(term.start))} <span class="g-chip-arrow">${GLYPHS.arrowRight}</span> ${escapeHtml(fmtDay(term.end))}`),
     !term && courseMeta(courseLabel(course)) && chip("calendar", escapeHtml(courseMeta(courseLabel(course)))),
   ].filter(Boolean);
@@ -238,7 +238,7 @@ function teacherCard(course) {
         <div class="person-main">
           <div class="eyebrow">TEACHER</div>
           <b>${t.name ? escapeHtml(t.name) : "Add your teacher"}</b>
-          <p class="small muted">${t.name ? escapeHtml([t.room && `Room ${t.room}`, t.help && `Extra help: ${t.help}`].filter(Boolean).join(" · ") || "Add room and extra-help times") : "Name, email, room and extra-help times"}</p>
+          <p class="small muted">${t.name ? escapeHtml([roomLabel(t.room), t.help && `Extra help: ${t.help}`].filter(Boolean).join(" · ") || "Add room and extra-help times") : "Name, email, room and extra-help times"}</p>
         </div>
         ${t.email ? `<a class="btn secondary" href="mailto:${encodeURIComponent(t.email)}?subject=${encodeURIComponent(courseLabel(course))}">Email</a>` : ""}
         <button type="button" class="btn ghost" data-edit>${t.name ? "Edit" : "Add"}</button>
@@ -270,6 +270,10 @@ function buildEvals(evals, kind, course) {
       }</div>`)
     );
     return frag;
+  }
+  // What "Weight" means, once, above the list.
+  if (evals.some((e) => e.weight != null)) {
+    frag.appendChild(el(`<p class="g-weight-note">Weights come from TeachAssist and compare tasks with each other: a weight of 10 counts twice as much as a weight of 5. They aren't percentages of your final mark.</p>`));
   }
   evals.forEach((e, i) => {
     const sub = [rawMark(e) ? `<span class="g-mono private-mark">${escapeHtml(rawMark(e))}</span>` : "", e.weight != null ? `Weight: <span class="g-mono">${escapeHtml(String(e.weight))}</span>` : "", fmtDate(e.date)].filter(Boolean).join(" · ");
@@ -329,7 +333,7 @@ function openEvaluation(e, evals, course) {
     <div class="ev" style="--tint:${s.tint};--b-from:${s.from};--b-to:${s.to}">
       <div class="ev-head">
         <span class="ev-icon" aria-hidden="true">${s.icon}</span>
-        <h3>${escapeHtml(e.name || e.category || "Assessment")}</h3>
+        <h2 id="ev-title">${escapeHtml(e.name || e.category || "Assessment")}</h2>
         <div class="ev-mark private-mark">${pct(e.percent)}</div>
         <p class="ev-caption">${caption}</p>
       </div>
@@ -341,12 +345,12 @@ function openEvaluation(e, evals, course) {
         impact != null && Math.abs(impact) >= 0.05 && !preferences().hideMarks
           ? `<div class="ev-impact ${impact >= 0 ? "up" : "down"}">
               <span class="ev-impact-icon" aria-hidden="true">${impact >= 0 ? GLYPHS.trendUp : GLYPHS.trendDown}</span>
-              <p>This evaluation ${impact >= 0 ? "raised" : "lowered"} your average by about <b>${Math.abs(Math.round(impact * 10) / 10).toFixed(1)}%</b></p>
+              <p>This evaluation ${impact >= 0 ? "raised" : "lowered"} your course mark by about <b>${Math.abs(Math.round(impact * 10) / 10).toFixed(1)} percentage points</b></p>
             </div>`
           : ""
       }
     </div>`);
-  openSheet(" ", body, { className: "sheet-eval" });
+  openSheet(" ", body, { className: "sheet-eval", labelledBy: "ev-title" });
 }
 
 /**
@@ -409,6 +413,7 @@ function buildBreakdown(evals, course) {
   const tiles = strandBreakdown(evals).map((x, i) =>
     strandTile(x.name, Math.round(x.weight * 10) / 10, `${x.count} ${x.count === 1 ? "entry" : "entries"}`, x.average, i, false),
   );
+  frag.appendChild(el(`<p class="g-weight-note">Each category's mark is the weighted average of its marked tasks, and its weight is the total weight of those tasks. Tasks without a mark yet don't count.</p>`));
   frag.appendChild(el(`<div class="ev ev-breakdown" style="--tint:${s.tint};--b-from:${s.from};--b-to:${s.to}"><div class="ev-strands">${tiles.join("")}</div></div>`));
   return frag;
 }

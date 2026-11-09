@@ -356,3 +356,114 @@ html[data-mode] :is(.gh-row, .gh-help) .gh-row-text small {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* ── "What does Weight mean?" notes on the course page ────────────────── */
+html[data-mode] .g-weight-note {
+  margin: 0 4px 2px;
+  color: var(--text-secondary);
+  font-size: calc(13.5px * var(--ts, 1));
+  line-height: 1.45;
+}
+
+/* ── Settings → Help & Legal: quick answers ───────────────────────────── */
+html[data-mode] .help-faq {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+html[data-mode] .help-q {
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+html[data-mode] .help-q summary {
+  padding: 12px 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+html[data-mode] .help-q p {
+  margin: 0;
+  padding: 0 14px 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+html[data-mode] .help-warning {
+  margin-bottom: 8px;
+}
+
+/* ── Guidance: "Choose your school" leads the School tools ────────────── */
+html[data-mode] .gh-choose-school {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border-radius: 22px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+html[data-mode] .gh-choose-school > svg:first-child {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  color: var(--accent);
+}
+html[data-mode] .gh-choose-school span {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+html[data-mode] .gh-choose-school small {
+  color: var(--text-secondary);
+}
+html[data-mode] .gh-choose-school > svg:last-child {
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+}
+html[data-mode] .gh-gpa-scale-note {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: calc(12px * var(--ts, 1));
+}
+
+/* ── Dreams: steps that aren't open yet ───────────────────────────────── */
+html[data-mode] .dream-upnext {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 0.78;
+}
+html[data-mode] .dream-upnext .dot {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--accent);
+  font-weight: 750;
+}
+html[data-mode] .dream-upnext > span:nth-child(2) {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+html[data-mode] .dream-upnext small {
+  color: var(--text-secondary);
+}
+html[data-mode] .upnext-pill {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-size: calc(12px * var(--ts, 1));
+  font-weight: 650;
+}
+html[data-mode] .field label .optional {
+  color: var(--text-secondary);
+  font-weight: 500;
+}

@@ -11,7 +11,7 @@
 import { closeSheet, courseLabel, courseSubtitle, courseTitle, el, escapeHtml, openSheet } from "./courses.js";
 import { GLYPHS, glassButton, pct } from "./ui-kit.js";
 import { fullCode, scheduleOf, subjectStyle } from "./subjects.js";
-import { courseName } from "./course-names.js";
+import { courseName, roomLabel } from "./course-names.js";
 import { displayMark } from "./ta-client.js";
 import { mySchool } from "./schools.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
@@ -79,7 +79,7 @@ export async function openSchedule(courses, { onEdit } = {}) {
           <small>${n ? `<span class="sched-period" aria-label="Period ${n}">P${n}</span>` : ""}${escapeHtml(name || "")}</small>
           <span class="sched-meta">
             ${time ? `<em>${GLYPHS.clock}${escapeHtml(timeText(time))}</em>` : `<em class="sched-missing">${GLYPHS.clock}Add a time</em>`}
-            ${room ? `<em>${GLYPHS.pin}Room ${escapeHtml(room)}</em>` : ""}
+            ${room ? `<em>${GLYPHS.pin}${escapeHtml(roomLabel(room))}</em>` : ""}
           </span>
         </span>
         ${mark != null ? `<span class="sched-mark private-mark">${pill(mark)}</span>` : ""}
@@ -118,7 +118,7 @@ export async function openSchedule(courses, { onEdit } = {}) {
   actions.querySelector("[data-manage]").addEventListener("click", () => openManageCourses(courses, bellTimes, back, onEdit));
 
   sheet.querySelector("[data-share]").addEventListener("click", async (e) => {
-    const text = rows.map(({ code, name, room, time }) => [timeText(time), code, name, room && `Room ${room}`].filter(Boolean).join(" · ")).join("\n");
+    const text = rows.map(({ code, name, room, time }) => [timeText(time), code, name, roomLabel(room)].filter(Boolean).join(" · ")).join("\n");
     const shareText = `My class schedule\n${text}`;
     try {
       if (navigator.share) await navigator.share({ title: "Class Schedule", text: shareText });
@@ -142,7 +142,7 @@ function openAddToCalendar(rows, back) {
     const url = time
       ? googleCalendarUrl({
           title: `${name || courseTitle(c)} (${code})`,
-          room: room ? `Room ${room}` : "",
+          room: roomLabel(room),
           details: [period && `Period ${period.replace(/\D/g, "")}`, "Added from TeachAssist Dashboard"].filter(Boolean).join(" · "),
           start: time.start,
           end: time.end,

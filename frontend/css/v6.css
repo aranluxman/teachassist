@@ -755,7 +755,7 @@ html[data-mode] .g-dots button::before {
   opacity: 0.55;
   transition: opacity 200ms ease, transform 200ms var(--ease-spring);
 }
-html[data-mode] .g-dots button[aria-pressed="true"]::before {
+html[data-mode] .g-dots button[aria-selected="true"]::before {
   background: var(--text);
   opacity: 1;
   transform: scale(1.15);

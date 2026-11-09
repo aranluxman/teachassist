@@ -123,7 +123,13 @@ export function courseFacts(course) {
   const fmt = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   return {
     period: !rawPeriod ? "" : /^period\b/i.test(rawPeriod) ? rawPeriod : `Period ${rawPeriod.replace(/^P/i, "")}`,
-    room: !rawRoom ? "" : `Room ${rawRoom.replace(/^(room|rm\.?)\s*/i, "")}`,
+    room: roomLabel(rawRoom),
     dates: dates ? `${fmt(dates[1])} – ${fmt(dates[2])}` : "",
   };
+}
+
+/** "Rm 214", "room 214" or "214" → "Room 214" (never "Room Rm 214"); "" stays "". */
+export function roomLabel(raw) {
+  const room = String(raw || "").trim().replace(/^(room|rm\.?)\s*/i, "").trim();
+  return room ? `Room ${room}` : "";
 }
