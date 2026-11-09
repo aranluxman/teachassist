@@ -146,6 +146,8 @@ let activeSheetCleanup = null;
  */
 export function openSheet(title, bodyNode, options = {}) {
   closeSheet();
+  // Focus goes back here when the sheet closes.
+  const opener = document.activeElement;
   const root = document.getElementById("modal-root");
   const backdrop = el(
     `<div class="sheet-backdrop"><div class="sheet ${options.className || ""}" role="dialog" aria-modal="true"><div class="sheet-grabber"></div></div></div>`,
@@ -158,9 +160,17 @@ export function openSheet(title, bodyNode, options = {}) {
       pageHeader({ title, subtitle: options.subtitle ? escapeHtml(options.subtitle) : "", left: options.left || "", right, tag: "h2" }),
     );
     header.classList.add("sheet-header");
+    // No visible title (the body carries its own heading): drop the empty
+    // heading and name the dialog after that body heading instead.
+    if (!title.trim()) {
+      header.querySelector(".g-header-title")?.replaceChildren();
+      sheet.removeAttribute("aria-label");
+    }
     sheet.appendChild(header);
   }
   sheet.appendChild(bodyNode);
+  const named = options.labelledBy && bodyNode.querySelector?.(`#${options.labelledBy}`);
+  if (named) sheet.setAttribute("aria-labelledby", options.labelledBy);
   sheet.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", closeSheet));
   root.appendChild(backdrop);
   requestAnimationFrame(() => backdrop.classList.add("show"));
@@ -174,6 +184,7 @@ export function openSheet(title, bodyNode, options = {}) {
   activeSheetCleanup = () => {
     document.removeEventListener("keydown", onKeyDown);
     options.onClose?.();
+    if (opener?.isConnected && typeof opener.focus === "function") opener.focus({ preventScroll: true });
   };
   activeSheet = backdrop;
   dragToDismiss(sheet);

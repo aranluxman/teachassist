@@ -376,11 +376,28 @@ function legalCard() {
 // (or an email until the form's link is set in config.js).
 function contactCard() {
   const href = CONTACT_FORM_URL || `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("TeachAssist app: question or bug")}`;
-  return el(`
+  const faq = [
+    ["My marks look wrong or are missing", "Marks come straight from TeachAssist. If a teacher hides a course mark, we estimate it from the posted work and label it Estimated. Your official marks are always on TeachAssist."],
+    ["Refreshing takes a long time", "Each refresh signs in to TeachAssist for you, which can take up to a minute when it's busy. Your last saved marks stay on screen meanwhile."],
+    ["Who can see my marks?", "Only you, on this device. Turn on Hide grades (the eye button on your courses) when someone's looking over your shoulder."],
+    ["I'm on a shared or school computer", "Sign out when you're done. Next time, tick \"This is a shared or school computer\" when you sign in, and nothing stays on the computer after you close the tab."],
+    ["Is this the official TeachAssist?", "No. It's a free, student-run app that reads your TeachAssist marks. It isn't made by or connected to YRDSB."],
+  ];
+  const card = el(`
     <section class="card settings-group"><h2>Help & feedback</h2>
-      <p class="group-note">Found a bug or have a question? Tell us and we'll get back to you.</p>
+      <p class="group-note">Quick answers first. Still stuck? Tell us and we'll get back to you.</p>
+      <div class="help-faq"></div>
+      <p class="group-note help-warning">Please <b>don't</b> include your password, or screenshots that show your student number or marks.</p>
       <div class="legal-links">
         <a href="${escapeHtml(href)}"${CONTACT_FORM_URL ? ' target="_blank" rel="noopener"' : ""}>Contact us / report a bug ${EXTERNAL}</a>
       </div>
     </section>`);
+  const list = card.querySelector(".help-faq");
+  for (const [q, a] of faq) {
+    const item = el(`<details class="help-q"><summary></summary><p></p></details>`);
+    item.querySelector("summary").textContent = q;
+    item.querySelector("p").textContent = a;
+    list.append(item);
+  }
+  return card;
 }

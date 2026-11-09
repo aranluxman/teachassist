@@ -465,7 +465,7 @@ html[data-mode] .ev-icon svg {
   width: 38px;
   height: 38px;
 }
-html[data-mode] .ev-head h3 {
+html[data-mode] .ev-head :is(h2, h3) {
   margin: 18px 0 0;
   padding: 0 44px;
   font-size: calc(22px * var(--ts, 1));

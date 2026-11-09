@@ -138,15 +138,36 @@ export function examCalculator() {
   };
   openSheet('Exam calculator', form);
 }
+/** "20261109T153000Z" for an ISO time. */
+const icsStamp = (iso) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+/** One calendar event (30 min, alert 15 min before) as an .ics file: works in
+ *  Apple Calendar, Google Calendar and Outlook, even when this app is closed. */
+export function appointmentIcs(row, now = new Date()) {
+  const clean = (t) => String(t).replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, ' ');
+  const end = new Date(Date.parse(row.time) + 30 * 60000).toISOString();
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//TeachAssist Dashboard//EN', 'BEGIN:VEVENT',
+    `UID:${row.id}@ta.intelligentautomations.ca`, `DTSTAMP:${icsStamp(now.toISOString())}`,
+    `DTSTART:${icsStamp(row.time)}`, `DTEND:${icsStamp(end)}`, `SUMMARY:${clean(`Guidance: ${row.title}`)}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${clean(row.title)}`, 'TRIGGER:-PT15M', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+}
+function downloadIcs(row) {
+  const url = URL.createObjectURL(new Blob([appointmentIcs(row)], { type: 'text/calendar' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: 'guidance-appointment.ics' });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function appointmentCard() {
-  const card = el('<section class="card appointments"><div class="tool-heading"><h2>Guidance reminders</h2></div><div class="appointment-body"><p class="muted">Add an appointment you have already booked with your school. This does not book an appointment.</p><div class="appointment-list"></div><form><div class="field"><label for="appointment-title">Appointment label</label><input id="appointment-title" name="title" maxlength="80" placeholder="Course planning" required></div><div class="field"><label for="appointment-time">Date and time</label><input id="appointment-time" name="time" type="datetime-local" required></div><p role="status"></p><button class="btn secondary">Save reminder</button></form><p class="small muted">Turn on guidance reminders in Settings → Notifications. A reminder appears 15 minutes before, but only while TeachAssist is open — a closed tab can’t remind you, so add important appointments to your phone calendar too.</p></div></section>');
+  const card = el('<section class="card appointments"><div class="tool-heading"><h2>Guidance reminders</h2></div><div class="appointment-body"><p class="muted">Add an appointment you have already booked with your school. This does not book an appointment.</p><div class="appointment-list"></div><form><div class="field"><label for="appointment-title">Appointment label</label><input id="appointment-title" name="title" maxlength="80" placeholder="Course planning" required></div><div class="field"><label for="appointment-time">Date and time</label><input id="appointment-time" name="time" type="datetime-local" required></div><p role="status"></p><button class="btn secondary">Save reminder</button></form><p class="small muted">Turn on guidance reminders in Settings → Notifications. A reminder appears 15 minutes before, but only while TeachAssist is open — a closed tab can’t remind you. Tap <b>Add to calendar</b> on a saved appointment for a reminder that works even when the app is closed.</p></div></section>');
   minimizable(card.querySelector('.tool-heading'), [card.querySelector('.appointment-body')], 'reminders', 'guidance reminders');
   const render = () => {
     const rows = readStudentData('appointments', []);
     const list = card.querySelector('.appointment-list'); list.innerHTML = '';
     rows.sort((a,b) => Date.parse(a.time)-Date.parse(b.time)).forEach(row => {
-      const item = el(`<div class="tool-heading"><div><b>${esc(row.title)}</b><p class="small muted">${esc(new Date(row.time).toLocaleString())}</p></div><button class="btn ghost" aria-label="Remove appointment ${esc(row.title)}">Remove</button></div>`);
-      item.querySelector('button').onclick = () => { writeStudentData('appointments', rows.filter(r => r.id !== row.id)); render(); }; list.append(item);
+      const item = el(`<div class="tool-heading"><div><b>${esc(row.title)}</b><p class="small muted">${esc(new Date(row.time).toLocaleString())}</p></div><button class="btn ghost" data-ics aria-label="Add ${esc(row.title)} to your calendar">Add to calendar</button><button class="btn ghost" aria-label="Remove appointment ${esc(row.title)}">Remove</button></div>`);
+      item.querySelector('[data-ics]').onclick = () => downloadIcs(row);
+      item.querySelector('button:not([data-ics])').onclick = () => { writeStudentData('appointments', rows.filter(r => r.id !== row.id)); render(); }; list.append(item);
     });
   };
   const form = card.querySelector('form');
