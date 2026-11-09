@@ -230,7 +230,7 @@ const PAGES = {
   ])]],
   notifications: ["Notifications", () => [notificationSettings()]],
   privacy: ["Courses & Privacy", () => [switchGroup("", "", [
-    ["hideMarks", "Hide grades", "Conceal marks on the course dashboard"],
+    ["hideMarks", "Hide grades", "Conceal marks everywhere: courses, GPA, Dreams and notifications. Also the eye button on your courses"],
     ["currentTermOnly", "Current semester only", "Hide courses from other semesters"],
   ])]],
   install: ["Install the App", () => [installCard() || el(`<section class="card settings-group"><p class="group-note">TeachAssist is already installed on this device.</p></section>`)]],

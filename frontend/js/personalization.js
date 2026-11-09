@@ -1,5 +1,6 @@
 import { studentNumber, isDemo } from "./ta-client.js";
 import { applyLook } from "./customize.js";
+import { deviceStore } from "./device-store.js";
 const defaults = {
   name: "",
   // Set once the dashboard has asked for a name (saved or "Not now").
@@ -37,7 +38,7 @@ function key() {
 }
 export function preferences() {
   try {
-    const p = JSON.parse(localStorage.getItem(key()) || "{}");
+    const p = JSON.parse(deviceStore().getItem(key()) || "{}");
     return {
       ...defaults,
       ...p,
@@ -50,7 +51,7 @@ export function preferences() {
 }
 export function savePreferences(patch) {
   const p = { ...preferences(), ...patch };
-  localStorage.setItem(key(), JSON.stringify(p));
+  deviceStore().setItem(key(), JSON.stringify(p));
   applyPreferences();
   return p;
 }

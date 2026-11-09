@@ -59,6 +59,9 @@ function relativeUpdated(iso) {
 // ───────────────────────────── UI helpers ──────────────────────────────────
 
 /** Build a DOM element from an HTML string. */
+/** "Show grades" while marks are hidden: an eye with a slash. */
+const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.2M6.5 6.6A17 17 0 0 0 2.5 12S6 19 12 19a9.6 9.6 0 0 0 4.4-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+
 export function el(html) {
   const t = document.createElement("template");
   t.innerHTML = html.trim();
@@ -263,17 +266,20 @@ let loads = 0;
  * of those saved copies: { courses, status }.
  */
 export async function renderCourses(container, { refresh = false, saved = null } = {}) {
-  // Settings → Experience → Refresh button: a glass ↻ beside the inbox.
+  // Left: schedule + Hide grades. Right: refresh (Settings → Experience →
+  // Refresh button) + inbox. The status line gets its own row underneath.
   const header = (subtitle, dot = false) => {
     const withRefresh = preferences().refreshButton;
+    const hidden = marksHidden();
     const html = pageHeader({
       title: "TA Dashboard",
       subtitle,
-      left: glassButton("schedule", "Class schedule", "data-schedule"),
+      left: glassButton("schedule", "Class schedule", "data-schedule") +
+        glassButton(hidden ? EYE_OFF : "eye", hidden ? "Show grades" : "Hide grades", `data-privacy aria-pressed="${hidden}"`),
       right: (withRefresh ? glassButton("refresh", "Refresh marks", "data-refresh") : "") +
         glassButton("inbox", "Recent updates", `data-inbox${dot ? ' data-dot="true"' : ""}`),
     });
-    return withRefresh ? html.replace('class="g-header"', 'class="g-header g-header-wide"') : html;
+    return html.replace('class="g-header"', 'class="g-header g-header-wide"');
   };
   if (!refresh || !container.querySelector(".g-header")) {
     container.innerHTML = `${header("Loading your marks…")}<div class="g-list">${skeletonCards(5)}</div>`;
@@ -325,15 +331,21 @@ export async function renderCourses(container, { refresh = false, saved = null }
 
   // ── Header: schedule · TeachAssist / Updated… (tap to refresh) · updates ──
   const top = el(header("", changes.length > 0));
-  const status = saved ? saved.status : isDemo() ? "Demo · bundled snapshot" : showingSavedCopy() ? `Last saved marks · ${relativeUpdated(lastSyncedAt()).replace(/^Updated\s*/i, "")}` : relativeUpdated(lastSyncedAt());
+  const status = saved ? saved.status : isDemo() ? "Demo data" : showingSavedCopy() ? `Last saved marks · ${relativeUpdated(lastSyncedAt()).replace(/^Updated\s*/i, "")}` : relativeUpdated(lastSyncedAt());
   const sub = top.querySelector(".g-header-title");
+  // One refresh control: with the ↻ button on, the status is just a label;
+  // with it off, the status pill itself refreshes.
+  const tapToRefresh = !preferences().refreshButton && !isDemo();
   sub.insertAdjacentHTML(
     "beforeend",
-    `<button type="button" class="g-status" aria-label="${escapeHtml(status)}. Refresh marks">${escapeHtml(status)}${isDemo() ? "" : GLYPHS.refresh}</button>`,
+    tapToRefresh
+      ? `<button type="button" class="g-status" aria-label="${escapeHtml(status)}. Refresh marks">${escapeHtml(status)}${GLYPHS.refresh}</button>`
+      : `<span class="g-status" role="status">${escapeHtml(status)}</span>`,
   );
-  sub.querySelector(".g-status").addEventListener("click", async (e) => {
-    if (isDemo()) return savedFeedback(e.currentTarget, "Demo data is bundled");
-    await renderCourses(container, { refresh: true });
+  if (tapToRefresh) sub.querySelector(".g-status").addEventListener("click", () => renderCourses(container, { refresh: true }));
+  top.querySelector("[data-privacy]").addEventListener("click", () => {
+    savePreferences({ hideMarks: !marksHidden() });
+    renderCourses(container);
   });
   top.querySelector("[data-schedule]").addEventListener("click", () => openSchedule(courses, { onEdit: () => renderCourses(container) }));
   top.querySelector("[data-inbox]").addEventListener("click", () => openUpdates(changes, updates.find((u) => u.overall)));
@@ -447,8 +459,8 @@ export async function renderCourses(container, { refresh = false, saved = null }
     })
     .catch(() => {});
 
-  // Until the student has filled in their dream, nudge them from the top of
-  // the list; once it's done this becomes a quiet summary at the bottom.
+  // The dream card: an invitation until it's filled in, then a quiet summary.
+  // Either way it comes after the courses.
   const dreamCard = () => {
     const p = preferences();
     const card = p.dreamDone
@@ -463,7 +475,8 @@ export async function renderCourses(container, { refresh = false, saved = null }
   };
   let dream = dreamCard();
   // Compact home keeps every course on the first screen: the dream goes below.
-  const place = (card) => (preferences().dreamDone || preferences().compactHome ? footer.before(card) : list.before(card));
+  // Courses come first; the dream invitation sits below them.
+  const place = (card) => footer.before(card);
   place(dream);
   // A new phone or cleared browser: pull the saved dream, then refresh the card.
   syncFromCloud().then((changed) => {

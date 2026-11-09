@@ -284,18 +284,36 @@ html[data-mode] .quiet-times input {
   font: inherit;
 }
 
-/* Two buttons per side leave the title column narrower: keep the status on
-   one line ("Updated 5m ago" fits; longer ones end in …). */
-html[data-mode] .g-header.g-header-wide .g-header-title .g-status {
-  max-width: 100%;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: calc(13px * var(--ts, 1));
+/* The status ("Demo data", "Updated 5m ago") gets its own full-width row
+   under the buttons and title, so it never clips beside them. */
+html[data-mode] .g-header.g-header-wide {
+  grid-template-areas:
+    "left title right"
+    "status status status";
+  row-gap: 8px;
+}
+html[data-mode] .g-header.g-header-wide > .g-header-side:first-child {
+  grid-area: left;
+}
+html[data-mode] .g-header.g-header-wide > .g-header-side:last-child {
+  grid-area: right;
 }
 html[data-mode] .g-header.g-header-wide .g-header-title {
-  display: grid;
-  justify-items: center;
+  display: contents;
+}
+html[data-mode] .g-header.g-header-wide .g-header-title > :is(h1, h2) {
+  grid-area: title;
+  align-self: center;
+  text-align: center;
+}
+html[data-mode] .g-header.g-header-wide .g-header-title > :not(h1):not(h2) {
+  grid-area: status;
+  justify-self: center;
+  max-width: 100%;
+  margin: 0;
+}
+html[data-mode] .g-header [data-privacy][aria-pressed="true"] {
+  color: var(--accent);
 }
 /* Big text sizes: the title shrinks a little before it can touch the buttons. */
 html[data-mode] .g-header.g-header-wide .g-header-title :is(h1, h2) {
@@ -318,4 +336,23 @@ html[data-mode][data-compact-home="true"] #screen-courses .g-hero .g-gauge-wrap:
    on, the sliding thumb is solid accent and white text reads fine.) */
 html[data-mode]:not(.m-on) .g-segmented button.active {
   color: color-mix(in srgb, var(--accent) 45%, var(--text));
+}
+
+/* ── Long names stay readable on phones ───────────────────────────────── */
+/* Evaluation titles may take two lines before they're cut off. */
+html[data-mode] .eval-row .g-row-main b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+/* Settings rows keep a one-line description on phones too. */
+html[data-mode] :is(.gh-row, .gh-help) .gh-row-text small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }

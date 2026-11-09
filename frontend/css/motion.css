@@ -1019,3 +1019,14 @@ html[data-tab-hidden="true"] .m-loop::after {
 .no-motion :is(.preference-row, .share-toggle) input.g-dragging::after {
   transition: none !important;
 }
+
+/* A number arriving at its (already final) value: a short settle, never a
+   count through values that aren't real. */
+.m-on .m-num-in {
+  animation: m-num-in 380ms ease-out both;
+}
+@keyframes m-num-in {
+  from {
+    opacity: 0.3;
+  }
+}

@@ -119,6 +119,10 @@
                 />
                 <button type="button" class="field-change" id="show-password" aria-pressed="false" aria-label="Show password">Show</button>
               </div>
+              <label class="check-row">
+                <input type="checkbox" id="shared-device" name="shared-device" />
+                <span><b>This is a shared or school computer</b><small>Nothing is kept on it after you close this tab.</small></span>
+              </label>
             </div>
           </div>
 
@@ -134,7 +138,21 @@
             <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
           </button>
           <button type="button" class="btn-quiet hidden" id="reset-service">Reset sign-in connection</button>
+          <p class="form-help">
+            <button type="button" class="link-btn" data-open="help" aria-haspopup="dialog">Need help signing in?</button>
+          </p>
         </form>
+
+        <details class="how-signin">
+          <summary>How your sign-in works</summary>
+          <ul>
+            <li><b>Your password</b> goes over an encrypted connection to our sign-in server, which signs in to TeachAssist for you. It is never stored on our servers.</li>
+            <li><b>On this device</b> we keep your student number and a locked copy of your password that only our sign-in server can open, so you stay signed in. Sign Out removes both.</li>
+            <li><b>Backed up</b> so they survive a new phone: your dreams, goals, last-known marks and the first name you choose (optional). Delete them any time in Settings &rarr; Account &amp; Data.</li>
+            <li><b>Shared or school computer?</b> Tick the box after you enter your number: nothing stays on that computer once you close the tab.</li>
+          </ul>
+          <a href="legal/privacy.html">Read the Privacy Policy</a>
+        </details>
 
         <div class="or" role="separator"><span>or</span></div>
 
