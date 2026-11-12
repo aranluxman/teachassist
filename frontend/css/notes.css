@@ -1,0 +1,835 @@
+/* ==========================================================================
+   Notes (js/notes.js) — notebooks · editor · schedule & tools.
+   Three columns on a laptop, two on a tablet, one view at a time on a phone.
+   Uses the theme's tokens, so every colour theme and dark mode just work.
+   ========================================================================== */
+
+/* Notes gets room for its three columns on wide screens. */
+html[data-mode]:has(#screen-guidance:not(.hidden) .nb-app) .shell {
+  max-width: 1440px;
+}
+
+html[data-mode] .nb-app {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+  margin-top: 6px;
+}
+html[data-mode] .nb-app .card {
+  margin: 0;
+  padding: 16px;
+  border-radius: 22px;
+}
+html[data-mode] .nb-side,
+html[data-mode] .nb-aside {
+  display: grid;
+  /* minmax(0, 1fr): long notebook names shrink with an ellipsis instead of
+     pushing the card under the editor. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+html[data-mode] .nb-app .card {
+  min-width: 0;
+}
+
+/* ── Card heads ───────────────────────────────────────────────────────── */
+html[data-mode] .nb-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+html[data-mode] .nb-card-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: calc(19px * var(--ts, 1));
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+html[data-mode] .nb-head-icon svg {
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+}
+html[data-mode] .nb-round {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 100ms ease-out;
+}
+html[data-mode] .nb-round svg {
+  width: 20px;
+  height: 20px;
+}
+html[data-mode] .nb-round:active {
+  transform: scale(0.94);
+}
+html[data-mode] .nb-round[aria-pressed="true"] {
+  color: #eab308;
+}
+html[data-mode] .nb-round[aria-pressed="true"] svg {
+  fill: currentColor;
+}
+
+/* ── Notebooks ────────────────────────────────────────────────────────── */
+html[data-mode] .nb-books {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+html[data-mode] .nb-book {
+  display: flex;
+  align-items: center;
+  border-radius: 14px;
+  transition: background-color 160ms ease;
+}
+html[data-mode] .nb-book.is-active {
+  background: var(--accent-tint);
+}
+html[data-mode] .nb-book-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 6px 8px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+html[data-mode] .nb-folder svg {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+html[data-mode] .nb-book-text {
+  display: grid;
+  min-width: 0;
+}
+html[data-mode] .nb-book-text b {
+  overflow: hidden;
+  font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+html[data-mode] .nb-book-text small,
+html[data-mode] .nb-note-text small,
+html[data-mode] .nb-note-side time {
+  color: var(--text-secondary);
+  font-size: calc(13px * var(--ts, 1));
+}
+html[data-mode] .nb-dots {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+html[data-mode] .nb-dots svg {
+  width: 20px;
+}
+
+/* ── Note list ────────────────────────────────────────────────────────── */
+html[data-mode] .nb-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  transition: transform 100ms ease-out, filter 160ms ease;
+}
+html[data-mode] .nb-new svg {
+  width: 18px;
+  height: 18px;
+}
+html[data-mode] .nb-new:active {
+  transform: scale(0.97);
+}
+html[data-mode] .nb-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text-secondary);
+}
+html[data-mode] .nb-search svg {
+  flex: none;
+  width: 18px;
+}
+html[data-mode] .nb-search input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px; /* no zoom on focus in iOS Safari */
+}
+html[data-mode] .nb-notes {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+html[data-mode] .nb-note {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+html[data-mode] .nb-note:hover,
+html[data-mode] .nb-note.is-active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+html[data-mode] .nb-note-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+html[data-mode] .nb-note-text {
+  display: grid;
+  min-width: 0;
+}
+html[data-mode] .nb-note-text b,
+html[data-mode] .nb-note-text small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+html[data-mode] .nb-note-side {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+html[data-mode] .nb-note-star svg {
+  width: 15px;
+  color: #eab308;
+  fill: currentColor;
+}
+html[data-mode] .nb-empty {
+  padding: 14px 8px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Editor ───────────────────────────────────────────────────────────── */
+html[data-mode] .nb-editor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 560px;
+  padding: 0 !important;
+  overflow: hidden;
+}
+html[data-mode] .nb-ed-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 16px 12px;
+}
+html[data-mode] .nb-ed-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c, var(--accent)) 16%, transparent);
+  color: var(--c, var(--accent));
+}
+html[data-mode] .nb-ed-icon svg {
+  width: 24px;
+  height: 24px;
+}
+html[data-mode] .nb-ed-titles {
+  flex: 1;
+  min-width: 0;
+}
+html[data-mode] .nb-title {
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: calc(24px * var(--ts, 1));
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+html[data-mode] .nb-title::placeholder {
+  color: var(--text-secondary);
+}
+html[data-mode] .nb-meta {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: calc(14px * var(--ts, 1));
+}
+html[data-mode] .nb-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+html[data-mode] .nb-tags:empty {
+  display: none;
+}
+html[data-mode] .nb-tag {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-tint);
+  color: var(--accent);
+  font: inherit;
+  font-size: calc(13px * var(--ts, 1));
+  font-weight: 600;
+}
+html[data-mode] button.nb-tag {
+  min-height: 32px;
+  cursor: pointer;
+}
+html[data-mode] .nb-back {
+  display: none;
+}
+
+html[data-mode] .nb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border-block: 1px solid var(--separator);
+}
+html[data-mode] .nb-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+html[data-mode] .nb-toolbar button:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+html[data-mode] .nb-toolbar button:active {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+html[data-mode] .nb-toolbar svg {
+  width: 20px;
+  height: 20px;
+}
+html[data-mode] .nb-sep {
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: var(--separator);
+}
+
+/* The writing area: a quiet page with clear structure. */
+html[data-mode] .nb-body {
+  flex: 1;
+  min-height: 320px;
+  padding: 18px 20px 24px;
+  outline: 0;
+  color: var(--text);
+  font-size: calc(16px * var(--ts, 1));
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+html[data-mode] .nb-body:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-secondary);
+}
+html[data-mode] .nb-body > :first-child {
+  margin-top: 0;
+}
+html[data-mode] .nb-body h2,
+html[data-mode] .nb-body h3 {
+  display: table;
+  margin: 18px 0 8px;
+  padding: 4px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  font-size: calc(21px * var(--ts, 1));
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+html[data-mode] .nb-body h3 {
+  font-size: calc(18px * var(--ts, 1));
+}
+html[data-mode] .nb-body p {
+  margin: 0 0 8px;
+}
+html[data-mode] .nb-body ul,
+html[data-mode] .nb-body ol {
+  margin: 4px 0 10px;
+  padding-left: 1.4em;
+}
+html[data-mode] .nb-body li + li {
+  margin-top: 4px;
+}
+html[data-mode] .nb-body ul.nb-check {
+  padding-left: 0;
+  list-style: none;
+}
+html[data-mode] .nb-body ul.nb-check > li {
+  position: relative;
+  padding-left: 32px;
+}
+html[data-mode] .nb-body ul.nb-check > li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.2em;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+}
+html[data-mode] .nb-body ul.nb-check > li[data-checked="true"] {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+}
+html[data-mode] .nb-body ul.nb-check > li[data-checked="true"]::before {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12.5 4 4 8-9'/%3E%3C/svg%3E") center / 16px no-repeat,
+    var(--accent);
+}
+html[data-mode] .nb-body table {
+  width: 100%;
+  margin: 8px 0 12px;
+  border-collapse: collapse;
+  font-size: calc(15px * var(--ts, 1));
+}
+html[data-mode] .nb-body th,
+html[data-mode] .nb-body td {
+  padding: 8px 10px;
+  border: 1px solid var(--separator);
+  text-align: left;
+  vertical-align: top;
+}
+html[data-mode] .nb-body th {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-weight: 700;
+}
+html[data-mode] .nb-body blockquote {
+  margin: 8px 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, #facc15 16%, transparent);
+}
+/* Highlighted text stays readable in dark mode too. */
+html[data-mode] .nb-body span[style*="background"],
+html[data-mode] .nb-body mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  color: #1c1917;
+}
+html[data-mode] .nb-body a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+html[data-mode] .nb-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--separator);
+  color: var(--text-secondary);
+  font-size: calc(14px * var(--ts, 1));
+}
+html[data-mode] .nb-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+html[data-mode] .nb-saved svg {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+
+html[data-mode] .nb-blank {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: auto;
+  padding: 48px 24px;
+  text-align: center;
+}
+html[data-mode] .nb-blank > svg {
+  width: 44px;
+  height: 44px;
+  color: var(--accent);
+}
+html[data-mode] .nb-blank h2 {
+  margin: 4px 0 0;
+  font-size: calc(20px * var(--ts, 1));
+}
+html[data-mode] .nb-blank p {
+  max-width: 34ch;
+  margin: 0 0 8px;
+}
+html[data-mode] .nb-blank .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+}
+
+/* ── Schedule & tools ─────────────────────────────────────────────────── */
+html[data-mode] .nb-today {
+  margin: 0 0 6px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-weight: 650;
+}
+html[data-mode] .nb-classes {
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+html[data-mode] .nb-classes li {
+  display: grid;
+  grid-template-columns: 10px 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--separator);
+}
+html[data-mode] .nb-classes li:last-child {
+  border-bottom: 0;
+}
+html[data-mode] .nb-classes time {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+html[data-mode] .nb-classes b {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+html[data-mode] .nb-class-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+html[data-mode] .nb-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 6px;
+  border: 0;
+  border-bottom: 1px solid var(--separator);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+html[data-mode] .nb-tool-row:last-child {
+  border-bottom: 0;
+}
+html[data-mode] .nb-tool-row > svg:first-child {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+html[data-mode] .nb-tool-row span {
+  flex: 1;
+}
+html[data-mode] .nb-tool-row > svg:last-child {
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+}
+html[data-mode] .nb-tool-row[aria-pressed="true"] {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+/* ── Sheets (rename, tags, course, options) ───────────────────────────── */
+html[data-mode] .nb-sheet {
+  display: grid;
+  gap: 12px;
+}
+html[data-mode] .nb-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+html[data-mode] .nb-swatches button {
+  width: 36px;
+  height: 36px;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+html[data-mode] .nb-swatches button[aria-checked="true"] {
+  border-color: var(--text);
+}
+html[data-mode] .nb-danger {
+  color: var(--danger, #b91c1c) !important;
+}
+html[data-mode] .nb-pick {
+  gap: 0;
+}
+
+/* ── Guidance: the Notes quick button ─────────────────────────────────── */
+html[data-mode] .gh-notes-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 24px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+html[data-mode] .gh-notes-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(150deg, #34d399, #059669);
+  color: #fff;
+  box-shadow: 0 8px 20px -6px rgba(5, 150, 105, 0.55);
+}
+html[data-mode] .gh-notes-icon svg {
+  width: 24px;
+  height: 24px;
+}
+html[data-mode] .gh-notes-btn > span:nth-child(2) {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+html[data-mode] .gh-notes-btn b {
+  font-size: calc(17px * var(--ts, 1));
+}
+html[data-mode] .gh-notes-btn small {
+  color: var(--text-secondary);
+}
+html[data-mode] .gh-notes-btn > svg:last-child {
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+}
+
+/* ── Layouts ──────────────────────────────────────────────────────────── */
+/* Laptop: notebooks · editor · schedule & tools, like the paper planner. */
+@media (min-width: 1100px) {
+  html[data-mode] .nb-app {
+    grid-template-columns: 300px minmax(0, 1fr) 300px;
+  }
+}
+/* Tablet: notebooks beside the editor; schedule and tools under it. */
+@media (min-width: 760px) and (max-width: 1099px) {
+  html[data-mode] .nb-app {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+  html[data-mode] .nb-aside {
+    grid-column: 2;
+  }
+}
+/* Phone: the list, or the open note full-width with its tools below.
+   Notebooks become one row of chips, so the notes themselves are on screen. */
+@media (max-width: 759px) {
+  html[data-mode] .nb-books-card {
+    padding: 14px 0 12px !important;
+  }
+  html[data-mode] .nb-books-card .nb-card-head {
+    padding: 0 16px;
+  }
+  html[data-mode] .nb-books {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 16px 4px;
+    scroll-padding-inline: 16px;
+    scrollbar-width: none;
+  }
+  html[data-mode] .nb-books::-webkit-scrollbar {
+    display: none;
+  }
+  html[data-mode] .nb-book {
+    flex: none;
+    border: 1px solid var(--separator);
+    border-radius: 999px;
+  }
+  html[data-mode] .nb-book.is-active {
+    border-color: transparent;
+  }
+  html[data-mode] .nb-book-main {
+    gap: 8px;
+    min-height: 44px;
+    padding: 4px 14px 4px 10px;
+  }
+  html[data-mode] .nb-folder svg {
+    width: 22px;
+    height: 22px;
+  }
+  html[data-mode] .nb-book-text {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  html[data-mode] .nb-book-text b {
+    max-width: 16ch;
+  }
+  html[data-mode] .nb-books .nb-dots {
+    display: none;
+  }
+  html[data-mode] .nb-app[data-view="list"] .nb-editor,
+  html[data-mode] .nb-app[data-view="list"] .nb-aside,
+  html[data-mode] .nb-app[data-view="editor"] .nb-side {
+    display: none;
+  }
+  html[data-mode] .nb-back {
+    display: grid;
+  }
+  html[data-mode] .nb-ed-icon {
+    display: none;
+  }
+  html[data-mode] .nb-editor {
+    min-height: 0;
+  }
+  html[data-mode] .nb-body {
+    min-height: 46vh;
+    padding: 14px 16px 20px;
+  }
+  html[data-mode] .nb-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: var(--card-solid, var(--card));
+  }
+  html[data-mode] .nb-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  html[data-mode] .nb-toolbar button {
+    flex: none;
+  }
+}
+
+/* Entrances: the open note settles in; nothing animates while typing. */
+html[data-mode].m-on .nb-app[data-view="editor"] .nb-ed-head {
+  animation: nb-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes nb-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ── Print / Export (PDF): only the note ──────────────────────────────── */
+#nb-print-root {
+  display: none;
+}
+@media print {
+  html.nb-printing body > :not(#nb-print-root) {
+    display: none !important;
+  }
+  html.nb-printing,
+  html.nb-printing body {
+    background: #fff !important;
+  }
+  html.nb-printing #nb-print-root {
+    display: block;
+    color: #111;
+    font: 12pt/1.55 -apple-system, "Segoe UI", Inter, sans-serif;
+  }
+  #nb-print-root h1 {
+    margin: 0 0 4px;
+    font-size: 22pt;
+  }
+  .nb-print-meta {
+    margin: 0 0 16px;
+    color: #555;
+  }
+  #nb-print-root table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  #nb-print-root th,
+  #nb-print-root td {
+    padding: 6px 8px;
+    border: 1px solid #bbb;
+    text-align: left;
+  }
+  #nb-print-root ul.nb-check {
+    list-style: none;
+    padding-left: 0;
+  }
+  #nb-print-root ul.nb-check > li::before {
+    content: "☐ ";
+  }
+  #nb-print-root ul.nb-check > li[data-checked="true"]::before {
+    content: "☑ ";
+  }
+}
+
+/* The open notebook's options sit beside its name (on a phone, the chips
+   have no room for a ⋯ button). */
+html[data-mode] .nb-list-card [data-book-menu][hidden] {
+  display: none;
+}

@@ -8,6 +8,7 @@ import { requireLogin, getCourses } from "./ta-client.js";
 import { renderCourses, courseLabel } from "./courses.js";
 import { renderSchoolMap } from "./schools.js";
 import { renderVolunteer } from "./volunteer.js";
+import { renderNotes } from "./notes.js";
 import { parseRoute, go } from "./router.js";
 import { openCourseDetail } from "./course-detail.js";
 import { renderGuidance } from "./guidance.js";
@@ -74,6 +75,7 @@ async function render({ screen, arg }) {
   if (screen === "guidance") {
     if (arg === "map") return renderSchoolMap(target);
     if (arg === "volunteer") return renderVolunteer(target);
+    if (arg === "notes") return renderNotes(target);
     return renderGuidance(target);
   }
   if (screen === "settings" && arg) return renderSettingsPage(target, arg);

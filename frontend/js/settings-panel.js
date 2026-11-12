@@ -34,12 +34,10 @@ const VIEW = { appearance: "theme" };
 const open = (id) => window.AppNav.toSettings(VIEW[id] || id);
 
 function row([id, title, sub, glyph]) {
-  // Already installed: nothing to open, so say so.
-  const installed = id === "install" && isInstalled();
-  const node = el(`<button type="button" class="gh-row" data-row="${id}"${installed ? " disabled" : ""}>
+  const node = el(`<button type="button" class="gh-row" data-row="${id}">
     <span class="gh-row-icon" data-tone="${id}">${glyph}</span>
-    <span class="gh-row-text"><b>${escapeHtml(title)}</b><small>${escapeHtml(installed ? "Installed on this device" : sub)}</small></span>
-    ${installed ? "" : `<span class="gh-chev">${GLYPHS.chevron}</span>`}
+    <span class="gh-row-text"><b>${escapeHtml(title)}</b><small>${escapeHtml(sub)}</small></span>
+    <span class="gh-chev">${GLYPHS.chevron}</span>
   </button>`);
   node.onclick = () => open(id);
   return node;
@@ -59,7 +57,10 @@ export function settingsPanel() {
     </button>
   </div>`);
   const [left, right] = wrap.querySelectorAll(".gh-set-card");
-  ROWS.forEach((r, i) => (i < 4 ? left : right).append(row(r)));
+  // Already installed: the "Install the App" row has nothing left to do, so it goes.
+  const rows = ROWS.filter(([id]) => id !== "install" || !isInstalled());
+  const half = Math.ceil(rows.length / 2);
+  rows.forEach((r, i) => (i < half ? left : right).append(row(r)));
   wrap.querySelector(".gh-help").onclick = () => open("help");
   return wrap;
 }

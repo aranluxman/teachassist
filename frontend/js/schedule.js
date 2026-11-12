@@ -41,7 +41,7 @@ function dayLayout(courses) {
 }
 
 /** Every class with its period, room, time and display name: period 1, 2, 3… */
-function scheduleRows(courses, bellTimes) {
+export function scheduleRows(courses, bellTimes) {
   const layout = dayLayout(courses);
   return courses
     .map((c) => {
@@ -55,6 +55,14 @@ function scheduleRows(courses, bellTimes) {
 }
 
 const timeText = (t) => (t ? `${fmtClock(t.start)} – ${fmtClock(t.end)}` : "");
+
+/** Today's classes in order: [{ code, name, start, time }] (start as "8:30 AM"). */
+export async function todaysClasses(courses) {
+  const school = await mySchool().catch(() => null);
+  return scheduleRows(courses, school?.bellTimes || DEFAULT_BELL_TIMES)
+    .filter((r) => !/^\s*LUNCH/i.test(r.code))
+    .map((r) => ({ code: r.code, name: r.name, start: r.time ? fmtClock(r.time.start) : "", time: timeText(r.time) }));
+}
 // "94%" rather than "94.0%" in the small pill, like the iOS widgets.
 const pill = (mark) => pct(mark).replace(/\.0(?=<small>)/, "");
 

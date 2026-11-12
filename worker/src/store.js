@@ -43,7 +43,7 @@ export function storeKeyKind(env) {
 const baseUrl = (env) => (env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
 export const storeConfigured = (env) => !!(baseUrl(env) && apiKey(env) && env.API_KEY);
 
-async function rpc(env, name, args) {
+export async function rpc(env, name, args) {
   return fetch(`${baseUrl(env)}/rest/v1/rpc/${name}`, {
     method: 'POST',
     headers: { apikey: apiKey(env), Authorization: `Bearer ${apiKey(env)}`, 'Content-Type': 'application/json' },
@@ -199,9 +199,9 @@ export function cleanGoals(list) {
 }
 
 /** Parse a JSON body, stopping as soon as it passes MAX_BODY bytes. */
-async function readJson(request) {
+export async function readJson(request, limit = MAX_BODY) {
   const tooLarge = () => Object.assign(new Error('too large'), { status: 413 });
-  if (Number(request.headers.get('content-length')) > MAX_BODY) throw tooLarge();
+  if (Number(request.headers.get('content-length')) > limit) throw tooLarge();
   const reader = request.body?.getReader();
   if (!reader) throw new Error('empty');
   const chunks = [];
@@ -210,7 +210,7 @@ async function readJson(request) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > MAX_BODY) { await reader.cancel(); throw tooLarge(); }
+    if (size > limit) { await reader.cancel(); throw tooLarge(); }
     chunks.push(value);
   }
   const bytes = new Uint8Array(size);

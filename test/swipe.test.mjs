@@ -40,3 +40,13 @@ test("both pagers get finger swiping, and the chart needs a hold to inspect", ()
   assert.doesNotMatch(chart.slice(0, chart.indexOf('svg.addEventListener("pointermove"')), /e\.stopPropagation\(\);\n  \}\);/);
   assert.match(read("frontend/css/v6.css"), /\.g-pager\.is-swiping \{[^}]*scroll-snap-type: none;/);
 });
+
+test("scrolling up or down never moves the pager; a clear sideways swipe does", async () => {
+  const { swipeAxis } = await import("../frontend/js/swipe.js");
+  assert.equal(swipeAxis(4, 3), null); // too small to tell
+  assert.equal(swipeAxis(3, 40), "y"); // straight down
+  assert.equal(swipeAxis(12, 10), "y"); // a scroll drifting sideways
+  assert.equal(swipeAxis(-14, 10), "y"); // still mostly a scroll
+  assert.equal(swipeAxis(-20, 6), "x"); // clearly sideways
+  assert.equal(swipeAxis(16, 2), "x");
+});

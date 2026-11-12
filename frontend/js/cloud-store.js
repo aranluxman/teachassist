@@ -13,7 +13,8 @@ import { preferences, savePreferences } from "./personalization.js";
 
 const emit = (state) => typeof window !== "undefined" && window.dispatchEvent(new CustomEvent("ta:cloud", { detail: { state } }));
 
-async function request(method, body) {
+/** A signed request to this site's backend (`/api/store` unless told otherwise). */
+export async function request(method, body, path = "/api/store") {
   if (isDemo()) return null;
   for (let attempt = 0; attempt < 2; attempt++) {
     let token = sessionToken();
@@ -25,7 +26,7 @@ async function request(method, body) {
     if (!token) return null;
     let res;
     try {
-      res = await fetch(`${workerUrl()}/api/store`, {
+      res = await fetch(`${workerUrl()}${path}`, {
         method,
         headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
         body: body ? JSON.stringify(body) : undefined,

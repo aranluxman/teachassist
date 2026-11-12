@@ -6,7 +6,21 @@
 // drag past halfway.
 
 /** Pixels a finger travels before we decide it's sideways or up/down. */
-export const LOCK_PX = 6;
+export const LOCK_PX = 10;
+/** A swipe counts as sideways only when it's this many times more across
+ *  than up/down (about 34° from flat). A scroll that drifts a little to the
+ *  side stays a scroll, so the average never moves while you scroll. */
+export const SIDEWAYS_RATIO = 1.5;
+
+/**
+ * Decide which way a finger is going: "x" (switch pages), "y" (scroll the
+ * page) or null (not far enough yet to tell).
+ */
+export function swipeAxis(dx, dy) {
+  const ax = Math.abs(dx), ay = Math.abs(dy);
+  if (ax < LOCK_PX && ay < LOCK_PX) return null;
+  return ax >= LOCK_PX && ax > ay * SIDEWAYS_RATIO ? "x" : "y";
+}
 /** A sideways drag this long switches the page, even slowly. */
 export const SWIPE_PX = 20;
 /** A flick this fast (px per ms) switches the page, however short. */
@@ -81,8 +95,9 @@ export function attachSwipe(track, go) {
     const dx = e.clientX - s.x;
     const dy = e.clientY - s.y;
     if (!s.axis) {
-      if (Math.abs(dx) < LOCK_PX && Math.abs(dy) < LOCK_PX) return;
-      if (Math.abs(dy) > Math.abs(dx)) { s = null; return; } // up/down: the page scrolls
+      const axis = swipeAxis(dx, dy);
+      if (!axis) return;
+      if (axis === "y") { s = null; return; } // up/down (or unclear): the page scrolls, the pager stays
       s.axis = "x";
       track.classList.add("is-swiping"); // snap off while the finger drags
       try { track.setPointerCapture(e.pointerId); } catch { /* finger already gone */ }
