@@ -14,6 +14,7 @@ import { iconTile, GLYPHS } from "./ui-kit.js";
 import { getCourses, isDemo, displayMark } from "./ta-client.js";
 import { computeGpa, gpaFor, GPA_SCALE, GPA_MAX } from "./gpa.js";
 import { listNotes, readNotes } from "./notes-store.js";
+import { listEvents, isoDay, daysUntil, whenText } from "./calendar-store.js";
 import { marksHidden } from "./motion.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
 import { mySchool, schoolCard, icon } from "./schools.js";
@@ -160,6 +161,17 @@ function notesButton() {
   btn.onclick = () => window.AppNav.toGuidance("notes");
   return btn;
 }
+/** The Calendar quick button, under Notes: the next test or due date. */
+function calendarButton() {
+  const next = listEvents({ from: isoDay(new Date()) }).filter((e) => !e.done);
+  const sub = next.length
+    ? `Next: ${next[0].title} · ${whenText(daysUntil(next[0].date))}`
+    : "Tests, assignments and due dates";
+  const btn = el(`<button type="button" class="gh-glass gh-notes-btn gh-cal-btn"><span class="gh-notes-icon gh-cal-icon" aria-hidden="true">${GLYPHS.calendar}</span><span><b>Calendar</b><small></small></span>${GLYPHS.chevron}</button>`);
+  btn.querySelector("small").textContent = sub;
+  btn.onclick = () => window.AppNav.toGuidance("calendar");
+  return btn;
+}
 const NOTES_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h10.5A2.5 2.5 0 0 1 19 6v15H7.5A2.5 2.5 0 0 1 5 18.5V4.5a1 1 0 0 1 1-1z"/><path d="M5 18.5A2.5 2.5 0 0 1 7.5 16H19M9 8h6M9 11.5h4"/></svg>';
 
 /** School: things that depend on which school you go to. Choose it first. */
@@ -193,8 +205,9 @@ export async function renderGuidance(container) {
   const school = await mySchool().catch(() => null);
 
   const hub = el(`<div class="gh-hub"></div>`);
-  // Tools grouped by purpose (School · Planning); GPA sits in the middle.
-  hub.append(hubHeader(), profileCard(school), notesButton(), schoolTools(school), planningTools(), gpaCard());
+  // Tools grouped by purpose (School · Planning), then GPA, with Notes and
+  // the Calendar right under it.
+  hub.append(hubHeader(), profileCard(school), schoolTools(school), planningTools(), gpaCard(), notesButton(), calendarButton());
   container.append(hub);
 
   // School details, once one is chosen (the School group asks for it first).

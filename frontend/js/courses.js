@@ -791,18 +791,80 @@ function openUpdates(changes, overallChange) {
   openSheet("Recent updates", body, { subtitle: items.length ? `${items.length} change${items.length === 1 ? "" : "s"}` : "" });
 }
 
-/** One "Recent updates" row: label, what changed, from → to, delta. */
+/** One "Recent updates" row: label, from → to, delta, and *why* it moved. */
 function updateCard(u) {
   const delta = u.to - u.from;
+  const moved = Math.abs(delta) >= 0.05;
   const up = delta >= 0;
-  return el(`
+  const card = el(`
     <div class="g-row update-card">
       ${u.overall ? `<span class="g-badge" style="--b-from:var(--gauge-to);--b-to:var(--gauge-from)">${GLYPHS.percent}</span>` : subjectBadge(u.label)}
       <span class="g-row-main">
         <b>${escapeHtml(u.overall ? "Overall average" : courseTitle({ code: u.label }))}</b>
-        <small class="update-trend">${fmtPercent(u.from)} → ${fmtPercent(u.to)}</small>
+        <small class="update-trend">${moved ? `${fmtPercent(u.from)} → ${fmtPercent(u.to)}` : `Still ${fmtPercent(u.to)}`}</small>
       </span>
-      <span class="g-delta ${up ? "up" : "down"} delta-pill">${up ? "↑" : "↓"} ${pct(Math.abs(delta))}</span>
+      ${moved
+        ? `<span class="g-delta ${up ? "up" : "down"} delta-pill">${up ? "↑" : "↓"} ${pct(Math.abs(delta))}</span>`
+        : `<span class="g-delta flat delta-pill">No change</span>`}
     </div>
   `);
+  const why = updateReasons(u, moved);
+  if (why) card.append(why);
+  return card;
+}
+
+const REASON_WORD = { added: "New", removed: "Removed", changed: "Updated" };
+const PULL_TEXT = { up: "Pulled your mark up", down: "Pulled your mark down", none: "Close to your average, so little effect" };
+
+/** The "Why it changed" list under an update. */
+function updateReasons(u, moved) {
+  if (u.overall) {
+    if (!u.courses?.length) return null;
+    const box = el(`<div class="update-why"><p class="update-why-title">Why it changed</p><ul role="list"></ul></div>`);
+    for (const c of u.courses) {
+      const d = c.to - c.from;
+      box.querySelector("ul").append(el(`<li class="why-row why-${d >= 0 ? "up" : "down"}">
+        <span class="why-icon" aria-hidden="true">${d >= 0 ? "↑" : "↓"}</span>
+        <span><b>${escapeHtml(courseTitle({ code: c.code }))}</b><small class="update-trend">${fmtPercent(c.from)} → ${fmtPercent(c.to)}</small></span>
+      </li>`));
+    }
+    return box;
+  }
+  const reasons = u.reasons || [];
+  if (!reasons.length) {
+    // Older saved data has no assessment lists to compare yet.
+    return u.explained === false
+      ? el(`<div class="update-why"><p class="update-why-note">Details on which assessment caused this will show from your next mark change.</p></div>`)
+      : el(`<div class="update-why"><p class="update-why-note">No assessment was added or changed. TeachAssist likely re-weighted a category or updated the course mark directly.</p></div>`);
+  }
+  const lead = moved
+    ? reasons.length === 1 ? "Caused by this assessment" : `${reasons.length} assessments changed`
+    : "Your mark didn't move, but this changed";
+  const box = el(`<div class="update-why"><p class="update-why-title"></p><ul role="list"></ul></div>`);
+  box.querySelector(".update-why-title").textContent = lead;
+  const list = box.querySelector("ul");
+  for (const r of reasons) {
+    const scores = r.type === "changed"
+      ? (r.before != null && r.after != null && Math.abs(r.after - r.before) >= 0.05 ? `${fmtPercent(r.before)} → ${fmtPercent(r.after)}` : fmtPercent(r.after))
+      : r.type === "added" ? fmtPercent(r.after) : `was ${fmtPercent(r.before)}`;
+    const weight = r.type === "changed" && r.weightBefore !== r.weightAfter ? ` · weight ${r.weightBefore ?? "—"} → ${r.weightAfter ?? "—"}` : "";
+    // When the mark didn't move, a "pulled it up" line would contradict "No change".
+    const effect = !moved ? ""
+      : reasons.length === 1 ? `Moved your mark ${u.to >= u.from ? "up" : "down"} ${fmtPercent(Math.abs(u.to - u.from))}`
+      : PULL_TEXT[r.pull] || "";
+    const li = el(`<li class="why-row why-${r.type} why-pull-${r.pull}">
+      <span class="why-icon" aria-hidden="true">${r.type === "added" ? "+" : r.type === "removed" ? "−" : "✎"}</span>
+      <span>
+        <b><span class="why-kind"></span> <span class="why-name"></span></b>
+        <small><span class="update-trend">${scores}</span><span class="why-meta"></span></small>
+        <small class="why-effect"></small>
+      </span>
+    </li>`);
+    li.querySelector(".why-kind").textContent = `${REASON_WORD[r.type]}:`;
+    li.querySelector(".why-name").textContent = r.name;
+    li.querySelector(".why-meta").textContent = `${r.category ? ` · ${r.category}` : ""}${weight}`;
+    li.querySelector(".why-effect").textContent = effect;
+    list.append(li);
+  }
+  return box;
 }

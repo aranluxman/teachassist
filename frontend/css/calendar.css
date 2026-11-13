@@ -1,0 +1,517 @@
+/* ==========================================================================
+   Calendar & Test Planner (js/calendar.js).
+   Laptop: month grid beside Upcoming + Reminders, with Quick Actions and
+   Notification Settings underneath. Phone: one column, coloured dots in
+   the month grid instead of labels. Uses the theme's tokens throughout.
+   ========================================================================== */
+
+html[data-mode]:has(#screen-guidance:not(.hidden) .cal-app) .shell {
+  max-width: 1320px;
+}
+html[data-mode] .cal-app {
+  display: grid;
+  gap: 16px;
+  margin-top: 6px;
+}
+html[data-mode] .cal-app .card {
+  margin: 0;
+  padding: 16px;
+  border-radius: 22px;
+  min-width: 0;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+html[data-mode] .cal-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+html[data-mode] .cal-head-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(150deg, #4ade80, #15803d);
+  color: #fff;
+  box-shadow: 0 8px 20px -6px rgba(21, 128, 61, 0.55);
+}
+html[data-mode] .cal-head-icon svg { width: 28px; height: 28px; }
+html[data-mode] .cal-head-text { flex: 1; min-width: 200px; }
+html[data-mode] .cal-head h1 {
+  margin: 0;
+  font-size: calc(26px * var(--ts, 1));
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+html[data-mode] .cal-head p {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+html[data-mode] .cal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text);
+  font: 700 calc(15px * var(--ts, 1)) / 1 var(--font);
+  cursor: pointer;
+}
+html[data-mode] .cal-btn svg { width: 18px; height: 18px; }
+html[data-mode] .cal-btn-primary {
+  border-color: transparent;
+  background: #16a34a;
+  color: #fff;
+  box-shadow: 0 8px 18px -8px rgba(22, 163, 74, 0.7);
+}
+html[data-mode] .cal-btn:active,
+html[data-mode] .cal-quick-btn:active,
+html[data-mode] .cal-item-main:active { transform: scale(0.98); }
+
+/* ── Tabs ─────────────────────────────────────────────────────────────── */
+html[data-mode] .cal-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html[data-mode] .cal-tabs button,
+html[data-mode] .cal-seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text);
+  font: 700 calc(15px * var(--ts, 1)) / 1 var(--font);
+  cursor: pointer;
+}
+html[data-mode] .cal-tabs svg,
+html[data-mode] .cal-seg svg { width: 18px; height: 18px; }
+html[data-mode] .cal-tabs button.is-active,
+html[data-mode] .cal-seg button[aria-pressed="true"] {
+  border-color: transparent;
+  background: #16a34a;
+  color: #fff;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+html[data-mode] .cal-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+html[data-mode] .cal-side {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+@media (min-width: 980px) {
+  html[data-mode] .cal-layout {
+    grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1fr);
+  }
+  html[data-mode] .cal-quick { grid-column: 1; }
+  html[data-mode] .cal-notify { grid-column: 2; grid-row: 2; }
+}
+
+/* ── Card heads ───────────────────────────────────────────────────────── */
+html[data-mode] .cal-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+html[data-mode] .cal-card-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: calc(19px * var(--ts, 1));
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+html[data-mode] .cal-card-icon svg { width: 24px; height: 24px; color: #16a34a; }
+html[data-mode] .cal-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: 700 calc(14px * var(--ts, 1)) / 1 var(--font);
+  cursor: pointer;
+  min-height: 36px;
+}
+html[data-mode] .cal-link svg { width: 14px; height: 14px; }
+
+/* ── Month / week bar ─────────────────────────────────────────────────── */
+html[data-mode] .cal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+html[data-mode] .cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+html[data-mode] .cal-title {
+  margin: 0 6px;
+  font-size: calc(21px * var(--ts, 1));
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  min-width: 0;
+}
+html[data-mode] .cal-round {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--glass);
+  color: var(--text);
+  cursor: pointer;
+}
+html[data-mode] .cal-round svg { width: 18px; height: 18px; }
+html[data-mode] .cal-next svg { transform: scaleX(-1); }
+html[data-mode] .cal-today {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: none;
+  color: var(--text);
+  font: 700 calc(13px * var(--ts, 1)) / 1 var(--font);
+  cursor: pointer;
+}
+html[data-mode] .cal-seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--glass);
+}
+html[data-mode] .cal-seg button { min-height: 38px; border: 0; background: none; }
+
+/* ── Grid ─────────────────────────────────────────────────────────────── */
+html[data-mode] .cal-grid {
+  display: grid;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+html[data-mode] .cal-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+html[data-mode] .cal-dow span {
+  padding: 8px 4px;
+  text-align: center;
+  font-size: calc(13px * var(--ts, 1));
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+html[data-mode] .cal-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 96px;
+  min-width: 0;
+  padding: 6px;
+  border-top: 1px solid var(--card-border);
+  border-left: 1px solid var(--card-border);
+  cursor: pointer;
+  outline-offset: -3px;
+}
+html[data-mode] .cal-cell:first-child { border-left: 0; }
+html[data-mode] .cal-cell:hover { background: var(--glass); }
+html[data-mode] .cal-cell.is-outside .cal-num { opacity: 0.4; }
+html[data-mode] .cal-cell.is-today { background: color-mix(in srgb, #16a34a 9%, transparent); }
+html[data-mode] .cal-num {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-weight: 750;
+  font-size: calc(14px * var(--ts, 1));
+}
+html[data-mode] .cal-cell.is-today .cal-num { background: #16a34a; color: #fff; }
+html[data-mode] .cal-chips { display: grid; gap: 4px; min-width: 0; }
+html[data-mode] .cal-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--c) 15%, transparent);
+  color: var(--text);
+  font: 650 calc(12.5px * var(--ts, 1)) / 1.2 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+html[data-mode] .cal-chip-icon { display: grid; flex: none; color: var(--c); }
+html[data-mode] .cal-chip-icon svg { width: 14px; height: 14px; }
+html[data-mode] .cal-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-mode] .cal-chip.is-done { opacity: 0.55; }
+html[data-mode] .cal-chip.is-done .cal-chip-text { text-decoration: line-through; }
+html[data-mode] .cal-more {
+  font-size: calc(12px * var(--ts, 1));
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding-left: 4px;
+}
+html[data-mode] .cal-dots { display: none; }
+html[data-mode] .cal-grid.is-week .cal-cell { min-height: 200px; }
+html[data-mode] .cal-grid.is-week .cal-chip-text { white-space: normal; }
+
+html[data-mode] .cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 12px;
+  font-size: calc(13px * var(--ts, 1));
+  color: var(--text-secondary);
+}
+html[data-mode] .cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+html[data-mode] .cal-legend i,
+html[data-mode] .cal-dots i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Phones: numbers and dots; tap a day to see it. */
+@media (max-width: 640px) {
+  html[data-mode] .cal-cell { min-height: 54px; align-items: center; padding: 4px 2px; }
+  html[data-mode] .cal-grid:not(.is-week) .cal-chips { display: none; }
+  html[data-mode] .cal-grid:not(.is-week) .cal-dots { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
+  html[data-mode] .cal-grid.is-week .cal-row:not(.cal-dow) { grid-template-columns: minmax(0, 1fr); }
+  html[data-mode] .cal-grid.is-week .cal-dow { display: none; }
+  html[data-mode] .cal-grid.is-week .cal-cell { min-height: 0; flex-direction: row; align-items: flex-start; border-left: 0; }
+  html[data-mode] .cal-grid.is-week .cal-chips { flex: 1; }
+  html[data-mode] .cal-title { font-size: calc(18px * var(--ts, 1)); }
+  html[data-mode] .cal-seg span { display: none; }
+  html[data-mode] .cal-head h1 { font-size: calc(22px * var(--ts, 1)); }
+}
+
+/* ── Lists (Upcoming, My Tests, day sheet) ────────────────────────────── */
+html[data-mode] .cal-list,
+html[data-mode] .cal-up-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+html[data-mode] .cal-item-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+html[data-mode] .cal-item-main > svg { flex: none; width: 16px; height: 16px; color: var(--text-secondary); }
+html[data-mode] .cal-date {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c) 15%, transparent);
+  line-height: 1;
+}
+html[data-mode] .cal-date small { font-size: calc(12px * var(--ts, 1)); font-weight: 700; color: var(--text-secondary); }
+html[data-mode] .cal-date b { font-size: calc(21px * var(--ts, 1)); font-weight: 800; }
+html[data-mode] .cal-item-text { display: grid; flex: 1; gap: 3px; min-width: 0; }
+html[data-mode] .cal-item-text b { font-size: calc(16px * var(--ts, 1)); font-weight: 750; overflow-wrap: anywhere; }
+html[data-mode] .cal-item-text small { color: var(--text-secondary); font-size: calc(13.5px * var(--ts, 1)); }
+html[data-mode] .cal-in { font-weight: 750; color: #16a34a; }
+html[data-mode] .cal-in::before { content: " · "; color: var(--text-secondary); font-weight: 400; }
+html[data-mode] .cal-in.is-today { color: var(--danger); }
+html[data-mode] .cal-in.is-past { color: var(--text-secondary); }
+html[data-mode] .cal-item.is-done b { text-decoration: line-through; opacity: 0.6; }
+html[data-mode] .cal-empty { padding: 10px 4px; color: var(--text-secondary); }
+html[data-mode] .cal-section {
+  margin: 16px 0 8px;
+  font-size: calc(13px * var(--ts, 1));
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+html[data-mode] .cal-section:first-of-type { margin-top: 4px; }
+html[data-mode] .cal-sheet { display: grid; gap: 14px; }
+
+/* ── Reminders ────────────────────────────────────────────────────────── */
+html[data-mode] .cal-remind-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, #16a34a 9%, transparent);
+  cursor: pointer;
+}
+html[data-mode] .cal-remind-row > span:nth-child(2) { flex: 1; }
+html[data-mode] .cal-remind-check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #fff;
+}
+html[data-mode] .cal-remind-check svg { width: 16px; height: 16px; }
+html[data-mode] .cal-switch {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--card-border);
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+html[data-mode] .cal-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 180ms var(--ease-spring, ease);
+}
+html[data-mode] .cal-switch:checked { background: #16a34a; }
+html[data-mode] .cal-switch:checked::after { transform: translateX(20px); }
+html[data-mode] .cal-switch:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* ── Quick actions ────────────────────────────────────────────────────── */
+html[data-mode] .cal-quick-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+html[data-mode] .cal-quick-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  color: var(--text);
+  font: 700 calc(15px * var(--ts, 1)) / 1 var(--font);
+  cursor: pointer;
+}
+html[data-mode] .cal-quick-btn > svg { width: 22px; height: 22px; color: var(--c); flex: none; }
+html[data-mode] .cal-quick-btn span { display: inline-flex; align-items: center; gap: 4px; }
+html[data-mode] .cal-quick-btn span svg { width: 14px; height: 14px; }
+
+/* ── Notification settings ────────────────────────────────────────────── */
+html[data-mode] .cal-notify-lead { margin: 0 0 10px; color: var(--text-secondary); }
+html[data-mode] .cal-notify-grid {
+  display: grid;
+  gap: 10px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+html[data-mode] .cal-checks { display: grid; gap: 4px; align-content: start; }
+html[data-mode] .cal-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+html[data-mode] .cal-check input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: #16a34a;
+}
+html[data-mode] .cal-check > span:last-child { display: grid; gap: 1px; }
+html[data-mode] .cal-check small { color: var(--text-secondary); font-size: calc(12.5px * var(--ts, 1)); }
+html[data-mode] .cal-check-icon svg { width: 20px; height: 20px; color: var(--text-secondary); }
+html[data-mode] .cal-check.is-soon { opacity: 0.55; cursor: default; }
+html[data-mode] .cal-push-note { margin: 8px 0 0; }
+
+/* ── Add / edit form ──────────────────────────────────────────────────── */
+html[data-mode] .cal-form { display: grid; gap: 12px; }
+html[data-mode] .cal-form .field { margin: 0; }
+html[data-mode] .cal-form-row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+html[data-mode] .cal-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+html[data-mode] .cal-types legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-weight: 650;
+}
+html[data-mode] .cal-type input { position: absolute; opacity: 0; pointer-events: none; }
+html[data-mode] .cal-type span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  font-weight: 700;
+  cursor: pointer;
+}
+html[data-mode] .cal-type span svg { width: 16px; height: 16px; color: var(--c); }
+html[data-mode] .cal-type input:checked + span {
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 16%, transparent);
+}
+html[data-mode] .cal-type input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+html[data-mode] .cal-error { margin: 0; color: var(--danger); font-weight: 650; }
+html[data-mode] .cal-form-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+html[data-mode] .cal-delete { color: var(--danger) !important; margin-right: auto; }
+
+/* Guidance: the Calendar quick button's icon (shape from .gh-notes-btn). */
+html[data-mode] .gh-cal-btn { margin-top: 12px; }
+html[data-mode] .gh-cal-icon {
+  background: linear-gradient(150deg, #60a5fa, #2563eb) !important;
+  box-shadow: 0 8px 20px -6px rgba(37, 99, 235, 0.55) !important;
+}

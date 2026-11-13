@@ -1643,3 +1643,75 @@ html[data-mode] .disclosure > .disclosure-body { padding: 0 12px 14px; }
 }
 .legal-links > :last-child { border-bottom: 0; }
 .legal-links svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
+
+/* ── Recent updates: why a mark changed ─────────────────────────────── */
+html[data-mode] .g-delta.flat {
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+html[data-mode] .update-why {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--card-border);
+}
+html[data-mode] .update-why-title {
+  margin: 0 0 6px;
+  font-size: calc(13px * var(--ts, 1));
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+html[data-mode] .update-why-note {
+  margin: 0;
+  font-size: calc(14px * var(--ts, 1));
+  color: var(--text-secondary);
+}
+html[data-mode] .update-why ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+html[data-mode] .why-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+html[data-mode] .why-row > span:last-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+html[data-mode] .why-row b {
+  font-size: calc(14.5px * var(--ts, 1));
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+html[data-mode] .why-kind {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+html[data-mode] .why-row small {
+  color: var(--text-secondary);
+  font-size: calc(13px * var(--ts, 1));
+}
+html[data-mode] .why-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  background: var(--glass);
+  border: 1px solid var(--card-border);
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+html[data-mode] .why-pull-up .why-effect,
+html[data-mode] .why-up .why-icon { color: var(--success, #16a34a); }
+html[data-mode] .why-pull-down .why-effect,
+html[data-mode] .why-down .why-icon { color: var(--danger); }
+html[data-mode] .why-effect:empty { display: none; }

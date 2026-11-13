@@ -3,6 +3,7 @@ import { getCourses, isDemo, isLoggedIn } from './ta-client.js';
 import { marksHidden } from './motion.js';
 
 import { preferences } from './personalization.js';
+import { dueReminders, markNotified, calendarSettings } from './calendar-store.js';
 
 // minChange: only alert for marks that move at least this many points.
 // belowGoal: alert when a course drops under its Dreams goal (or the overall target).
@@ -74,6 +75,18 @@ export function checkReminders(now = Date.now()) {
   }
   if (changed) writeStudentData('appointments', rows);
 }
+/** Calendar: 1 week / 3 days / 1 day before a test or due date (calendar-store.js). */
+export function checkCalendarReminders(now = new Date()) {
+  const settings = calendarSettings();
+  for (const { event, days, leads } of dueReminders(now, settings)) {
+    markNotified(event.id, leads);
+    const when = days === 0 ? 'is today' : days === 1 ? 'is tomorrow' : `is in ${days} days`;
+    const date = new Date(event.date + 'T00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    const body = `${event.title} ${when} (${date}).`;
+    if (settings.push) void notify('Calendar reminder', body);
+    else window.dispatchEvent(new CustomEvent('ta:notice', { detail: { title: 'Calendar reminder', body } }));
+  }
+}
 export function startNotificationChecks() {
   window.addEventListener('ta:marks-checked', e => {
     const { previous, changes, checked, stale } = e.detail;
@@ -89,6 +102,7 @@ export function startNotificationChecks() {
   setInterval(async () => {
     if (document.hidden || !isLoggedIn()) return;
     checkReminders();
+    checkCalendarReminders();
     const prefs = notificationPreferences();
     if (isDemo() || checking || !(prefs.marks || prefs.unavailable || prefs.belowGoal) || Date.now() - lastCheck < 5 * 60000) return;
     checking = true;
@@ -98,4 +112,5 @@ export function startNotificationChecks() {
     finally { checking = false; }
   }, 30000);
   checkReminders();
+  checkCalendarReminders();
 }
