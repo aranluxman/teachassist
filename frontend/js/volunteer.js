@@ -44,7 +44,7 @@ export function renderVolunteer(container) {
     <div class="field"><label for="vol-org">Organization</label><input id="vol-org" name="org" maxlength="120" placeholder="Markham Food Bank"></div>
     <div class="form-grid">
       <div class="field"><label for="vol-date">Date</label><input id="vol-date" name="date" type="date" required></div>
-      <div class="field"><label for="vol-hours">Hours</label><input id="vol-hours" name="hours" type="number" min="0.25" max="24" step="0.25" placeholder="3" required></div>
+      <div class="field"><label for="vol-hours">Hours</label><input id="vol-hours" name="hours" type="number" min="0.25" step="0.25" placeholder="3" required></div>
     </div>
     <div class="field"><label for="vol-sup">Supervisor (name / contact)</label><input id="vol-sup" name="supervisor" maxlength="120" placeholder="Jane Lee, 905-555-0100"></div>
     <p role="status" class="small"></p>
@@ -87,7 +87,7 @@ export function renderVolunteer(container) {
     e.preventDefault();
     const f = form.elements;
     const entry = { id: crypto.randomUUID(), activity: f.activity.value.trim(), org: f.org.value.trim(), date: f.date.value, hours: Number(f.hours.value), supervisor: f.supervisor.value.trim() };
-    if (!entry.activity || !entry.date || !Number.isFinite(entry.hours) || entry.hours <= 0 || entry.hours > 24) return;
+    if (!entry.activity || !entry.date || !Number.isFinite(entry.hours) || entry.hours <= 0) return; // no upper limit: a long trip or camp can be many hours
     try {
       writeStudentData("volunteer", [...volunteerEntries(), entry]);
       form.reset(); f.date.valueAsDate = new Date();

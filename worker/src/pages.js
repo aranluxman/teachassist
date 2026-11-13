@@ -2,6 +2,7 @@
 // a frontend release cannot depend on an out-of-date standalone Worker.
 import worker from './index.js';
 import { handleStore, withSavedMarks, storeConfigured, storeKeyKind, loadRow, savedCourses } from './store.js';
+import { handleNotes } from './notes.js';
 import { loginBlocked, recordLoginFailure } from './login-limit.js';
 import { openCredentialBox, revokeLogin, loginRevoked } from './vault.js';
 import { vaultKeys, idKey } from './keys.js';
@@ -111,6 +112,8 @@ export default {
     }
     // Dreams + goals saved to Supabase (per student, token-authenticated).
     if (url.pathname === '/api/store' && !url.search) return handleStore(request, env);
+    // Notes and notebooks (same lock as dreams; see supabase/notes.sql).
+    if (url.pathname === '/api/notes' && !url.search) return handleNotes(request, env);
     // The website exposes only student operations, never owner/cache/debug APIs.
     if (url.pathname !== '/api/marks' || url.search) {
       return json({ error: 'Not found.' }, 404);

@@ -13,6 +13,7 @@ import { el, escapeHtml, openSheet, closeSheet, courseLabel } from "./courses.js
 import { iconTile, GLYPHS } from "./ui-kit.js";
 import { getCourses, isDemo, displayMark } from "./ta-client.js";
 import { computeGpa, gpaFor, GPA_SCALE, GPA_MAX } from "./gpa.js";
+import { listNotes, readNotes } from "./notes-store.js";
 import { marksHidden } from "./motion.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
 import { mySchool, schoolCard, icon } from "./schools.js";
@@ -147,6 +148,20 @@ function toolGroup(id, title, tools, lead) {
   return wrap;
 }
 
+/** The Notes quick button: every notebook and note, one tap away. */
+function notesButton() {
+  const notes = listNotes();
+  const books = readNotes().notebooks?.length || 0;
+  const sub = notes.length
+    ? `${notes.length} note${notes.length === 1 ? "" : "s"}${books ? ` in ${books} notebook${books === 1 ? "" : "s"}` : ""}`
+    : "Class notes, saved as you type";
+  const btn = el(`<button type="button" class="gh-glass gh-notes-btn"><span class="gh-notes-icon" aria-hidden="true">${NOTES_ICON}</span><span><b>Notes</b><small></small></span>${GLYPHS.chevron}</button>`);
+  btn.querySelector("small").textContent = sub;
+  btn.onclick = () => window.AppNav.toGuidance("notes");
+  return btn;
+}
+const NOTES_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h10.5A2.5 2.5 0 0 1 19 6v15H7.5A2.5 2.5 0 0 1 5 18.5V4.5a1 1 0 0 1 1-1z"/><path d="M5 18.5A2.5 2.5 0 0 1 7.5 16H19M9 8h6M9 11.5h4"/></svg>';
+
 /** School: things that depend on which school you go to. Choose it first. */
 function schoolTools(school) {
   const toMap = () => window.AppNav.toGuidance("map");
@@ -179,7 +194,7 @@ export async function renderGuidance(container) {
 
   const hub = el(`<div class="gh-hub"></div>`);
   // Tools grouped by purpose (School · Planning); GPA sits in the middle.
-  hub.append(hubHeader(), profileCard(school), schoolTools(school), planningTools(), gpaCard());
+  hub.append(hubHeader(), profileCard(school), notesButton(), schoolTools(school), planningTools(), gpaCard());
   container.append(hub);
 
   // School details, once one is chosen (the School group asks for it first).

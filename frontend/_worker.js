@@ -1224,9 +1224,9 @@ function cleanGoals(list) {
     done: g?.done === true
   })).filter((g) => g.title);
 }
-async function readJson(request) {
+async function readJson(request, limit = MAX_BODY) {
   const tooLarge = () => Object.assign(new Error("too large"), { status: 413 });
-  if (Number(request.headers.get("content-length")) > MAX_BODY) throw tooLarge();
+  if (Number(request.headers.get("content-length")) > limit) throw tooLarge();
   const reader = request.body?.getReader();
   if (!reader) throw new Error("empty");
   const chunks = [];
@@ -1235,7 +1235,7 @@ async function readJson(request) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > MAX_BODY) {
+    if (size > limit) {
       await reader.cancel();
       throw tooLarge();
     }
@@ -1282,6 +1282,90 @@ async function handleStore(request, env) {
   if (!Object.keys(columns).length) return json2({ error: "Nothing to save." }, 400);
   const ok = await saveRow(env, session.subject, columns);
   return ok ? json2({ saved: true }) : json2({ error: "Could not save to the cloud right now." }, 502);
+}
+
+// worker/src/notes.js
+var MAX_REQUEST = 512e3;
+var MAX_NOTES_PER_SAVE = 50;
+var MAX_BODY2 = 2e5;
+var json3 = (body, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+var ID = /^[A-Za-z0-9-]{8,64}$/;
+var str2 = (v, max) => typeof v === "string" ? v.slice(0, max) : "";
+var when = (v) => {
+  const t = Date.parse(v);
+  return Number.isFinite(t) && t < Date.now() + 864e5 ? new Date(t).toISOString() : null;
+};
+function cleanNote(n) {
+  if (!n || typeof n !== "object" || !ID.test(n.id || "")) return null;
+  if (typeof n.body === "string" && n.body.length > MAX_BODY2) return null;
+  const updatedAt = when(n.updatedAt);
+  if (!updatedAt) return null;
+  const tags = Array.isArray(n.tags) ? [...new Set(n.tags.filter((t) => typeof t === "string").map((t) => t.trim().slice(0, 30)).filter(Boolean))].slice(0, 20) : [];
+  return {
+    id: n.id,
+    notebook: str2(n.notebook, 64) || "general",
+    title: str2(n.title, 200),
+    body: n.deleted ? "" : str2(n.body, MAX_BODY2),
+    tags,
+    favorite: n.favorite === true,
+    course: str2(n.course, 40),
+    deleted: n.deleted === true,
+    createdAt: when(n.createdAt) || updatedAt,
+    updatedAt
+  };
+}
+function cleanNotebooks(list) {
+  if (!Array.isArray(list) || list.length > 60) return null;
+  const out = [];
+  for (const b of list) {
+    if (!b || typeof b !== "object" || !/^[A-Za-z0-9-]{1,64}$/.test(b.id || "")) return null;
+    out.push({ id: b.id, name: str2(b.name, 40) || "Notebook", color: str2(b.color, 20), course: str2(b.course, 40) });
+  }
+  return out;
+}
+async function handleNotes(request, env) {
+  if (!storeConfigured(env)) return json3({ error: "Cloud saving is not set up on this site yet.", configured: false }, 503);
+  const token = request.headers.get("Authorization")?.replace(/^Bearer /, "");
+  const session = await readSessionWith(token, sessionKeys(env));
+  if (!session?.subject) return json3({ error: "Your session expired. Refresh your courses, then retry." }, 401);
+  if (request.method === "GET") {
+    try {
+      const res = await rpc(env, "ta_notes_load", { p_subject: session.subject });
+      if (!res.ok) return json3({ error: "Could not load your notes right now." }, 502);
+      const data = await res.json() || {};
+      return json3({ notebooks: data.notebooks ?? null, notebooksAt: data.notebooksAt ?? null, notes: data.notes ?? [] });
+    } catch {
+      return json3({ error: "Could not load your notes right now." }, 502);
+    }
+  }
+  if (request.method !== "PUT") return json3({ error: "Use GET or PUT." }, 405);
+  let body;
+  try {
+    body = await readJson(request, MAX_REQUEST);
+  } catch (err) {
+    return json3({ error: err.status === 413 ? "That is too much to save at once." : "Invalid data." }, err.status || 400);
+  }
+  const raw = Array.isArray(body?.notes) ? body.notes : [];
+  if (raw.length > MAX_NOTES_PER_SAVE) return json3({ error: "Too many notes in one save." }, 400);
+  const notes = raw.map(cleanNote);
+  if (notes.some((n) => !n)) return json3({ error: "Invalid note." }, 400);
+  let notebooks = null;
+  if ("notebooks" in (body || {})) {
+    notebooks = cleanNotebooks(body.notebooks);
+    if (!notebooks) return json3({ error: "Invalid notebooks." }, 400);
+  }
+  if (!notes.length && !notebooks) return json3({ error: "Nothing to save." }, 400);
+  try {
+    const res = await rpc(env, "ta_notes_save", {
+      p_subject: session.subject,
+      p_notes: notes,
+      p_notebooks: notebooks,
+      p_notebooks_at: notebooks ? when(body.notebooksAt) || (/* @__PURE__ */ new Date()).toISOString() : null
+    });
+    return res.ok ? json3({ saved: true }) : json3({ error: "Could not save your notes right now." }, 502);
+  } catch {
+    return json3({ error: "Could not save your notes right now." }, 502);
+  }
 }
 
 // worker/src/login-limit.js
@@ -1358,17 +1442,17 @@ async function signOut(request, env) {
 async function savedMarks(request, env) {
   const body = await peekJson(request);
   const username = studentNumberIn(body);
-  if (!username || typeof body.cred !== "string") return json3({ error: "Sign in again." }, 400);
+  if (!username || typeof body.cred !== "string") return json4({ error: "Sign in again." }, 400);
   const opened = await openCredentialBox(vaultKeys(env), username, body.cred);
   if (!opened || await loginRevoked(env.CHAT_LIMITS, opened.loginId)) {
-    return json3({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
+    return json4({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
   }
-  if (!storeConfigured(env)) return json3({ courses: [], savedAt: null });
+  if (!storeConfigured(env)) return json4({ courses: [], savedAt: null });
   const row = await loadRow(env, await subjectFor(idKey(env), username));
   const courses = savedCourses(row?.marks);
-  return json3({ courses, savedAt: courses.length ? row.marks_at || row.updated_at || null : null });
+  return json4({ courses, savedAt: courses.length ? row.marks_at || row.updated_at || null : null });
 }
-function json3(body, status = 200) {
+function json4(body, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 var GOOGLE_SITE_VERIFICATION = "googlecca61e9d43d944ee";
@@ -1383,9 +1467,9 @@ var pages_default = {
     }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     const origin = request.headers.get("Origin");
-    if (origin && origin !== url.origin) return json3({ error: "Origin not allowed." }, 403);
+    if (origin && origin !== url.origin) return json4({ error: "Origin not allowed." }, 403);
     if (url.pathname === "/api/status" && request.method === "GET") {
-      return json3({
+      return json4({
         service: "TeachAssist",
         studentSignIn: true,
         version: 1,
@@ -1394,22 +1478,23 @@ var pages_default = {
       });
     }
     if (url.pathname === "/api/signout" && !url.search) {
-      if (request.method !== "POST") return json3({ error: "Use POST." }, 405);
+      if (request.method !== "POST") return json4({ error: "Use POST." }, 405);
       return signOut(request, env);
     }
     if (url.pathname === "/api/saved-marks" && !url.search) {
-      if (request.method !== "POST") return json3({ error: "Use POST." }, 405);
+      if (request.method !== "POST") return json4({ error: "Use POST." }, 405);
       return savedMarks(request, env);
     }
     if (url.pathname === "/api/store" && !url.search) return handleStore(request, env);
+    if (url.pathname === "/api/notes" && !url.search) return handleNotes(request, env);
     if (url.pathname !== "/api/marks" || url.search) {
-      return json3({ error: "Not found." }, 404);
+      return json4({ error: "Not found." }, 404);
     }
-    if (request.method !== "POST") return json3({ error: "Use POST." }, 405);
+    if (request.method !== "POST") return json4({ error: "Use POST." }, 405);
     const student = await passwordSignIn(request);
     const address = request.headers.get("CF-Connecting-IP") || "";
     if (student && await loginBlocked(env.CHAT_LIMITS, student, address)) {
-      return json3({ error: "Too many wrong passwords. For your account's safety, wait an hour, then try again.", code: "TA_TOO_MANY_ATTEMPTS" }, 429);
+      return json4({ error: "Too many wrong passwords. For your account's safety, wait an hour, then try again.", code: "TA_TOO_MANY_ATTEMPTS" }, 429);
     }
     const headers = new Headers(request.headers);
     headers.delete("Origin");
