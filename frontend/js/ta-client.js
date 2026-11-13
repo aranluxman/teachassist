@@ -12,7 +12,7 @@
 // ============================================================================
 
 import { deviceStore, isSharedDevice } from "./device-store.js";
-import { readHistory, recordSnapshot, realMark } from "./history.js";
+import { readHistory, recordSnapshot, realMark, courseItems, diffItems, reasonPull } from "./history.js";
 import { WORKER_URL } from "./config.js";
 import { DEMO_COURSES, DEMO_SCRAPED_AT } from "./demo-data.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
@@ -356,6 +356,8 @@ function saveSnapshot(courses, { checked = false } = {}) {
       date: cachedAt || new Date().toISOString(),
       overall: overallAverage(courses),
       marks: Object.fromEntries(courses.map(c => [c.code, displayMark(c)])),
+      // Every course's assessments, so Recent updates can say *why* a mark moved.
+      items: Object.fromEntries(courses.map(c => [c.code, courseItems(c)])),
     };
     const result = recordSnapshot(isDemo() ? "demo" : workerUrl(), snap);
     if (!isDemo() && typeof window !== "undefined") {
@@ -364,23 +366,36 @@ function saveSnapshot(courses, { checked = false } = {}) {
   } catch { /* Storage may be unavailable; marks should still load. */ }
 }
 
-/** Recent mark changes (between the two latest snapshots), newest first. */
+/**
+ * Recent changes (between the two latest snapshots), each with its reasons:
+ *   { label, overall, from, to, reasons: [...], courses? }
+ * A course is listed when its mark moved, or when its assessments changed
+ * even though the mark didn't (a new test that matched your average).
+ * reasons: what was added / removed / re-marked, and which way it pulled
+ * (see history.js). The overall row lists the courses that moved it.
+ */
 export function getUpdates() {
   const snaps = getSnapshots();
   if (snaps.length < 2) return [];
-  const prev = snaps[snaps.length - 2];
-  const cur = snaps[snaps.length - 1];
+  return updatesBetween(snaps[snaps.length - 2], snaps[snaps.length - 1]);
+}
+export function updatesBetween(prev, cur) {
   const out = [];
   const changed = (a, b) => a != null && b != null && Math.abs(b - a) >= 0.05;
-  if (changed(prev.overall, cur.overall)) {
-    out.push({ label: "Overall Average", overall: true, from: prev.overall, to: cur.overall });
-  }
+  const courseRows = [];
   for (const code of Object.keys(cur.marks)) {
-    if (changed(prev.marks[code], cur.marks[code])) {
-      out.push({ label: code, overall: false, from: prev.marks[code], to: cur.marks[code] });
+    const from = prev.marks[code], to = cur.marks[code];
+    const diff = diffItems(prev.items?.[code], cur.items?.[code]);
+    const reasons = (diff || []).map((r) => ({ ...r, pull: reasonPull(r, from) }));
+    if (changed(from, to) || (reasons.length && from != null && to != null)) {
+      courseRows.push({ label: code, overall: false, from, to, reasons, explained: diff != null });
     }
   }
-  return out;
+  if (changed(prev.overall, cur.overall)) {
+    const movers = courseRows.filter((r) => changed(r.from, r.to)).map((r) => ({ code: r.label, from: r.from, to: r.to }));
+    out.push({ label: "Overall Average", overall: true, from: prev.overall, to: cur.overall, reasons: [], courses: movers });
+  }
+  return [...out, ...courseRows];
 }
 
 // A sign-out/account switch in another tab must clear that tab's rendered marks too.

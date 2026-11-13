@@ -9,6 +9,7 @@ import { renderCourses, courseLabel } from "./courses.js";
 import { renderSchoolMap } from "./schools.js";
 import { renderVolunteer } from "./volunteer.js";
 import { renderNotes } from "./notes.js";
+import { renderCalendar } from "./calendar.js";
 import { parseRoute, go } from "./router.js";
 import { openCourseDetail } from "./course-detail.js";
 import { renderGuidance } from "./guidance.js";
@@ -76,6 +77,7 @@ async function render({ screen, arg }) {
     if (arg === "map") return renderSchoolMap(target);
     if (arg === "volunteer") return renderVolunteer(target);
     if (arg === "notes") return renderNotes(target);
+    if (arg === "calendar") return renderCalendar(target);
     return renderGuidance(target);
   }
   if (screen === "settings" && arg) return renderSettingsPage(target, arg);

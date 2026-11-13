@@ -115,7 +115,8 @@ export function deleteNote(id) {
 export function mergeRemote(local, remote) {
   const out = { ...local, notes: { ...local.notes }, dirty: [...local.dirty] };
   for (const r of Array.isArray(remote?.notes) ? remote.notes : []) {
-    if (!r?.id) continue;
+    // Calendar events share the backup (calendar-store.js); they aren't notes.
+    if (!r?.id || (r.notebook === "ta-calendar" && String(r.id).startsWith("cal-"))) continue;
     const l = out.notes[r.id];
     if (!l || String(r.updatedAt) > String(l.updatedAt)) {
       out.notes[r.id] = r;
