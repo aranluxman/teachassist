@@ -52,9 +52,10 @@ try {
     }
     assert.equal((await mf.dispatchFetch(`${base}/api/marks`)).status, 405);
     assert.equal((await mf.dispatchFetch(`${base}/api/marks`, { method: 'POST', headers: { Origin: 'https://other.example' }, body: '{}' })).status, 403);
-    for (const path of ['/api/assistant', '/api/chat']) {
-      assert.equal((await mf.dispatchFetch(base + path, { method: 'POST', body: '{}' })).status, 404, 'the AI chatbot endpoints are gone');
-    }
+    assert.equal((await mf.dispatchFetch(base + '/api/assistant', { method: 'POST', body: '{}' })).status, 404, 'the old chatbot endpoint is gone');
+    // Ask AI (Gemini): refused until GEMINI_API_KEY is set, and never a 200 without a session.
+    assert.ok([401, 503].includes((await mf.dispatchFetch(base + '/api/chat', { method: 'POST', body: '{}' })).status));
+    assert.equal((await mf.dispatchFetch(base + '/api/chat')).status, 405);
   }
   assert.match(await (await mf.dispatchFetch('https://teachassist.pages.dev/app.html')).text(), /static asset/);
   const routes = JSON.parse(await readFile(new URL('../../frontend/_routes.json', import.meta.url), 'utf8'));

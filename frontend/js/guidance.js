@@ -172,6 +172,12 @@ function calendarButton() {
   btn.onclick = () => window.AppNav.toGuidance("calendar");
   return btn;
 }
+/** Ask AI: the study assistant, under the Calendar. */
+function assistantButton() {
+  const btn = el(`<button type="button" class="gh-glass gh-notes-btn gh-cal-btn gh-ai-btn"><span class="gh-notes-icon gh-ai-icon" aria-hidden="true">${GLYPHS.sparkle}</span><span><b>Ask AI</b><small>Homework help, essays, study plans</small></span>${GLYPHS.chevron}</button>`);
+  btn.onclick = () => window.AppNav.toGuidance("assistant");
+  return btn;
+}
 const NOTES_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h10.5A2.5 2.5 0 0 1 19 6v15H7.5A2.5 2.5 0 0 1 5 18.5V4.5a1 1 0 0 1 1-1z"/><path d="M5 18.5A2.5 2.5 0 0 1 7.5 16H19M9 8h6M9 11.5h4"/></svg>';
 
 /** School: things that depend on which school you go to. Choose it first. */
@@ -207,7 +213,7 @@ export async function renderGuidance(container) {
   const hub = el(`<div class="gh-hub"></div>`);
   // Tools grouped by purpose (School · Planning), then GPA, with Notes and
   // the Calendar right under it.
-  hub.append(hubHeader(), profileCard(school), schoolTools(school), planningTools(), gpaCard(), notesButton(), calendarButton());
+  hub.append(hubHeader(), profileCard(school), schoolTools(school), planningTools(), gpaCard(), notesButton(), calendarButton(), assistantButton());
   container.append(hub);
 
   // School details, once one is chosen (the School group asks for it first).

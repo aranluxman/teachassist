@@ -3,6 +3,7 @@
 import worker from './index.js';
 import { handleStore, withSavedMarks, storeConfigured, storeKeyKind, loadRow, savedCourses } from './store.js';
 import { handleNotes } from './notes.js';
+import { handleChat, chatConfigured } from './chat.js';
 import { loginBlocked, recordLoginFailure } from './login-limit.js';
 import { openCredentialBox, revokeLogin, loginRevoked } from './vault.js';
 import { vaultKeys, idKey } from './keys.js';
@@ -98,7 +99,8 @@ export default {
       // so a missing secret or binding is easy to spot after a deploy.
       return json({
         service: 'TeachAssist', studentSignIn: true, version: 1,
-        setup: { API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS, SUPABASE_URL: !!(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL), SUPABASE_KEY: !!(env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY), SUPABASE_KEY_TYPE: storeKeyKind(env), SESSION_SECRET: !!env.SESSION_SECRET, VAULT_SECRET: !!env.VAULT_SECRET },
+        setup: { API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS, SUPABASE_URL: !!(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL), SUPABASE_KEY: !!(env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY), SUPABASE_KEY_TYPE: storeKeyKind(env), SESSION_SECRET: !!env.SESSION_SECRET, VAULT_SECRET: !!env.VAULT_SECRET, GEMINI_API_KEY: chatConfigured(env) },
+        assistant: chatConfigured(env),
         cloudSave: storeConfigured(env),
       });
     }
@@ -114,6 +116,8 @@ export default {
     if (url.pathname === '/api/store' && !url.search) return handleStore(request, env);
     // Notes and notebooks (same lock as dreams; see supabase/notes.sql).
     if (url.pathname === '/api/notes' && !url.search) return handleNotes(request, env);
+    // AI assistant (Gemini; see chat.js).
+    if (url.pathname === '/api/chat' && !url.search) return handleChat(request, env);
     // The website exposes only student operations, never owner/cache/debug APIs.
     if (url.pathname !== '/api/marks' || url.search) {
       return json({ error: 'Not found.' }, 404);

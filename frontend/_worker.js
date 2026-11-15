@@ -1368,11 +1368,123 @@ async function handleNotes(request, env) {
   }
 }
 
+// worker/src/chat.js
+var DAILY_LIMIT = 30;
+var MAX_MESSAGES = 12;
+var MAX_TEXT = 2e3;
+var DEFAULT_MODEL = "gemini-2.5-flash";
+var json4 = (body, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+var SYSTEM_PROMPT = `You are the TeachAssist study assistant for Ontario high school students (Grades 9\u201312, YRDSB).
+Help with school: explaining concepts step by step, homework guidance, essay structure and grammar, French practice, study plans, test prep, course selection, OSSD requirements, university/college and career questions, and wellbeing tips.
+Rules:
+- Teach, don't just hand over answers. For homework, guide with hints and worked examples so the student learns; for essays, give feedback and outlines rather than writing the whole essay.
+- Be warm, clear and concise. Use short paragraphs, bullet points, and simple analogies. Use plain text math (e.g. x^2, sqrt(x)).
+- Stay on school, learning, careers and student wellbeing. Politely decline anything else (or anything unsafe, hateful, sexual or illegal) and steer back to school.
+- If a student seems in crisis or unsafe, tell them to contact Kids Help Phone (call 1-800-668-6868 or text CONNECT to 686868), a trusted adult, or 911 in an emergency.
+- Never ask for passwords, student numbers, addresses or other personal details.
+- If you're unsure about a school-specific rule or date, say so and suggest asking their teacher or guidance counsellor.`;
+var CRISIS_REPLY = `It sounds like you're going through something really hard, and I'm glad you said something. You don't have to handle this alone.
+
+\u2022 Kids Help Phone \u2014 call 1-800-668-6868 or text CONNECT to 686868 (free, 24/7, confidential)
+\u2022 Talk to a trusted adult: a parent, teacher or your guidance counsellor
+\u2022 If you're in immediate danger, call 911
+
+You matter. Please reach out to one of them right now.`;
+var CRISIS = /\b(kill(ing)? my ?self|suicid\w*|end(ing)? my life|want to die|self[- ]?harm\w*|hurt(ing)? my ?self|cut(ting)? my ?self|no reason to live)\b/i;
+var isCrisis = (text2) => CRISIS.test(String(text2 || ""));
+function cleanChat(body) {
+  const raw = Array.isArray(body?.messages) ? body.messages.slice(-MAX_MESSAGES) : null;
+  if (!raw?.length) return null;
+  const messages = [];
+  for (const m of raw) {
+    if (!m || m.role !== "user" && m.role !== "assistant" || typeof m.text !== "string") return null;
+    const text2 = m.text.trim().slice(0, MAX_TEXT);
+    if (text2) messages.push({ role: m.role, text: text2 });
+  }
+  if (!messages.length || messages.at(-1).role !== "user") return null;
+  const marks = Array.isArray(body.marks) ? body.marks.slice(0, 12).flatMap((c) => {
+    const name = typeof c?.name === "string" ? c.name.trim().slice(0, 60) : "";
+    const mark = Number(c?.mark);
+    return name ? [{ name, mark: Number.isFinite(mark) && mark >= 0 && mark <= 110 ? Math.round(mark * 10) / 10 : null }] : [];
+  }) : [];
+  return { messages, marks };
+}
+function geminiRequest({ messages, marks }) {
+  let system = SYSTEM_PROMPT;
+  if (marks.length) {
+    system += `
+
+The student chose to share their current courses and marks:
+${marks.map((m) => `- ${m.name}: ${m.mark == null ? "no mark yet" : `${m.mark}%`}`).join("\n")}
+Use them only when relevant to the question.`;
+  }
+  const block = (category) => ({ category, threshold: "BLOCK_MEDIUM_AND_ABOVE" });
+  return {
+    systemInstruction: { parts: [{ text: system }] },
+    contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.text }] })),
+    generationConfig: { temperature: 0.6, maxOutputTokens: 1200 },
+    safetySettings: ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"].map(block)
+  };
+}
+function replyText(data) {
+  if (data?.promptFeedback?.blockReason) return null;
+  const parts = data?.candidates?.[0]?.content?.parts;
+  const text2 = Array.isArray(parts) ? parts.map((p) => typeof p?.text === "string" ? p.text : "").join("").trim() : "";
+  return text2 || null;
+}
+var torontoDay = (now = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" }).format(now);
+var memory = /* @__PURE__ */ new Map();
+async function useOne(env, subject) {
+  const key2 = `chat:${subject}:${torontoDay()}`;
+  const kv = env.CHAT_LIMITS;
+  const used = Number(kv ? await kv.get(key2) : memory.get(key2)) || 0;
+  if (used >= DAILY_LIMIT) return null;
+  if (kv) await kv.put(key2, String(used + 1), { expirationTtl: 60 * 60 * 36 });
+  else memory.set(key2, used + 1);
+  return DAILY_LIMIT - used - 1;
+}
+var chatConfigured = (env) => !!env.GEMINI_API_KEY;
+async function handleChat(request, env) {
+  if (request.method !== "POST") return json4({ error: "Use POST." }, 405);
+  if (!chatConfigured(env)) return json4({ error: "The AI assistant is not set up on this site yet.", configured: false }, 503);
+  const token = request.headers.get("Authorization")?.replace(/^Bearer /, "");
+  const session = await readSessionWith(token, sessionKeys(env));
+  if (!session?.subject) return json4({ error: "Your session expired. Refresh your courses, then try again." }, 401);
+  let body;
+  try {
+    body = await readJson(request, 4e4);
+  } catch (err) {
+    return json4({ error: err.status === 413 ? "That message is too long." : "Invalid message." }, err.status || 400);
+  }
+  const chat = cleanChat(body);
+  if (!chat) return json4({ error: "Type a question first." }, 400);
+  if (isCrisis(chat.messages.at(-1).text)) return json4({ reply: CRISIS_REPLY, crisis: true });
+  const remaining = await useOne(env, session.subject);
+  if (remaining == null) return json4({ error: `You've used all ${DAILY_LIMIT} questions for today. They reset at midnight.`, remaining: 0 }, 429);
+  const model = /^[\w.-]{3,60}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : DEFAULT_MODEL;
+  let res;
+  try {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body: JSON.stringify(geminiRequest(chat)),
+      signal: AbortSignal.timeout(25e3)
+    });
+  } catch {
+    return json4({ error: "The assistant took too long to answer. Try again.", remaining }, 504);
+  }
+  if (res.status === 429) return json4({ error: "The assistant is busy right now (free plan limit). Try again in a minute.", remaining }, 503);
+  if (!res.ok) return json4({ error: "The assistant could not answer right now.", remaining }, 502);
+  const reply = replyText(await res.json().catch(() => null));
+  if (!reply) return json4({ reply: "I can't help with that one. Try asking about a school subject, studying, or your courses.", remaining });
+  return json4({ reply, remaining });
+}
+
 // worker/src/login-limit.js
 var MAX_FAILS_PER_STUDENT = 10;
 var MAX_FAILS_PER_ADDRESS = 100;
 var HOUR = 36e5;
-var memory = /* @__PURE__ */ new Map();
+var memory2 = /* @__PURE__ */ new Map();
 var hex2 = (bytes) => Array.from(new Uint8Array(bytes), (n) => n.toString(16).padStart(2, "0")).join("");
 async function keys(username, address, now) {
   const bucket = Math.floor(now / HOUR);
@@ -1383,7 +1495,7 @@ async function keys(username, address, now) {
   ];
 }
 async function read(kv, key2) {
-  return kv ? Number(await kv.get(key2)) || 0 : memory.get(key2) || 0;
+  return kv ? Number(await kv.get(key2)) || 0 : memory2.get(key2) || 0;
 }
 async function loginBlocked(kv, username, address, now = Date.now()) {
   for (const [key2, max] of await keys(username, address, now)) if (await read(kv, key2) >= max) return true;
@@ -1394,8 +1506,8 @@ async function recordLoginFailure(kv, username, address, now = Date.now()) {
     const next = await read(kv, key2) + 1;
     if (kv) await kv.put(key2, String(next), { expirationTtl: 7200 });
     else {
-      if (memory.size > 5e3) memory.clear();
-      memory.set(key2, next);
+      if (memory2.size > 5e3) memory2.clear();
+      memory2.set(key2, next);
     }
   }
 }
@@ -1442,17 +1554,17 @@ async function signOut(request, env) {
 async function savedMarks(request, env) {
   const body = await peekJson(request);
   const username = studentNumberIn(body);
-  if (!username || typeof body.cred !== "string") return json4({ error: "Sign in again." }, 400);
+  if (!username || typeof body.cred !== "string") return json5({ error: "Sign in again." }, 400);
   const opened = await openCredentialBox(vaultKeys(env), username, body.cred);
   if (!opened || await loginRevoked(env.CHAT_LIMITS, opened.loginId)) {
-    return json4({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
+    return json5({ error: "Please sign in again.", code: "TA_CRED_EXPIRED" }, 401);
   }
-  if (!storeConfigured(env)) return json4({ courses: [], savedAt: null });
+  if (!storeConfigured(env)) return json5({ courses: [], savedAt: null });
   const row = await loadRow(env, await subjectFor(idKey(env), username));
   const courses = savedCourses(row?.marks);
-  return json4({ courses, savedAt: courses.length ? row.marks_at || row.updated_at || null : null });
+  return json5({ courses, savedAt: courses.length ? row.marks_at || row.updated_at || null : null });
 }
-function json4(body, status = 200) {
+function json5(body, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 var GOOGLE_SITE_VERIFICATION = "googlecca61e9d43d944ee";
@@ -1467,34 +1579,36 @@ var pages_default = {
     }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     const origin = request.headers.get("Origin");
-    if (origin && origin !== url.origin) return json4({ error: "Origin not allowed." }, 403);
+    if (origin && origin !== url.origin) return json5({ error: "Origin not allowed." }, 403);
     if (url.pathname === "/api/status" && request.method === "GET") {
-      return json4({
+      return json5({
         service: "TeachAssist",
         studentSignIn: true,
         version: 1,
-        setup: { API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS, SUPABASE_URL: !!(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL), SUPABASE_KEY: !!(env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY), SUPABASE_KEY_TYPE: storeKeyKind(env), SESSION_SECRET: !!env.SESSION_SECRET, VAULT_SECRET: !!env.VAULT_SECRET },
+        setup: { API_KEY: !!env.API_KEY, CHAT_LIMITS: !!env.CHAT_LIMITS, SUPABASE_URL: !!(env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL), SUPABASE_KEY: !!(env.SUPABASE_SERVICE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY), SUPABASE_KEY_TYPE: storeKeyKind(env), SESSION_SECRET: !!env.SESSION_SECRET, VAULT_SECRET: !!env.VAULT_SECRET, GEMINI_API_KEY: chatConfigured(env) },
+        assistant: chatConfigured(env),
         cloudSave: storeConfigured(env)
       });
     }
     if (url.pathname === "/api/signout" && !url.search) {
-      if (request.method !== "POST") return json4({ error: "Use POST." }, 405);
+      if (request.method !== "POST") return json5({ error: "Use POST." }, 405);
       return signOut(request, env);
     }
     if (url.pathname === "/api/saved-marks" && !url.search) {
-      if (request.method !== "POST") return json4({ error: "Use POST." }, 405);
+      if (request.method !== "POST") return json5({ error: "Use POST." }, 405);
       return savedMarks(request, env);
     }
     if (url.pathname === "/api/store" && !url.search) return handleStore(request, env);
     if (url.pathname === "/api/notes" && !url.search) return handleNotes(request, env);
+    if (url.pathname === "/api/chat" && !url.search) return handleChat(request, env);
     if (url.pathname !== "/api/marks" || url.search) {
-      return json4({ error: "Not found." }, 404);
+      return json5({ error: "Not found." }, 404);
     }
-    if (request.method !== "POST") return json4({ error: "Use POST." }, 405);
+    if (request.method !== "POST") return json5({ error: "Use POST." }, 405);
     const student = await passwordSignIn(request);
     const address = request.headers.get("CF-Connecting-IP") || "";
     if (student && await loginBlocked(env.CHAT_LIMITS, student, address)) {
-      return json4({ error: "Too many wrong passwords. For your account's safety, wait an hour, then try again.", code: "TA_TOO_MANY_ATTEMPTS" }, 429);
+      return json5({ error: "Too many wrong passwords. For your account's safety, wait an hour, then try again.", code: "TA_TOO_MANY_ATTEMPTS" }, 429);
     }
     const headers = new Headers(request.headers);
     headers.delete("Origin");
