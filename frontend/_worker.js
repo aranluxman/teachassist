@@ -1372,7 +1372,7 @@ async function handleNotes(request, env) {
 var DAILY_LIMIT = 30;
 var MAX_MESSAGES = 12;
 var MAX_TEXT = 2e3;
-var DEFAULT_MODEL = "gemini-2.5-flash";
+var DEFAULT_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
 var json4 = (body, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 var SYSTEM_PROMPT = `You are the TeachAssist study assistant for Ontario high school students (Grades 9\u201312, YRDSB).
 Help with school: explaining concepts step by step, homework guidance, essay structure and grammar, French practice, study plans, test prep, course selection, OSSD requirements, university/college and career questions, and wellbeing tips.
@@ -1422,7 +1422,7 @@ Use them only when relevant to the question.`;
   return {
     systemInstruction: { parts: [{ text: system }] },
     contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.text }] })),
-    generationConfig: { temperature: 0.6, maxOutputTokens: 1200 },
+    generationConfig: { maxOutputTokens: 1500 },
     safetySettings: ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"].map(block)
   };
 }
@@ -1444,6 +1444,18 @@ async function useOne(env, subject) {
   return DAILY_LIMIT - used - 1;
 }
 var chatConfigured = (env) => !!env.GEMINI_API_KEY;
+function modelsFor(env) {
+  const own = /^[\w.-]{3,60}$/.test(env.GEMINI_MODEL || "") ? [env.GEMINI_MODEL] : [];
+  return [.../* @__PURE__ */ new Set([...own, ...DEFAULT_MODELS])];
+}
+function geminiErrorMessage(status, data) {
+  const s = data?.error?.status || "";
+  const msg = data?.error?.message || "";
+  if (status === 400 && /api key/i.test(msg)) return "The AI key on this site is not valid. The site owner needs to check GEMINI_API_KEY.";
+  if (status === 403 || s === "PERMISSION_DENIED") return "The AI key on this site is not allowed to use Gemini. The site owner needs to check the key in Google AI Studio.";
+  if (/location|region|country/i.test(msg)) return "Gemini is not available from this server location right now.";
+  return `The assistant could not answer right now (Gemini ${status}${s ? ` ${s}` : ""}).`;
+}
 async function handleChat(request, env) {
   if (request.method !== "POST") return json4({ error: "Use POST." }, 405);
   if (!chatConfigured(env)) return json4({ error: "The AI assistant is not set up on this site yet.", configured: false }, 503);
@@ -1461,21 +1473,29 @@ async function handleChat(request, env) {
   if (isCrisis(chat.messages.at(-1).text)) return json4({ reply: CRISIS_REPLY, crisis: true });
   const remaining = await useOne(env, session.subject);
   if (remaining == null) return json4({ error: `You've used all ${DAILY_LIMIT} questions for today. They reset at midnight.`, remaining: 0 }, 429);
-  const model = /^[\w.-]{3,60}$/.test(env.GEMINI_MODEL || "") ? env.GEMINI_MODEL : DEFAULT_MODEL;
-  let res;
-  try {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body: JSON.stringify(geminiRequest(chat)),
-      signal: AbortSignal.timeout(25e3)
-    });
-  } catch {
-    return json4({ error: "The assistant took too long to answer. Try again.", remaining }, 504);
+  const models = modelsFor(env);
+  const payload = JSON.stringify(geminiRequest(chat));
+  let res, data;
+  for (const model of models) {
+    try {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: payload,
+        signal: AbortSignal.timeout(25e3)
+      });
+    } catch {
+      return json4({ error: "The assistant took too long to answer. Try again.", remaining }, 504);
+    }
+    data = await res.json().catch(() => null);
+    if (res.ok || !(res.status === 404 || res.status === 400 && /model/i.test(data?.error?.message || ""))) break;
   }
   if (res.status === 429) return json4({ error: "The assistant is busy right now (free plan limit). Try again in a minute.", remaining }, 503);
-  if (!res.ok) return json4({ error: "The assistant could not answer right now.", remaining }, 502);
-  const reply = replyText(await res.json().catch(() => null));
+  if (!res.ok) {
+    console.log("Gemini error", res.status, data?.error?.status, data?.error?.message);
+    return json4({ error: geminiErrorMessage(res.status, data), remaining }, 502);
+  }
+  const reply = replyText(data);
   if (!reply) return json4({ reply: "I can't help with that one. Try asking about a school subject, studying, or your courses.", remaining });
   return json4({ reply, remaining });
 }

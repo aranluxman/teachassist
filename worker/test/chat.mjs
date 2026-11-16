@@ -27,3 +27,16 @@ assert.ok(!isCrisis("how do cells kill bacteria"));
 assert.match(torontoDay(new Date("2026-11-15T03:00:00Z")), /^2026-11-14$/);
 
 console.log("chat tests passed");
+
+// Models: GEMINI_MODEL first, then the 3.x defaults (2.x isn't offered to new keys).
+import { modelsFor, geminiErrorMessage, DEFAULT_MODELS } from "../src/chat.js";
+assert.deepStrictEqual(modelsFor({}), DEFAULT_MODELS);
+assert.ok(!DEFAULT_MODELS.some((m) => m.startsWith("gemini-2")));
+assert.deepStrictEqual(modelsFor({ GEMINI_MODEL: "gemini-3.8-flash" }), ["gemini-3.8-flash", "gemini-3.5-flash-lite"]);
+assert.deepStrictEqual(modelsFor({ GEMINI_MODEL: "../evil" }), DEFAULT_MODELS);
+// No sampling settings: Gemini 3.x rejects them.
+assert.strictEqual(geminiRequest(c).generationConfig.temperature, undefined);
+assert.match(geminiErrorMessage(400, { error: { message: "API key not valid. Please pass a valid API key." } }), /not valid/);
+assert.match(geminiErrorMessage(403, { error: { status: "PERMISSION_DENIED" } }), /not allowed/);
+assert.match(geminiErrorMessage(500, { error: { status: "INTERNAL" } }), /Gemini 500 INTERNAL/);
+console.log("chat model tests passed");
