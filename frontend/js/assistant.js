@@ -99,8 +99,12 @@ async function ask(messages, marks) {
       });
     } catch { throw new Error("Couldn't reach the assistant. Check your connection and try again."); }
     if (res.status === 401 && attempt === 0) continue;
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "The assistant couldn't answer right now.");
+    const raw = await res.text().catch(() => "");
+    let data = {};
+    try { data = JSON.parse(raw); } catch { /* an error page, not our JSON */ }
+    // No message from our backend: say what came back so it can be traced.
+    if (!res.ok) throw new Error(data.error || `The assistant couldn't answer right now (HTTP ${res.status}${raw.trimStart().startsWith("<") ? ", server error page" : ""}).`);
+    if (typeof data.reply !== "string" || !data.reply.trim()) throw new Error("The assistant sent an empty answer. Try asking again.");
     return data;
   }
   throw new Error("Sign in again to use the assistant.");

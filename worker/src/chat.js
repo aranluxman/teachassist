@@ -123,7 +123,8 @@ export function geminiRequest({ messages, marks }) {
 export function replyText(data) {
   if (data?.promptFeedback?.blockReason) return null;
   const parts = data?.candidates?.[0]?.content?.parts;
-  const text = Array.isArray(parts) ? parts.map((p) => (typeof p?.text === 'string' ? p.text : '')).join('').trim() : '';
+  // Thinking models can return their reasoning as `thought` parts: never show those.
+  const text = Array.isArray(parts) ? parts.map((p) => (!p?.thought && typeof p?.text === 'string' ? p.text : '')).join('').trim() : '';
   return text || null;
 }
 
@@ -162,6 +163,17 @@ export function geminiErrorMessage(status, data) {
 }
 
 export async function handleChat(request, env) {
+  // Never let an unexpected error become Cloudflare's HTML error page: the app
+  // can only show a reason when the answer is JSON.
+  try {
+    return await chat(request, env);
+  } catch (err) {
+    console.log('Ask AI crashed', err?.name, err?.message);
+    return json({ error: `The assistant hit an error (${String(err?.name || 'Error').slice(0, 40)}). Try again.` }, 500);
+  }
+}
+
+async function chat(request, env) {
   if (request.method !== 'POST') return json({ error: 'Use POST.' }, 405);
   if (!chatConfigured(env)) return json({ error: 'The AI assistant is not set up on this site yet.', configured: false }, 503);
   const token = request.headers.get('Authorization')?.replace(/^Bearer /, '');
