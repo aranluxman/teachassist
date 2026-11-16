@@ -194,29 +194,28 @@ routes retain their existing administrative gate.
   Diagnostic reports are previewed before downloading/sharing and exclude student
   numbers, grades, credentials, profile data, and server URLs.
 
-### AI tutor (optional)
+### Ask AI — study assistant (optional, Google Gemini)
 
-With an OpenAI key, the Assistant also answers open school questions (explaining
-concepts, homework guidance, essays, French, careers) through `POST /api/chat`
-(`worker/src/chat.js`, model `gpt-4o-mini`). Marks, plans, school info and grade
-maths are still answered on the device.
+Guidance → **Ask AI** (`#guidance/assistant`) answers school questions (concepts,
+homework guidance, essays, French, study plans, courses, careers) through
+`POST /api/chat` (`worker/src/chat.js`, model `gemini-2.5-flash`).
 
-- **What's sent:** only the tutor thread (messages the student sends to the tutor
-  and its replies, at most 12). Course names and current marks are added only
-  while the student turns on "Share my marks" (off by default, reset by New
-  chat). Login, student number and on-device answers are never sent.
-- **Safety:** school-focused system prompt; every message goes through OpenAI
-  moderation first, and self-harm flags return Kids Help Phone information
-  without calling the model.
-- **Cost:** 30 tutor messages per student per day (Toronto time), counted by a
-  one-way hash of the student number carried in the signed session token.
+- **What's sent:** only the chat thread (last 12 messages). Course names and marks
+  are added only while the student turns on "Share my marks" (off by default,
+  reset by New chat). Login and student number are never sent. The thread is
+  kept on the device.
+- **Safety:** school-focused system prompt, Gemini safety filters on, and
+  self-harm messages get Kids Help Phone right away without calling the model.
+- **Cost:** 30 questions per student per day (Toronto time), counted by the
+  one-way subject in the signed session. Free-tier Gemini may use prompts to
+  improve Google's models; use a paid key to turn that off.
 
 Setup in Cloudflare Pages → the project → Settings:
-1. **Variables and secrets:** add secret `OPENAI_API_KEY` (never commit it). `API_KEY`
-   must also be set (it signs sessions).
-2. **Bindings → KV namespace:** bind a namespace (e.g. `teachassist-chat-limits`)
-   as `CHAT_LIMITS`. Without it the daily limit is only per server instance.
-3. Redeploy. `GET /api/status` returns `"tutor": true` when it's ready.
+1. **Variables and secrets:** add secret `GEMINI_API_KEY` (from
+   https://aistudio.google.com/apikey; never commit it). Optional: `GEMINI_MODEL`.
+2. **Bindings → KV namespace:** `CHAT_LIMITS` (already used for sign-in limits)
+   keeps the daily count across server instances.
+3. Redeploy. `GET /api/status` returns `"assistant": true` when it's ready.
 
 ### Publishing the sign-in fix
 

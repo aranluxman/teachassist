@@ -8,11 +8,12 @@ TA_PASSWORD = "your-password"
 # Only needed if REQUIRE_API_KEY = true in src/index.js
 API_KEY = "some-long-random-string"
 
-# Optional: AI tutor (Pages project secret). Never commit a real key.
-OPENAI_API_KEY = "sk-your-key-here"
+# Optional: AI assistant (Pages project secret). Never commit a real key.
+# Get one at https://aistudio.google.com/apikey
+GEMINI_API_KEY = "your-gemini-key-here"
 
 # Cloud saving (dreams, goals, last-known marks). Pages secrets; never commit real values.
 NEXT_PUBLIC_SUPABASE_URL = "https://hcvjiveloioftozvnbhe.supabase.co"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_..."
-# Optional: chat model (default gpt-4.1-mini)
-OPENAI_MODEL = "gpt-4.1-mini"
+# Optional: Gemini model (default gemini-2.5-flash)
+GEMINI_MODEL = "gemini-2.5-flash"

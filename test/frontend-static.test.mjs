@@ -34,12 +34,12 @@ test("app exposes PWA metadata and mobile app chrome", () => {
   assert.match(manifest.description, /TeachAssist/);
 });
 
-test("app shell includes courses, guidance, dreams, and settings tabs (no AI assistant)", () => {
+test("app shell includes courses, guidance, dreams, and settings tabs (Ask AI lives in Guidance, not a tab)", () => {
   for (const tab of ["courses", "guidance", "dreams", "settings"]) {
     assert.match(appHtml, new RegExp(`data-tab="${tab}"`));
   }
   assert.doesNotMatch(appHtml, /screen-science|data-tab="science"|renderScienceAnalytics|toScience/);
-  assert.doesNotMatch(appHtml, /data-tab="assistant"|screen-assistant|renderAssistant/);
+  assert.doesNotMatch(appHtml, /data-tab="assistant"|screen-assistant/);
   assert.match(appHtml, /renderGuidance/);
   assert.match(appHtml, /applyStoredTheme/);
 });
