@@ -198,7 +198,8 @@ routes retain their existing administrative gate.
 
 Guidance → **Ask AI** (`#guidance/assistant`) answers school questions (concepts,
 homework guidance, essays, French, study plans, courses, careers) through
-`POST /api/chat` (`worker/src/chat.js`, model `gemini-2.5-flash`).
+`POST /api/chat` (`worker/src/chat.js`, model `gemini-3.5-flash-lite`, then
+`gemini-3.8-flash` if a model is unavailable; set `GEMINI_MODEL` to override).
 
 - **What's sent:** only the chat thread (last 12 messages). Course names and marks
   are added only while the student turns on "Share my marks" (off by default,
