@@ -56,3 +56,7 @@ const sys = geminiRequest(withItems).systemInstruction.parts[0].text;
 assert.match(sys, /Biology: 81%\n    • Cell Lab \[T\]: 68%, weight 10/);
 assert.match(marksText([{ name: "Math", mark: null, items: [] }]), /no mark yet/);
 console.log("chat assessment tests passed");
+
+// Hidden reasoning from thinking models never reaches the student.
+assert.strictEqual(replyText({ candidates: [{ content: { parts: [{ thought: true, text: "secret plan" }, { text: "Answer" }] } }] }), "Answer");
+console.log("chat thought tests passed");

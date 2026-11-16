@@ -1456,7 +1456,7 @@ Use these only when relevant to the question. Point out strengths and the catego
 function replyText(data) {
   if (data?.promptFeedback?.blockReason) return null;
   const parts = data?.candidates?.[0]?.content?.parts;
-  const text2 = Array.isArray(parts) ? parts.map((p) => typeof p?.text === "string" ? p.text : "").join("").trim() : "";
+  const text2 = Array.isArray(parts) ? parts.map((p) => !p?.thought && typeof p?.text === "string" ? p.text : "").join("").trim() : "";
   return text2 || null;
 }
 var torontoDay = (now = /* @__PURE__ */ new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" }).format(now);
@@ -1484,6 +1484,14 @@ function geminiErrorMessage(status, data) {
   return `The assistant could not answer right now (Gemini ${status}${s ? ` ${s}` : ""}).`;
 }
 async function handleChat(request, env) {
+  try {
+    return await chat(request, env);
+  } catch (err) {
+    console.log("Ask AI crashed", err?.name, err?.message);
+    return json4({ error: `The assistant hit an error (${String(err?.name || "Error").slice(0, 40)}). Try again.` }, 500);
+  }
+}
+async function chat(request, env) {
   if (request.method !== "POST") return json4({ error: "Use POST." }, 405);
   if (!chatConfigured(env)) return json4({ error: "The AI assistant is not set up on this site yet.", configured: false }, 503);
   const token = request.headers.get("Authorization")?.replace(/^Bearer /, "");
@@ -1495,13 +1503,13 @@ async function handleChat(request, env) {
   } catch (err) {
     return json4({ error: err.status === 413 ? "That message is too long." : "Invalid message." }, err.status || 400);
   }
-  const chat = cleanChat(body);
-  if (!chat) return json4({ error: "Type a question first." }, 400);
-  if (isCrisis(chat.messages.at(-1).text)) return json4({ reply: CRISIS_REPLY, crisis: true });
+  const chat2 = cleanChat(body);
+  if (!chat2) return json4({ error: "Type a question first." }, 400);
+  if (isCrisis(chat2.messages.at(-1).text)) return json4({ reply: CRISIS_REPLY, crisis: true });
   const remaining = await useOne(env, session.subject);
   if (remaining == null) return json4({ error: `You've used all ${DAILY_LIMIT} questions for today. They reset at midnight.`, remaining: 0 }, 429);
   const models = modelsFor(env);
-  const payload = JSON.stringify(geminiRequest(chat));
+  const payload = JSON.stringify(geminiRequest(chat2));
   let res, data;
   for (const model of models) {
     try {
