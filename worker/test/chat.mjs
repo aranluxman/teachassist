@@ -5,7 +5,7 @@ import { cleanChat, geminiRequest, replyText, isCrisis, torontoDay } from "../sr
 const c = cleanChat({ messages: [{ role: "user", text: " hi " }, { role: "assistant", text: "Hello" }, { role: "user", text: "What is a mole?" }], marks: [{ name: "Chemistry", mark: 84.36 }, { name: "", mark: 9 }] });
 assert.strictEqual(c.messages.length, 3);
 assert.strictEqual(c.messages[0].text, "hi");
-assert.deepStrictEqual(c.marks, [{ name: "Chemistry", mark: 84.4 }]);
+assert.deepStrictEqual(c.marks, [{ name: "Chemistry", mark: 84.4, items: [] }]);
 assert.strictEqual(cleanChat({ messages: [{ role: "system", text: "x" }] }), null);
 assert.strictEqual(cleanChat({ messages: [{ role: "user", text: "q" }, { role: "assistant", text: "a" }] }), null);
 assert.strictEqual(cleanChat({ messages: [] }), null);
@@ -40,3 +40,18 @@ assert.match(geminiErrorMessage(400, { error: { message: "API key not valid. Ple
 assert.match(geminiErrorMessage(403, { error: { status: "PERMISSION_DENIED" } }), /not allowed/);
 assert.match(geminiErrorMessage(500, { error: { status: "INTERNAL" } }), /Gemini 500 INTERNAL/);
 console.log("chat model tests passed");
+
+// Shared assessments: only name/category/score/weight/date, newest 15, no comments.
+import { cleanItems, marksText } from "../src/chat.js";
+const items = cleanItems([
+  ...Array.from({ length: 20 }, (_, i) => ({ name: `Quiz ${i}`, category: "K/U", percent: 70 + i, weight: 5, date: "2026-10-01" })),
+  { name: "Lab\nReport", category: "Thinking", percent: 68, weight: 10, feedback: "secret teacher comment", teacher: "Mr. X" },
+]);
+assert.strictEqual(items.length, 15);
+assert.strictEqual(items.at(-1).name, "Lab Report");
+assert.ok(!JSON.stringify(items).includes("secret"), "teacher comments are dropped");
+const withItems = cleanChat({ messages: [{ role: "user", text: "weakest?" }], marks: [{ name: "Biology", mark: 81, items: [{ name: "Cell Lab", category: "T", percent: 68, weight: 10 }] }] });
+const sys = geminiRequest(withItems).systemInstruction.parts[0].text;
+assert.match(sys, /Biology: 81%\n    • Cell Lab \[T\]: 68%, weight 10/);
+assert.match(marksText([{ name: "Math", mark: null, items: [] }]), /no mark yet/);
+console.log("chat assessment tests passed");

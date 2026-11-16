@@ -2,7 +2,8 @@
 // Ask AI (Guidance → Ask AI, #guidance/assistant): a school-focused study
 // assistant. Questions go to this site's backend (POST /api/chat), which calls
 // Google Gemini with the key kept on the server. Only this chat thread is
-// sent, plus course marks while "Share my marks" is on (off by default).
+// sent, plus course marks and recent assessment scores (no teacher comments)
+// while "Share my marks" is on (off by default, reset by New chat).
 // The thread is kept on this device only.
 // ============================================================================
 
@@ -12,6 +13,11 @@ import { readStudentData, writeStudentData } from "./student-store.js";
 
 const KEY = "assistant";
 const MAX_KEEP = 40;
+const MARK_SUGGESTIONS = [
+  "What's my weakest category in each course?",
+  "Which assessment hurt my mark the most?",
+  "What should I focus on to raise my average?",
+];
 const SUGGESTIONS = [
   "Explain photosynthesis like I'm 12",
   "How do I write a strong thesis statement?",
@@ -57,6 +63,23 @@ export function formatReply(text) {
   return out.join("");
 }
 
+/**
+ * A course's assessments as shared with the assistant: the newest 15, with
+ * name, category, score, weight and date only. Teacher feedback stays here.
+ */
+export function shareableItems(course) {
+  const evals = Array.isArray(course?.evaluations) ? course.evaluations : [];
+  return evals.slice(-15).flatMap((e) => {
+    if (!e?.name) return [];
+    let percent = Number.isFinite(e.percent) ? e.percent : null;
+    if (percent == null && Array.isArray(e.strands)) {
+      const p = e.strands.map((s) => s?.percent).filter(Number.isFinite);
+      percent = p.length ? Math.round((p.reduce((a, b) => a + b, 0) / p.length) * 10) / 10 : null;
+    }
+    return [{ name: String(e.name).slice(0, 80), category: String(e.category || "").slice(0, 30), percent, weight: Number.isFinite(e.weight) ? e.weight : null, date: e.date || "" }];
+  });
+}
+
 /** Ask the backend. Resolves { reply, remaining } or throws an Error with a friendly message. */
 async function ask(messages, marks) {
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -92,7 +115,7 @@ export async function renderAssistant(container) {
   const state = readState();
   const app = el(`<section class="card ai-app" aria-label="AI assistant">
     <div class="ai-top">
-      <label class="ai-share"><input type="checkbox" data-share><span>Share my marks<small>Lets it tailor advice. Off by default.</small></span></label>
+      <label class="ai-share"><input type="checkbox" data-share><span>Share my marks with Gemini<small>Course marks and recent test scores (no teacher comments, name or student number). Off by default.</small></span></label>
       <button type="button" class="ai-new" data-new>New chat</button>
     </div>
     <div class="ai-log" role="log" aria-live="polite"></div>
@@ -123,7 +146,7 @@ export async function renderAssistant(container) {
     log.replaceChildren(...state.messages.map(bubble));
     if (!state.messages.length) {
       const hello = el(`<div class="ai-hello"><span class="ai-hello-icon" aria-hidden="true">${SPARK}</span><h2>What do you want to learn?</h2><p>I can explain concepts, help you plan essays, quiz you, and build study plans. I'll guide you instead of just giving answers.</p><div class="ai-chips"></div></div>`);
-      SUGGESTIONS.forEach((q) => {
+      (state.shareMarks ? [...MARK_SUGGESTIONS, ...SUGGESTIONS.slice(0, 2)] : SUGGESTIONS).forEach((q) => {
         const chip = el(`<button type="button" class="ai-chip"></button>`);
         chip.textContent = q;
         chip.onclick = () => send(q);
@@ -158,7 +181,7 @@ export async function renderAssistant(container) {
       let marks = null;
       if (state.shareMarks) {
         const courses = await getCourses().catch(() => []);
-        marks = courses.map((c) => ({ name: courseTitle(c), mark: displayMark(c) }));
+        marks = courses.map((c) => ({ name: courseTitle(c), mark: displayMark(c), items: shareableItems(c) }));
       }
       const { reply, remaining } = await ask(state.messages.slice(-12).map(({ role, text }) => ({ role, text })), marks);
       state.messages.push({ role: "assistant", text: reply });
@@ -185,7 +208,7 @@ export async function renderAssistant(container) {
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(input.value); }
   });
   app.querySelector(".ai-form").addEventListener("submit", (e) => { e.preventDefault(); send(input.value); });
-  share.onchange = () => { state.shareMarks = share.checked; saveState(state); };
+  share.onchange = () => { state.shareMarks = share.checked; saveState(state); if (!state.messages.length) draw(); };
   app.querySelector("[data-new]").onclick = () => {
     state.messages = [];
     state.shareMarks = false; // a new chat starts private again
