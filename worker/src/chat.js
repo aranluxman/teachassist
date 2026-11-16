@@ -155,8 +155,9 @@ export function geminiErrorMessage(status, data) {
   const s = data?.error?.status || '';
   const msg = data?.error?.message || '';
   if (status === 400 && /api key/i.test(msg)) return 'The AI key on this site is not valid. The site owner needs to check GEMINI_API_KEY.';
-  if (status === 403 || s === 'PERMISSION_DENIED') return 'The AI key on this site is not allowed to use Gemini. The site owner needs to check the key in Google AI Studio.';
+  // Region blocks can come back as 403 too, so check them before permissions.
   if (/location|region|country/i.test(msg)) return 'Gemini is not available from this server location right now.';
+  if (status === 403 || s === 'PERMISSION_DENIED') return 'The AI key on this site is not allowed to use Gemini. The site owner needs to check the key in Google AI Studio.';
   return `The assistant could not answer right now (Gemini ${status}${s ? ` ${s}` : ''}).`;
 }
 

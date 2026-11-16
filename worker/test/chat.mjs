@@ -39,6 +39,7 @@ assert.strictEqual(geminiRequest(c).generationConfig.temperature, undefined);
 assert.match(geminiErrorMessage(400, { error: { message: "API key not valid. Please pass a valid API key." } }), /not valid/);
 assert.match(geminiErrorMessage(403, { error: { status: "PERMISSION_DENIED" } }), /not allowed/);
 assert.match(geminiErrorMessage(500, { error: { status: "INTERNAL" } }), /Gemini 500 INTERNAL/);
+assert.match(geminiErrorMessage(403, { error: { status: "PERMISSION_DENIED", message: "User location is not supported for the API use." } }), /server location/);
 console.log("chat model tests passed");
 
 // Shared assessments: only name/category/score/weight/date, newest 15, no comments.
