@@ -16,6 +16,7 @@ import { readHistory, recordSnapshot, realMark, courseItems, diffItems, reasonPu
 import { WORKER_URL } from "./config.js";
 import { DEMO_COURSES, DEMO_SCRAPED_AT } from "./demo-data.js";
 import { readStudentData, writeStudentData } from "./student-store.js";
+import { createDeviceSignIn, encryptDeviceCredential, unlockDeviceCredential } from "./device-sign-in.js";
 
 const LS = {
   url: "ta_worker_url", // legacy custom server; cleared, never used
@@ -23,14 +24,16 @@ const LS = {
   pass: "ta_password", // legacy in localStorage; only ever kept in sessionStorage now
   cred: "ta_cred",
   demo: "ta_demo_mode",
+  protected: "ta_device_signin",
+  unlocked: "ta_device_signin_unlocked",
 };
 
 let cacheAccount = null;
 let cache = null; // last fetched courses (this page load)
 let cachedAt = null; // ISO time of the active student’s successful refresh
 let savedCopyAt = null; // set when TeachAssist had no marks and the last saved copy is shown
-let issuedCred = ""; // sealed credential from the latest successful sign-in
 let inflight = null; // the TeachAssist request in progress, shared by every screen
+let authRevision = 0;
 
 /** When the marks currently on screen were scraped (ISO string), or null. */
 export function lastSyncedAt() {
@@ -58,24 +61,108 @@ export function studentNumber() {
 function password() {
   return sessionStorage.getItem(LS.pass) || localStorage.getItem(LS.pass) || "";
 }
+function readDeviceSignIn(raw = localStorage.getItem(LS.protected)) {
+  try {
+    const record = JSON.parse(raw);
+    return record?.version === 1 && record.student && record.id && record.generation ? record : null;
+  } catch { return null; }
+}
+function activeDeviceSignIn() {
+  const record = isSharedDevice() ? null : readDeviceSignIn();
+  return record?.student === studentNumber() ? record : null;
+}
+function protectionIdentity(record) {
+  return record ? `${record.id}:${record.generation}` : "";
+}
 function sealedCred() {
+  const record = activeDeviceSignIn();
+  if (record) {
+    const prefix = `${protectionIdentity(record)}:`;
+    const unlocked = sessionStorage.getItem(LS.unlocked);
+    return unlocked?.startsWith(prefix) ? unlocked.slice(prefix.length) : "";
+  }
   return deviceStore().getItem(LS.cred) || "";
 }
 export function isLoggedIn() {
-  return isDemo() || !!(studentNumber() && (sealedCred() || password()));
+  return isDemo() || !!(studentNumber() && (sealedCred() || (!activeDeviceSignIn() && password())));
 }
-/** Keep the Worker's sealed credential; the password is never saved on the device. */
-function keepCredential(pass) {
+function storeUnlockedCredential(record, cred) {
+  sessionStorage.setItem(LS.unlocked, `${protectionIdentity(record)}:${cred}`);
+  discardUnprotectedCredentials();
+}
+function discardUnprotectedCredentials() {
   localStorage.removeItem(LS.pass);
-  if (issuedCred) {
-    deviceStore().setItem(LS.cred, issuedCred);
+  localStorage.removeItem(LS.cred);
+  sessionStorage.removeItem(LS.pass);
+}
+/** Keep the Worker's sealed credential, or the legacy backend's tab-only password. */
+function keepCredential(cred, pass) {
+  localStorage.removeItem(LS.pass);
+  if (cred) {
+    deviceStore().setItem(LS.cred, cred);
     sessionStorage.removeItem(LS.pass);
   } else if (pass) {
     // A backend that can't seal (no API_KEY) gets the password for this tab
     // only; closing the tab forgets it.
     sessionStorage.setItem(LS.pass, pass);
   }
-  issuedCred = "";
+}
+
+export function deviceSignInEnabled() {
+  return !isDemo() && !!activeDeviceSignIn();
+}
+
+export function canEnableDeviceSignIn() {
+  return !isDemo() && !isSharedDevice() && !!studentNumber() && !!sealedCred();
+}
+
+export function canUnlockDeviceSignIn() {
+  return !isDemo() && !!activeDeviceSignIn()?.box;
+}
+
+function ensureCurrent(revision, identity, student) {
+  if (revision !== authRevision || (!isSharedDevice() && identity !== protectionIdentity(readDeviceSignIn())) ||
+    (student != null && student !== studentNumber())) {
+    throw new Error("Your sign-in changed. Try again.");
+  }
+}
+
+export async function enableDeviceSignIn() {
+  if (!canEnableDeviceSignIn() || deviceSignInEnabled()) return;
+  const revision = authRevision;
+  const identity = protectionIdentity(readDeviceSignIn());
+  const student = studentNumber();
+  const cred = sealedCred();
+  let record = await createDeviceSignIn(student, cred);
+  ensureCurrent(revision, identity, student);
+  // A marks refresh may have completed while the device prompt was open.
+  const latest = sealedCred();
+  if (latest !== cred) record = { ...record, box: await encryptDeviceCredential(record, latest) };
+  ensureCurrent(revision, identity, student);
+  sessionStorage.setItem(LS.unlocked, `${protectionIdentity(record)}:${latest}`);
+  localStorage.setItem(LS.protected, JSON.stringify(record));
+  discardUnprotectedCredentials();
+  authRevision++;
+}
+
+export function disableDeviceSignIn() {
+  const cred = sealedCred();
+  if (!deviceSignInEnabled() || !cred) return;
+  keepCredential(cred);
+  localStorage.removeItem(LS.protected);
+  sessionStorage.removeItem(LS.unlocked);
+  authRevision++;
+}
+
+export function lockDeviceSignIn() {
+  const record = activeDeviceSignIn();
+  if (!record) return;
+  localStorage.setItem(LS.protected, JSON.stringify({ ...record, generation: crypto.randomUUID() }));
+  sessionStorage.removeItem(LS.unlocked);
+  sessionStorage.removeItem(`ta-session:${workerUrl()}:${studentNumber()}`);
+  authRevision++;
+  cache = null;
+  window.location.replace("index.html");
 }
 
 // ---- demo mode ---------------------------------------------------------------
@@ -85,6 +172,7 @@ export function isDemo() {
 }
 /** Enter demo mode: browse the bundled snapshot without signing in. */
 export function enterDemo() {
+  authRevision++;
   localStorage.setItem(LS.demo, "1");
   cache = DEMO_COURSES;
   cachedAt = DEMO_SCRAPED_AT;
@@ -141,6 +229,7 @@ export function overallAverage(courses) {
 }
 
 export function sessionToken() {
+  if (activeDeviceSignIn() && !sealedCred()) return "";
   return sessionStorage.getItem(`ta-session:${workerUrl()}:${studentNumber()}`) || "";
 }
 
@@ -184,11 +273,12 @@ async function postMarks(username, secret) {
   }
   if (!res.ok) throw new Error((body && body.error) || `Worker returned HTTP ${res.status}`);
   if (!Array.isArray(body)) throw new Error("Unexpected response from the Worker.");
-  savedCopyAt = res.headers.get("X-TeachAssist-Saved-At") || null;
-  issuedCred = res.headers.get("X-TeachAssist-Cred") || "";
-  const token = res.headers.get("X-TeachAssist-Session");
-  if (token) sessionStorage.setItem(`ta-session:${url}:${username}`, token);
-  return body;
+  return {
+    courses: body,
+    savedAt: res.headers.get("X-TeachAssist-Saved-At"),
+    cred: res.headers.get("X-TeachAssist-Cred") || "",
+    token: res.headers.get("X-TeachAssist-Session"),
+  };
 }
 
 export function resetSignInService() {
@@ -200,16 +290,56 @@ export function resetSignInService() {
 
 /** Sign in: validates the credentials by fetching marks, then stores them. */
 export async function login(num, pass) {
-  const courses = await postMarks(num.trim(), { password: pass });
-  deviceStore().setItem(LS.num, num.trim());
-  keepCredential(pass);
+  const username = num.trim();
+  const revision = ++authRevision;
+  const previous = isSharedDevice() ? null : readDeviceSignIn();
+  const identity = protectionIdentity(previous);
+  const result = await postMarks(username, { password: pass });
+  ensureCurrent(revision, identity);
+  if (previous?.student === username) {
+    if (!result.cred) throw new Error("The sign-in service couldn’t save a protected session. Try again later.");
+    const record = { ...previous, generation: crypto.randomUUID(), box: await encryptDeviceCredential(previous, result.cred) };
+    ensureCurrent(revision, identity);
+    localStorage.setItem(LS.protected, JSON.stringify(record));
+    storeUnlockedCredential(record, result.cred);
+  } else {
+    keepCredential(result.cred, pass);
+    if (previous) localStorage.removeItem(LS.protected);
+  }
+  deviceStore().setItem(LS.num, username);
   localStorage.removeItem(LS.demo);
-  cache = courses;
+  return acceptMarks(result);
+}
+
+/** Open the local box with the passkey, then validate it with the Worker. */
+export async function unlockDeviceSignIn() {
+  const record = activeDeviceSignIn();
+  if (!record?.box || isDemo()) throw new Error("Sign in with your TeachAssist password first.");
+  const revision = ++authRevision;
+  const identity = protectionIdentity(record);
+  const cred = await unlockDeviceCredential(record);
+  ensureCurrent(revision, identity, record.student);
+  const result = await postMarks(record.student, { cred });
+  await keepProtectedRefresh(record, result.cred, cred, revision);
+  return acceptMarks(result);
+}
+
+function acceptMarks({ courses, savedAt, token }, { refresh = false, useLastMarks = false } = {}) {
+  if (token) sessionStorage.setItem(`ta-session:${workerUrl()}:${studentNumber()}`, token);
+  savedCopyAt = savedAt;
+  cache = useLastMarks ? withLastRealMarks(courses) : courses;
   cacheAccount = `${workerUrl()}:${studentNumber()}`;
   cachedAt = savedCopyAt || new Date().toISOString();
-  if (!savedCopyAt) saveSnapshot(courses);
-  keepLastMarks(courses);
-  return courses;
+  if (!savedCopyAt) saveSnapshot(cache, { checked: refresh });
+  keepLastMarks(cache);
+  return cache;
+}
+
+async function keepProtectedRefresh(record, renewed, previous, revision) {
+  const box = renewed ? await encryptDeviceCredential(record, renewed) : record.box;
+  ensureCurrent(revision, protectionIdentity(record), record.student);
+  if (renewed) localStorage.setItem(LS.protected, JSON.stringify({ ...record, box }));
+  storeUnlockedCredential(record, renewed || previous);
 }
 
 /** Get only the active student's marks; the shared owner cache is never read. */
@@ -220,6 +350,7 @@ export async function getCourses({ refresh = false } = {}) {
     saveSnapshot(cache);
     return cache;
   }
+  if (!isLoggedIn()) throw new Error("Not signed in.");
   const account = `${workerUrl()}:${studentNumber()}`;
   if (cache && cacheAccount === account && !refresh) return cache;
   // Opening a course while the Courses screen is still loading reuses that
@@ -231,28 +362,30 @@ export async function getCourses({ refresh = false } = {}) {
 }
 
 async function fetchCourses(account, refresh) {
-  if (!isLoggedIn()) throw new Error("Not signed in.");
   // Refresh with the sealed box. A phone from before sealing still holds the
   // password: send it once, then keepCredential swaps it for a box.
-  const legacy = !sealedCred() && password();
-  let courses;
+  const revision = authRevision;
+  const student = studentNumber();
+  const record = activeDeviceSignIn();
+  const identity = protectionIdentity(readDeviceSignIn());
+  const cred = sealedCred();
+  const legacy = !cred && password();
+  let result;
   try {
-    courses = await postMarks(studentNumber(), legacy ? { password: legacy } : { cred: sealedCred() });
+    result = await postMarks(student, legacy ? { password: legacy } : { cred });
   } catch (err) {
-    if (err.code === "TA_CRED_EXPIRED" && account === `${workerUrl()}:${studentNumber()}`) signOut();
+    if (err.code === "TA_CRED_EXPIRED" && !isDemo() && revision === authRevision && account === `${workerUrl()}:${studentNumber()}` &&
+      (isSharedDevice() || identity === protectionIdentity(readDeviceSignIn()))) {
+      if (record && protectionIdentity(activeDeviceSignIn()) === protectionIdentity(record)) lockDeviceSignIn();
+      else if (!record) signOut();
+    }
     throw err;
   }
-  if (isDemo() || account !== `${workerUrl()}:${studentNumber()}`) {
-    issuedCred = "";
-    throw new Error("Your account changed. Open your courses again.");
-  }
-  keepCredential(legacy);
-  cache = withLastRealMarks(courses);
-  cacheAccount = account;
-  cachedAt = savedCopyAt || new Date().toISOString();
-  if (!savedCopyAt) saveSnapshot(cache, { checked: refresh });
-  keepLastMarks(cache);
-  return cache;
+  if (isDemo()) throw new Error("Your sign-in changed. Try again.");
+  ensureCurrent(revision, identity, student);
+  if (record) await keepProtectedRefresh(record, result.cred, cred, revision);
+  else keepCredential(result.cred, legacy);
+  return acceptMarks(result, { refresh, useLastMarks: true });
 }
 
 /**
@@ -277,7 +410,7 @@ function withLastRealMarks(courses) {
 
 /** True once this page load has live marks for the signed-in student. */
 export function hasLiveCourses() {
-  return isDemo() || (!!cache && cacheAccount === `${workerUrl()}:${studentNumber()}`);
+  return isDemo() || (isLoggedIn() && !!cache && cacheAccount === `${workerUrl()}:${studentNumber()}`);
 }
 
 // ---- last saved marks (shown instantly while TeachAssist loads) -------------
@@ -313,10 +446,16 @@ export function requireLogin() {
     window.location.replace("index.html");
     return false;
   }
+  window.addEventListener("pageshow", event => {
+    if (event.persisted && !isLoggedIn()) window.location.replace("index.html");
+  });
   return true;
 }
 
 export function signOut() {
+  authRevision++;
+  const record = readDeviceSignIn();
+  const keepSavedDeviceSignIn = record && (isSharedDevice() || isDemo());
   // Ask the server to cancel this saved login everywhere (so a copy of the box
   // stops working too). Best effort: signing out here never waits on it.
   const cred = sealedCred();
@@ -331,10 +470,14 @@ export function signOut() {
     } catch { /* offline or no fetch: the device copy is still removed below */ }
   }
   sessionStorage.removeItem(`ta-session:${workerUrl()}:${studentNumber()}`);
-  localStorage.removeItem(LS.num);
-  localStorage.removeItem(LS.pass);
+  if (!keepSavedDeviceSignIn) {
+    localStorage.removeItem(LS.protected);
+    localStorage.removeItem(LS.num);
+    localStorage.removeItem(LS.pass);
+    localStorage.removeItem(LS.cred);
+  }
+  sessionStorage.removeItem(LS.unlocked);
   sessionStorage.removeItem(LS.pass);
-  localStorage.removeItem(LS.cred);
   sessionStorage.removeItem(LS.num);
   sessionStorage.removeItem(LS.cred);
   localStorage.removeItem(LS.demo);
@@ -404,7 +547,14 @@ if (typeof window !== 'undefined') {
     // A refresh swaps in a new sealed box; only react when the account changes
     // or this device is signed out.
     const signedOut = [LS.pass, LS.cred].includes(event.key) && !isLoggedIn();
-    if ([LS.num, LS.demo, LS.url].includes(event.key) || signedOut || event.key === null) {
+    const protectionChanged = event.key === LS.protected && !isSharedDevice() && !isDemo() &&
+      protectionIdentity(readDeviceSignIn(event.oldValue)) !== protectionIdentity(readDeviceSignIn(event.newValue));
+    if (protectionChanged) {
+      sessionStorage.removeItem(LS.unlocked);
+      sessionStorage.removeItem(`ta-session:${workerUrl()}:${studentNumber()}`);
+    }
+    if ([LS.num, LS.demo, LS.url].includes(event.key) || signedOut || protectionChanged || event.key === null) {
+      authRevision++;
       cache = null;
       cachedAt = null;
       window.location.replace('index.html');

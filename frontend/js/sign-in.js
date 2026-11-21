@@ -8,7 +8,10 @@ import {
   isLoggedIn,
   enterDemo,
   resetSignInService,
+  canUnlockDeviceSignIn,
+  unlockDeviceSignIn,
 } from "./ta-client.js";
+import { deviceVerificationAvailable, deviceVerificationError } from "./device-sign-in.js";
 import { initMotion, motionEnabled, shake, replay } from "./motion.js";
 import { applyPreferences } from "./personalization.js";
 import { CONTACT_FORM_URL, CONTACT_EMAIL } from "./config.js";
@@ -136,6 +139,10 @@ const submit = document.getElementById("auth-submit");
 const label = submit.querySelector(".btn-label");
 const errorEl = document.getElementById("auth-error");
 const resetService = document.getElementById("reset-service");
+const shared = document.getElementById("shared-device");
+const passkeySignIn = document.getElementById("device-sign-in");
+const passkeyButton = document.getElementById("passkey-sign-in");
+const passkeyLabel = passkeyButton.querySelector("span");
 
 const clearError = () => {
   errorEl.textContent = "";
@@ -147,6 +154,36 @@ const fail = (message) => {
   replay(errorEl, "m-error-in");
   shake(form);
 };
+
+deviceVerificationAvailable().then(available => {
+  function updatePasskeyOption() {
+    passkeySignIn.classList.toggle("hidden", !available || shared.checked || !canUnlockDeviceSignIn());
+  }
+  shared.addEventListener("change", () => {
+    if (!shared.checked) setSharedDevice(false);
+    updatePasskeyOption();
+  });
+  updatePasskeyOption();
+});
+
+passkeyButton.addEventListener("click", async () => {
+  clearError();
+  passkeyButton.disabled = true;
+  submit.disabled = true;
+  passkeyLabel.textContent = "Verifying your device…";
+  try {
+    await unlockDeviceSignIn();
+    passkeyLabel.textContent = "Signed in ✓";
+    leaveTo("app.html");
+  } catch (error) {
+    const message = error?.code?.startsWith("TA_") && error.code !== "TA_DEVICE_UNSUPPORTED"
+      ? error.message : deviceVerificationError(error);
+    fail(`${message} You can use your TeachAssist password below.`);
+    passkeyLabel.textContent = "Sign in with a passkey";
+    passkeyButton.disabled = false;
+    submit.disabled = false;
+  }
+});
 
 function toPasswordStep() {
   form.dataset.step = "password";
@@ -186,6 +223,7 @@ resetService.addEventListener("click", () => {
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (submit.disabled) return;
   clearError();
   const num = student.value.trim();
 
@@ -198,12 +236,14 @@ form.addEventListener("submit", async (e) => {
   const pass = password.value;
   if (!pass) return fail("Enter your password.");
   submit.disabled = true;
+  passkeyButton.disabled = true;
   submit.classList.add("is-busy");
   label.textContent = "Signing in…";
   // Shared computer: this tab keeps everything, and closing it clears it all.
   setSharedDevice(document.getElementById("shared-device").checked);
   try {
     await login(num, pass);
+    password.value = "";
     submit.classList.remove("is-busy");
     submit.classList.add("is-done");
     label.textContent = "Signed in ✓";
@@ -220,6 +260,7 @@ form.addEventListener("submit", async (e) => {
     // Signed in: keep "Signed in ✓" while the page leaves.
     if (!submit.classList.contains("is-done")) {
       submit.disabled = false;
+      passkeyButton.disabled = false;
       submit.classList.remove("is-busy");
       label.textContent = "Sign in";
     }

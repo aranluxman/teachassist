@@ -33,6 +33,10 @@ source and rebuild command live in [`../worker`](../worker).
   round K/U · T · C · A · F badges that open a glass sheet with glowing strand bars
   and how much each one moved your average, a **Breakdown** tab of weighted
   per-category glass tiles (same style as the evaluation sheet), and a Teacher card.
+  Open an evaluation and tap **Upload test/quiz** to attach photos of the marked
+  paper. Open that evaluation again to review or remove its pages. Photos stay in
+  this browser, scoped to the student and evaluation. Shared-computer uploads only
+  last while the page is open.
 - **Guidance** — my school (principal, VPs, bell times, phone, website,
   official boundary map), an interactive **school map** of all 218 YRDSB
   schools, a counsellor card, an **OSSD diploma tracker**, a full **volunteer
@@ -151,10 +155,15 @@ Publish `frontend/` through the existing Cloudflare Pages configuration. The Pag
 
 ## Student sign-in and tools (v4.1)
 
-The home page asks only for a student number and password. Users do not need a
-Worker URL or API key. The default service is this website’s own origin, configured in `js/config.js`.
-Credentials remain in browser localStorage until sign-out (including for reload
-and foreground refresh); students using a shared device should sign out.
+The home page accepts a student number and password. The sign-in service runs on
+this website’s own origin. The normal saved login is a server-sealed credential.
+
+On a personal device, **Settings → Account & data → Device sign-in** lets
+students add passkey protection on browsers and authenticators that support
+WebAuthn PRF. The OS may use Touch ID, Face ID or another verification method.
+The passkey unlocks the saved login, and students can still use their school
+password. Device sign-in protects the saved login. Cached marks and assessment
+photos continue to use browser storage.
 
 Every live request posts the current student's credentials. The frontend no
 longer reads the shared owner `/api/cached` endpoint. Student POSTs do not write
