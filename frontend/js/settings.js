@@ -21,7 +21,13 @@ import {
   signOut,
   getCourses,
   isDemo,
+  canEnableDeviceSignIn,
+  deviceSignInEnabled,
+  enableDeviceSignIn,
+  disableDeviceSignIn,
+  lockDeviceSignIn,
 } from "./ta-client.js";
+import { deviceVerificationAvailable, deviceVerificationError } from "./device-sign-in.js";
 import { mountThumb, stagger } from "./motion.js";
 import { TEXT_SIZES, FONTS, preloadFonts } from "./customize.js";
 import { APPEARANCES, COLORS, applyTheme, orbFill, setTheme, themeChoice, themeLabel } from "./theme.js";
@@ -29,6 +35,7 @@ import { glassButton, pageHeader, GLYPHS, iconTile } from "./ui-kit.js";
 import { CONTACT_FORM_URL, CONTACT_EMAIL } from "./config.js";
 import { deleteCloudData } from "./cloud-store.js";
 import { forgetStudentData } from "./student-store.js";
+import { deleteEvaluationPhotos } from "./evaluation-photo-store.js";
 
 // Each settings group's heading icon, keyed by its title.
 const GROUP_ICONS = {
@@ -234,7 +241,7 @@ const PAGES = {
     ["currentTermOnly", "Current semester only", "Hide courses from other semesters"],
   ])]],
   install: ["Install the App", () => [installCard() || el(`<section class="card settings-group"><p class="group-note">TeachAssist is already installed on this device.</p></section>`)]],
-  account: ["Account & Data", () => [accountCard()]],
+  account: ["Account & Data", () => [accountCard(), ...(canEnableDeviceSignIn() ? [deviceSignInCard()] : [])]],
   help: ["Help & Legal", () => [contactCard(), legalCard()]],
 };
 export const SETTINGS_PAGES = ["theme", ...Object.keys(PAGES)];
@@ -273,6 +280,66 @@ export async function renderSettings(container) {
   );
   container.appendChild(el(MADE_BY));
   stagger(container.children);
+}
+
+function deviceSignInCard() {
+  const card = el(`<section class="card settings-group">
+    <h2>Device sign-in</h2>
+    <p class="group-note">Use a passkey with Touch ID, Face ID, or your device PIN on supported devices. You can still use your TeachAssist password.</p>
+    <div class="rows hidden" data-passkey-controls>
+      <button type="button" class="row" data-passkey-toggle>
+        ${iconTile("shield")}
+        <span class="row-main"><span class="row-title" data-passkey-label></span></span>
+      </button>
+      <button type="button" class="row hidden" data-passkey-lock>
+        ${iconTile("lock")}
+        <span class="row-main"><span class="row-title">Lock now</span></span>
+      </button>
+    </div>
+    <p class="group-note" role="status" data-passkey-status></p>
+  </section>`);
+  const controls = card.querySelector("[data-passkey-controls]");
+  const toggle = card.querySelector("[data-passkey-toggle]");
+  const label = card.querySelector("[data-passkey-label]");
+  const lock = card.querySelector("[data-passkey-lock]");
+  const status = card.querySelector("[data-passkey-status]");
+  function renderControls() {
+    const enabled = deviceSignInEnabled();
+    label.textContent = enabled ? "Turn off device sign-in" : "Set up device sign-in";
+    lock.classList.toggle("hidden", !enabled);
+  }
+
+  deviceVerificationAvailable().then(available => {
+    if (available || deviceSignInEnabled()) {
+      renderControls();
+      controls.classList.remove("hidden");
+    } else {
+      status.textContent = "Device sign-in is unavailable in this browser.";
+    }
+  });
+  toggle.addEventListener("click", async () => {
+    toggle.disabled = true;
+    lock.disabled = true;
+    status.textContent = "";
+    try {
+      if (deviceSignInEnabled()) {
+        disableDeviceSignIn();
+        status.textContent = "Device sign-in is off.";
+      } else {
+        status.textContent = "Waiting for your device…";
+        await enableDeviceSignIn();
+        status.textContent = "Device sign-in is on. Use Lock now to try it.";
+      }
+    } catch (error) {
+      status.textContent = deviceVerificationError(error);
+    } finally {
+      toggle.disabled = false;
+      lock.disabled = false;
+      renderControls();
+    }
+  });
+  lock.addEventListener("click", () => lockDeviceSignIn());
+  return card;
 }
 
 /** Account & Data: who is signed in, refresh, Sign Out, Delete my data. */
@@ -331,6 +398,7 @@ function accountCard() {
     const button = e.currentTarget;
     const note = account.querySelector(".delete-data-note");
     if (!confirm("Delete your data? This permanently removes your cloud backup (saved marks, dreams, goals and name) and everything this app saved on this device, then signs you out. Your TeachAssist account isn't affected.")) return;
+    const student = studentNumber();
     button.disabled = true;
     note.textContent = "Deleting…";
     if (!(await deleteCloudData())) {
@@ -338,8 +406,15 @@ function accountCard() {
       note.textContent = `Couldn't delete your cloud data right now. Try again, or email ${CONTACT_EMAIL}.`;
       return;
     }
-    forgetStudentData(studentNumber());
-    signOut();
+    try {
+      await deleteEvaluationPhotos({ studentNumber: student });
+    } catch {
+      button.disabled = false;
+      note.textContent = "Your cloud backup was deleted. The photos on this device could not be deleted. Try again.";
+      return;
+    }
+    forgetStudentData(student);
+    if (student === studentNumber() && !isDemo()) signOut();
   });
   return account;
 }

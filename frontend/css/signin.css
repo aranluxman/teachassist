@@ -434,6 +434,14 @@ form[data-step="password"] .btn-arrow,
   cursor: pointer;
 }
 
+#device-sign-in {
+  margin-bottom: 14px;
+}
+
+#passkey-sign-in:disabled {
+  cursor: wait;
+}
+
 .or {
   display: flex;
   align-items: center;

@@ -16,6 +16,7 @@ import { teacherFor, editTeacher } from "./teachers.js";
 import { preferences } from "./personalization.js";
 import { displayMark, markKind } from "./ta-client.js";
 import { realMark } from "./history.js";
+import { evaluationPhotos } from "./evaluation-photos.js";
 import { animateGauge, countUp, marksHidden, motionEnabled, mountThumb, previousValue, rememberValue, replay } from "./motion.js";
 
 let activeSeg = "evals";
@@ -350,7 +351,21 @@ function openEvaluation(e, evals, course) {
           : ""
       }
     </div>`);
-  openSheet(" ", body, { className: "sheet-eval", labelledBy: "ev-title" });
+  // Teachers enter their own titles and TeachAssist doesn't classify the task.
+  const photos = evaluationPhotos(course, e, evals);
+  if (photos) body.querySelector(".ev-head").after(photos.root);
+  const { close } = openSheet(" ", body, {
+    className: "sheet-eval",
+    labelledBy: "ev-title",
+    onClose() {
+      window.removeEventListener("hashchange", close);
+      window.removeEventListener("pagehide", close);
+      photos?.dispose();
+    },
+  });
+  window.addEventListener("hashchange", close);
+  window.addEventListener("pagehide", close);
+  void photos?.load();
 }
 
 /**
