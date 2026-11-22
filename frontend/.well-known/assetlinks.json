@@ -5,7 +5,10 @@
       "namespace": "android_app",
       "package_name": "ca.intelligentautomations.tadashboard",
       "sha256_cert_fingerprints": [
-        "1A:3E:3F:DF:C5:A1:1A:98:2F:5D:F9:0A:74:58:81:02:A3:22:86:F8:FA:B7:4C:89:9F:3F:4F:C3:18:D2:9D:84"
+        "1A:3E:3F:DF:C5:A1:1A:98:2F:5D:F9:0A:74:58:81:02:A3:22:86:F8:FA:B7:4C:89:9F:3F:4F:C3:18:D2:9D:84",
+        "9D:C6:41:C0:EF:95:A7:F6:41:83:21:31:76:06:C8:C9:B2:8F:01:22:99:24:5A:34:35:CE:ED:43:17:C9:FC:D8",
+        "2D:CD:BA:4E:B1:BC:9F:C5:81:D7:98:16:47:06:FC:E1:29:86:DE:67:F0:0D:FD:57:56:42:8F:0E:7D:E6:69:95",
+        "47:77:61:F1:59:A1:06:05:8D:71:AC:C5:C3:30:42:17:94:A6:71:50:F2:9B:7D:C6:3F:89:19:3C:AF:F6:25:40"
       ]
     }
   }
